@@ -1,0 +1,12 @@
+{
+  "projectId": "my-tnpa-project",
+  "appId": "1:29684796516:web:22c43098a73b42e727e371",
+  "apiKey": "AIzaSyCmoGS6J5pyTUxZt1VAWM_WNbD1bF0puJk",
+  "authDomain": "my-tnpa-project.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-pwa-83ee3210-d1c1-40db-9fca-b5dd90c3a957",
+  "storageBucket": "my-tnpa-project.firebasestorage.app",
+  "messagingSenderId": "29684796516",
+  "measurementId": "",
+  "oAuthClientId": "29684796516-0udcujrrf1qhjcnbv53mujfn9flfq2of.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
+}

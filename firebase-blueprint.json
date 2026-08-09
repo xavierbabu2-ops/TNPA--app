@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "MemberRegistration": {
+      "title": "MemberRegistration",
+      "description": "Tamil Nadu Painters and Artists Association Member Registration details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "regNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "dob": { "type": "string" },
+        "gender": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "aadhaar": { "type": "string" },
+        "state": { "type": "string" },
+        "district": { "type": "string" },
+        "taluk": { "type": "string" },
+        "villageOrTown": { "type": "string" },
+        "pinCode": { "type": "string" },
+        "address": { "type": "string" },
+        "profession": { "type": "string" },
+        "experienceYears": { "type": "number" },
+        "specialization": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "under_review", "needs_correction"] },
+        "correctionRemarks": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "fatherName", "phone", "aadhaar", "district", "address", "experienceYears", "status"]
+    },
+    "PaymentRecord": {
+      "title": "PaymentRecord",
+      "description": "Union subscription and donation payment ledger entries.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentDate": { "type": "string" },
+        "paymentType": { "type": "string", "enum": ["membership", "donation", "welfare_fund"] },
+        "paymentTypeTa": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "pending", "failed"] }
+      },
+      "required": ["id", "memberId", "memberName", "amount", "paymentDate", "paymentType", "transactionId", "status"]
+    },
+    "WelfareApplication": {
+      "title": "WelfareApplication",
+      "description": "Claims made by approved association members for government welfare assistance.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "memberPhone": { "type": "string" },
+        "schemeId": { "type": "string" },
+        "schemeTitle": { "type": "string" },
+        "schemeTitleEn": { "type": "string" },
+        "amount": { "type": "string" },
+        "appliedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "district": { "type": "string" },
+        "remarks": { "type": "string" }
+      },
+      "required": ["id", "memberId", "memberName", "memberPhone", "schemeId", "schemeTitleEn", "amount", "appliedAt", "status", "district"]
+    }
+  },
+  "firestore": {
+    "/registrations/{registrationId}": {
+      "schema": { "$ref": "#/entities/MemberRegistration" },
+      "description": "Registration database for union membership applicants."
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/PaymentRecord" },
+      "description": "Secure payment logs ledger for union subscription transactions."
+    },
+    "/welfare_applications/{welfareId}": {
+      "schema": { "$ref": "#/entities/WelfareApplication" },
+      "description": "Member applications for various government and union welfare schemes."
+    }
+  }
+}

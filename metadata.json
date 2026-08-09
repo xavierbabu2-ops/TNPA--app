@@ -1,0 +1,6 @@
+{
+  "name": "தமிழ்நாடு பெயிண்டர்கள் சங்கம் - PWA",
+  "description": "Progressive Web Application (PWA) and Digital Union Management System with Enterprise Command Center, Digital Elections, and AI Governance for the Tamil Nadu Painters & Artists Advancement Association (TNPA).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

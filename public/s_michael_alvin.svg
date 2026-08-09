@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+    <linearGradient id="ringGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97706" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <linearGradient id="skinGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4a373" />
+      <stop offset="100%" stop-color="#b07d52" />
+    </linearGradient>
+    <filter id="shadow1" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Circular frame background -->
+  <circle cx="200" cy="200" r="190" fill="url(#bgGrad1)" stroke="url(#ringGrad1)" stroke-width="7" filter="url(#shadow1)"/>
+
+  <clipPath id="circleClip1">
+    <circle cx="200" cy="200" r="184" />
+  </clipPath>
+
+  <g clip-path="url(#circleClip1)">
+    <!-- White shirt & shoulders -->
+    <path d="M 50 400 Q 110 270 200 270 Q 290 270 350 400 Z" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+    
+    <!-- White Shirt Collar -->
+    <polygon points="145,270 200,320 165,335 125,285" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    <polygon points="255,270 200,320 235,335 275,285" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    
+    <!-- Inner collar area -->
+    <polygon points="175,270 200,325 225,270" fill="#cca381"/>
+    
+    <!-- Shirt Placket & Buttons -->
+    <rect x="194" y="320" width="12" height="80" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+    <circle cx="200" cy="340" r="3" fill="#cbd5e1"/>
+    <circle cx="200" cy="370" r="3" fill="#cbd5e1"/>
+
+    <!-- Left Chest Pocket -->
+    <path d="M 250 325 L 285 325 L 285 370 L 267.5 380 L 250 370 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+
+    <!-- Neck -->
+    <rect x="162" y="200" width="76" height="75" rx="10" fill="#b07d52"/>
+
+    <!-- Ears -->
+    <ellipse cx="118" cy="175" rx="14" ry="24" fill="#b07d52"/>
+    <ellipse cx="282" cy="175" rx="14" ry="24" fill="#b07d52"/>
+
+    <!-- Face shape (S. Michael Alvin - full rounded face) -->
+    <ellipse cx="200" cy="170" rx="74" ry="82" fill="url(#skinGrad1)"/>
+
+    <!-- Black neat hair with side part -->
+    <path d="M 122 145 C 118 80, 160 58, 200 58 C 240 58, 282 80, 278 145 C 265 100, 235 72, 200 72 C 165 72, 135 100, 122 145 Z" fill="#1e293b"/>
+    <path d="M 124 135 C 130 85, 165 65, 200 70 C 235 65, 270 85, 276 135 C 262 102, 232 85, 200 85 C 168 85, 138 102, 124 135 Z" fill="#0f172a"/>
+
+    <!-- Eyebrows -->
+    <path d="M 138 142 Q 162 132 184 142" stroke="#0f172a" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+    <path d="M 216 142 Q 238 132 262 142" stroke="#0f172a" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Eyes -->
+    <ellipse cx="160" cy="156" rx="11" ry="8" fill="#ffffff"/>
+    <circle cx="160" cy="156" r="5.5" fill="#0f172a"/>
+    <circle cx="162" cy="154" r="1.5" fill="#ffffff"/>
+
+    <ellipse cx="240" cy="156" rx="11" ry="8" fill="#ffffff"/>
+    <circle cx="240" cy="156" r="5.5" fill="#0f172a"/>
+    <circle cx="242" cy="154" r="1.5" fill="#ffffff"/>
+
+    <!-- Nose -->
+    <path d="M 200 152 L 205 182 Q 200 190 195 182 Z" fill="#99633b"/>
+
+    <!-- Thick South Indian Mustache (Distinctive S. Michael Alvin feature) -->
+    <path d="M 146 195 Q 178 185 200 193 Q 222 185 254 195 Q 260 216 200 218 Q 140 216 146 195 Z" fill="#0f172a"/>
+
+    <!-- Gentle smile mouth line -->
+    <path d="M 172 225 Q 200 234 228 225" stroke="#6b3a19" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Name & Role Badge -->
+  <rect x="40" y="332" width="320" height="46" rx="23" fill="#b91c1c" stroke="#f59e0b" stroke-width="3" filter="url(#shadow1)"/>
+  <text x="200" y="352" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-weight="900" font-size="14" letter-spacing="1">S. MICHAEL ALVIN</text>
+  <text x="200" y="368" text-anchor="middle" fill="#fef08a" font-family="system-ui, sans-serif" font-weight="800" font-size="10.5" letter-spacing="0.5">STATE PRESIDENT | மாநில தலைவர்</text>
+</svg>
