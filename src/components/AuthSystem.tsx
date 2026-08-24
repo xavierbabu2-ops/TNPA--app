@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { UserAccount, UserRole } from "../types";
 import { auth } from "../lib/firebase";
+import SuperAdminOtpAuth from "./SuperAdminOtpAuth";
 
 interface AuthSystemProps {
   lang: "ta" | "en";
@@ -123,7 +124,7 @@ export default function AuthSystem({
   onLogout,
   onAddAuditLog
 }: AuthSystemProps) {
-  const [authMethod, setAuthMethod] = useState<"password" | "otp" | "biometric">("password");
+  const [authMethod, setAuthMethod] = useState<"password" | "admin_key" | "otp" | "biometric" | "superadmin_otp">("password");
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -134,6 +135,13 @@ export default function AuthSystem({
   const [infoMsg, setInfoMsg] = useState("");
   const [biometricSupport, setBiometricSupport] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // Admin 3-Factor Login States
+  const [adminUsernameInput, setAdminUsernameInput] = useState("");
+  const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [adminKeyInput, setAdminKeyInput] = useState("");
+  const [showAdminKey, setShowAdminKey] = useState(false);
+  const [isLoggingInAdmin, setIsLoggingInAdmin] = useState(false);
 
   // Server SMS OTP States for Login
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -207,6 +215,44 @@ export default function AuthSystem({
   };
 
   // Helper to parse and format error codes with exact raw Firebase details for AuthSystem
+  // Safe API fetch helper to prevent "Unexpected end of JSON input" on empty/invalid responses
+  const safeFetchJson = async (url: string, options: RequestInit) => {
+    let resp: Response;
+    try {
+      resp = await fetch(url, options);
+    } catch (netErr: any) {
+      console.error("Network fetch failure:", netErr);
+      throw new Error(lang === "ta" 
+        ? "சேவையகத்துடன் தொடர்புகொள்வதில் பிழை ஏற்பட்டது. இணைய இணைப்பை சரிபார்க்கவும்." 
+        : "Failed to connect to OTP server. Please check network connection.");
+    }
+
+    const text = await resp.text();
+    let data: any = {};
+    if (text && text.trim().length > 0) {
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        console.error("Non-JSON API response body:", text);
+        throw new Error(lang === "ta" 
+          ? "சேவையகத்திலிருந்து செல்லுபடியாகாத பதில் வந்தது. மீண்டும் முயற்சிக்கவும்." 
+          : "Invalid response received from server. Please try again.");
+      }
+    } else {
+      console.error("Empty response body received from server");
+      throw new Error(lang === "ta" 
+        ? "சேவையகத்திலிருந்து காலியான பதில் வந்தது. மீண்டும் முயற்சிக்கவும்." 
+        : "Server returned an empty response. Please try again.");
+    }
+
+    if (!resp.ok || data.success === false) {
+      const errDetail = lang === "ta" ? (data.errorTa || data.error) : (data.error || data.errorTa);
+      throw new Error(errDetail || (lang === "ta" ? "செயல்பாடு தோல்வியடைந்தது." : "Request failed."));
+    }
+
+    return data;
+  };
+
   // Server SMS OTP Dispatch (No reCAPTCHA)
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,6 +276,8 @@ export default function AuthSystem({
       tenDigit = cleanDigits.slice(2);
     } else if (cleanDigits.length === 11 && cleanDigits.startsWith("0")) {
       tenDigit = cleanDigits.slice(1);
+    } else if (cleanDigits.length > 10) {
+      tenDigit = cleanDigits.slice(-10);
     } else {
       setErrorMsg(
         lang === "ta" 
@@ -252,16 +300,11 @@ export default function AuthSystem({
     setIsSendingOtp(true);
 
     try {
-      const resp = await fetch("/api/otp/send", {
+      const data = await safeFetchJson("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: formattedPhone })
       });
-      const data = await resp.json();
-
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || (lang === "ta" ? "SMS ஓடிபி அனுப்புவதில் பிழை ஏற்பட்டது." : "Failed to dispatch SMS OTP."));
-      }
 
       setOtpSent(true);
       setOtpTimer(60);
@@ -297,27 +340,23 @@ export default function AuthSystem({
       return;
     }
 
-    const cleanDigits = emailOrPhone.replace(/\D/g, "").slice(-10);
-    const formattedPhone = `+91${cleanDigits}`;
+    const cleanDigits = emailOrPhone.replace(/\D/g, "");
+    let tenDigit = cleanDigits.length === 10 ? cleanDigits : cleanDigits.slice(-10);
+    const formattedPhone = `+91${tenDigit}`;
 
     setIsVerifyingOtp(true);
 
     try {
-      const resp = await fetch("/api/otp/verify", {
+      const data = await safeFetchJson("/api/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: formattedPhone, code: otpCode.trim() })
       });
-      const data = await resp.json();
-
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || (lang === "ta" ? "தவறான 6 இலக்க ஓடிபி எண்!" : "Incorrect 6-digit OTP code."));
-      }
 
       setIsVerifyingOtp(false);
 
       // Match user by phone digits
-      const matched = defaultAccounts.find((acc) => acc.phone.includes(cleanDigits)) || {
+      const matched = defaultAccounts.find((acc) => acc.phone.includes(tenDigit)) || {
         id: `usr_phone_${cleanDigits}`,
         role: "member" as UserRole,
         name: "உறுப்பினர் (" + cleanDigits + ")",
@@ -487,8 +526,85 @@ export default function AuthSystem({
     onAddAuditLog("Forgot Password", `Recovery token triggered for ${emailOrPhone}`);
   };
 
+  // 3-Factor Secure Admin Login Handler
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setInfoMsg("");
+
+    if (!adminUsernameInput.trim() || !adminPasswordInput.trim() || !adminKeyInput.trim()) {
+      setErrorMsg(
+        lang === "ta" 
+          ? "நிர்வாகி பெயர்/மின்னஞ்சல், கடவுச்சொல் மற்றும் அணுக்கம் சாவி சான்றிதழ்கள் மூன்றும் தேவை!" 
+          : "Admin Username/Email, Password, and Admin Access Key are all required!"
+      );
+      return;
+    }
+
+    setIsLoggingInAdmin(true);
+
+    try {
+      const data = await safeFetchJson("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usernameOrEmail: adminUsernameInput.trim(),
+          password: adminPasswordInput.trim(),
+          accessKey: adminKeyInput.trim()
+        })
+      });
+
+      setIsLoggingInAdmin(false);
+
+      if (data.success && data.user) {
+        onLogin(data.user as UserAccount);
+        onAddAuditLog(
+          "Admin 3-Factor Sign In", 
+          `Secure 3-factor login verified for admin ${data.user.adminUsername || data.user.nameEn} (${data.user.role})`
+        );
+      } else {
+        setErrorMsg(data.error || (lang === "ta" ? "உள்நுழைவு தோல்வியடைந்தது." : "Login failed."));
+      }
+    } catch (err: any) {
+      setIsLoggingInAdmin(false);
+      console.error("Admin login error:", err);
+      setErrorMsg(err.message || (lang === "ta" ? "நிர்வாகி உள்நுழைவில் பிழை ஏற்பட்டது." : "Admin login failed."));
+    }
+  };
+
   // Quick Switch logins for testing roles easily
-  const handleQuickLogin = (role: UserRole) => {
+  const handleQuickLogin = async (role: UserRole) => {
+    if (role === "super_admin" || role === "state_president" || role === "state_treasurer" || role === "district_admin") {
+      try {
+        const adminMap: Record<string, { u: string; p: string; k: string }> = {
+          super_admin: { u: "superadmin", p: "admin", k: "TNPA-KEY-SUPER-ADMIN" },
+          state_president: { u: "president", p: "president", k: "TNPA-KEY-PRES-2026" },
+          state_treasurer: { u: "treasurer", p: "treasurer", k: "TNPA-KEY-TREAS-2026" },
+          district_admin: { u: "district_chennai", p: "chennai", k: "TNPA-KEY-DIST-2026" }
+        };
+        const creds = adminMap[role];
+        if (creds) {
+          const data = await safeFetchJson("/api/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              usernameOrEmail: creds.u,
+              password: creds.p,
+              accessKey: creds.k
+            })
+          });
+
+          if (data.success && data.user) {
+            onLogin(data.user as UserAccount);
+            onAddAuditLog("Quick Role Switch", `Authenticated as role: ${role} via Fast-Pass controller.`);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Backend fast-pass fallback to local accounts:", err);
+      }
+    }
+
     const matched = defaultAccounts.find((acc) => acc.role === role);
     if (matched) {
       onLogin(matched);
@@ -528,42 +644,72 @@ export default function AuthSystem({
         {!isRegistering ? (
           <>
             {/* Nav Selection Tabs */}
-            <div className="flex bg-stone-100 p-1 rounded-xl text-xs">
+            <div className="grid grid-cols-5 gap-1 bg-stone-100 p-1 rounded-xl text-[9.5px] font-bold">
               <button
                 type="button"
                 onClick={() => {
                   setAuthMethod("password");
                   setErrorMsg("");
                 }}
-                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                className={`py-2 rounded-lg transition-all ${
                   authMethod === "password" ? "bg-white text-stone-900 shadow" : "text-stone-500"
                 }`}
               >
-                {lang === "ta" ? "கடவுச்சொல்" : "Password Login"}
+                {lang === "ta" ? "உறுப்பினர்" : "Member"}
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMethod("admin_key");
+                  setErrorMsg("");
+                }}
+                className={`py-2 rounded-lg transition-all flex items-center justify-center gap-0.5 ${
+                  authMethod === "admin_key" ? "bg-amber-500 text-stone-950 shadow font-black" : "text-amber-800"
+                }`}
+              >
+                <ShieldCheck className="w-3 h-3" />
+                <span>{lang === "ta" ? "நிர்வாகி" : "Admin"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMethod("superadmin_otp");
+                  setErrorMsg("");
+                }}
+                className={`py-2 rounded-lg transition-all flex items-center justify-center gap-0.5 ${
+                  authMethod === "superadmin_otp" ? "bg-rose-700 text-white shadow font-black" : "text-rose-700 font-bold"
+                }`}
+              >
+                <Lock className="w-3 h-3" />
+                <span>{lang === "ta" ? "சூப்பர் OTP" : "Super OTP"}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
                   setAuthMethod("otp");
                   setErrorMsg("");
                 }}
-                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                className={`py-2 rounded-lg transition-all ${
                   authMethod === "otp" ? "bg-white text-stone-900 shadow" : "text-stone-500"
                 }`}
               >
-                {lang === "ta" ? "கைபேசி OTP" : "Mobile OTP"}
+                {lang === "ta" ? "OTP" : "SMS OTP"}
               </button>
+
               <button
                 type="button"
                 onClick={() => {
                   setAuthMethod("biometric");
                   setErrorMsg("");
                 }}
-                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                className={`py-2 rounded-lg transition-all ${
                   authMethod === "biometric" ? "bg-white text-stone-900 shadow" : "text-stone-500"
                 }`}
               >
-                {lang === "ta" ? "பயோமெட்ரிக்" : "Biometrics"}
+                {lang === "ta" ? "பயோ" : "Passkey"}
               </button>
             </div>
 
@@ -580,7 +726,7 @@ export default function AuthSystem({
                       required
                       value={emailOrPhone}
                       onChange={(e) => setEmailOrPhone(e.target.value)}
-                      placeholder="admin@tnpainters.org"
+                      placeholder="member@tnpainters.org"
                       className="w-full pl-9 pr-4 py-2.5 border border-stone-200 rounded-xl bg-stone-50 text-stone-800"
                     />
                     <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
@@ -628,6 +774,122 @@ export default function AuthSystem({
                   {lang === "ta" ? "உள்நுழைக" : "Sign In with Credentials"}
                 </button>
               </form>
+            )}
+
+            {/* ADMIN 3-FACTOR PORTAL LOGIN METHOD */}
+            {authMethod === "admin_key" && (
+              <form onSubmit={handleAdminLogin} className="space-y-3.5 text-xs">
+                <div className="bg-amber-50 border border-amber-200/80 p-2.5 rounded-xl text-[10.5px] text-amber-900 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p>
+                    {lang === "ta" 
+                      ? "நிர்வாகி அணுகல் போர்ட்டலுக்கு 3 அடுக்கு பாதுகாப்பு சான்றுகள் தேவை: நிர்வாகி ஐடி, கடவுச்சொல் மற்றும் நிர்வாகி அணுக்கம் சாவி."
+                      : "Admin Portal requires 3-Factor Verification: Admin ID, Password, and PBKDF2 Hashed Admin Access Key."}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">
+                    {lang === "ta" ? "நிர்வாகி பெயர் / ஐடி" : "Admin ID / Username"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={adminUsernameInput}
+                      onChange={(e) => setAdminUsernameInput(e.target.value)}
+                      placeholder="superadmin / president"
+                      className="w-full pl-9 pr-4 py-2 border border-stone-200 rounded-xl bg-stone-50 text-stone-900 font-mono"
+                    />
+                    <User className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">
+                    {lang === "ta" ? "கடவுச்சொல் (Password)" : "Password"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={adminPasswordInput}
+                      onChange={(e) => setAdminPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-9 py-2 border border-stone-200 rounded-xl bg-stone-50 text-stone-900"
+                    />
+                    <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">
+                    {lang === "ta" ? "நிர்வாகி அணுக்கம் சாவி (Admin Access Key)" : "Admin Access Key (TNPA-KEY-****)"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showAdminKey ? "text" : "password"}
+                      required
+                      value={adminKeyInput}
+                      onChange={(e) => setAdminKeyInput(e.target.value)}
+                      placeholder="TNPA-KEY-SUPER-ADMIN"
+                      className="w-full pl-9 pr-9 py-2 border border-amber-300 rounded-xl bg-amber-50/50 text-stone-900 font-mono tracking-wide"
+                    />
+                    <Key className="w-4 h-4 text-amber-600 absolute left-3 top-2.5" />
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminKey(!showAdminKey)}
+                      className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-600"
+                    >
+                      {showAdminKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoggingInAdmin}
+                  className="w-full py-3 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-500 text-white font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isLoggingInAdmin ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>{lang === "ta" ? "சரிபார்க்கிறது..." : "Verifying 3-Factor Keys..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-amber-400" />
+                      <span>{lang === "ta" ? "3-அடுக்கு நிர்வாகி உள்நுழைவு" : "Secure 3-Factor Admin Login"}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* SUPER ADMIN OTP AUTHENTICATION METHOD */}
+            {authMethod === "superadmin_otp" && (
+              <div className="py-2">
+                <SuperAdminOtpAuth
+                  lang={lang}
+                  onSuccess={(verifiedUser, token) => {
+                    onLogin(verifiedUser);
+                    onAddAuditLog(
+                      "Super Admin OTP Login",
+                      `Super Admin verified via Zero-Cost OTP engine: ${verifiedUser.nameEn || verifiedUser.name} (${verifiedUser.phone || "Admin"})`
+                    );
+                  }}
+                  onAddAuditLog={onAddAuditLog}
+                  requiredForTitle="Super Admin Security Clearance"
+                  requiredForTitleTa="சூப்பர் அட்மின் உயர் பாதுகாப்பு சரிபார்ப்பு"
+                />
+              </div>
             )}
 
             {/* OTP LOGIN METHOD */}

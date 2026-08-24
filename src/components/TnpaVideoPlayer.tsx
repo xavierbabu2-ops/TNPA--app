@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   CheckCircle2
 } from "lucide-react";
+import { addBreadcrumb, executeSelfHealing } from "../utils/selfHealing";
 
 interface TnpaVideoPlayerProps {
   src?: string; // Video URL or HLS / YouTube link
@@ -77,6 +78,7 @@ export default function TnpaVideoPlayer({
         hls.on(Hls.Events.ERROR, (_event, data) => {
           console.warn("HLS Stream Error:", data);
           if (data.fatal) {
+            addBreadcrumb("media", `HLS fatal stream error: ${data.type} (${data.details})`);
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 hls?.startLoad();
@@ -88,6 +90,11 @@ export default function TnpaVideoPlayer({
                 hls?.destroy();
                 setHasError(true);
                 setIsLoading(false);
+                executeSelfHealing(
+                  `Live TV Stream Offline: ${data.details || data.type}`,
+                  "TnpaVideoPlayer",
+                  { streamUrl: src, fatal: true }
+                ).catch(() => {});
                 break;
             }
           }

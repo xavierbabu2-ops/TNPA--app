@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import SuperAdminWhatsAppConsole from "./SuperAdminWhatsAppConsole";
 import {
   ShieldAlert,
   Users,
@@ -40,7 +41,11 @@ import {
   Unlock,
   Settings,
   Key,
-  Globe
+  Globe,
+  MessageSquare,
+  Tv,
+  Film,
+  Edit3
 } from "lucide-react";
 import { UserAccount } from "../types";
 
@@ -136,7 +141,153 @@ export default function SuperAdminBusinessConsole({
   const isSuperAdmin = currentUser?.role === "super_admin";
 
   // --- VERSION 14.0 SECURE ADMINISTRATION STATES ---
-  const [secSubTab, setSecSubTab] = useState<"telemetry" | "admins" | "policies" | "ledger" | "firebase" | "disaster">("telemetry");
+  const [secSubTab, setSecSubTab] = useState<"telemetry" | "admins" | "policies" | "ledger" | "firebase" | "disaster" | "tv_media">("telemetry");
+
+  // --- TNPA2 TV MEDIA STUDIO MANAGEMENT STATES (SUPER ADMIN ONLY) ---
+  const defaultTvMedia = [
+    {
+      id: "v1",
+      title: "மாநில பேரவைக் கூட்டம் 2026 - தலைவர்கள் சிறப்பு உரை",
+      titleEn: "State General Council 2026 - Executive Keynote Addresses",
+      duration: "42:15",
+      views: "18.5K",
+      date: "3 நாட்கள் முன்பு",
+      category: "மாநாடு",
+      thumbnailColor: "from-amber-700 to-rose-900",
+      speaker: "S. மைக்கேல் ஆல்வின் & ரா. சேவியர் பாபு",
+      videoUrl: ""
+    },
+    {
+      id: "v2",
+      title: "பெயிண்டர் நலவாரிய அடையாள அட்டை பெறும் எளிய வழிமுறைகள்",
+      titleEn: "Easy Steps to Apply for Construction Welfare Board ID Card",
+      duration: "18:40",
+      views: "34.2K",
+      date: "1 வாரம் முன்பு",
+      category: "பயிற்சி",
+      thumbnailColor: "from-[#b91c1c] to-stone-900",
+      speaker: "R. சக்திவேல் (மாநில பொருளாளர்)",
+      videoUrl: ""
+    },
+    {
+      id: "v3",
+      title: "உயர் கட்டடங்களில் பெயிண்டிங் செய்யும்போது பின்பற்ற வேண்டிய பாதுகாப்பு முறைகள்",
+      titleEn: "Safety & Harness Guidelines for High-Rise Painting Workers",
+      duration: "25:10",
+      views: "12.8K",
+      date: "2 வாரங்கள் முன்பு",
+      category: "பாதுகாப்பு",
+      thumbnailColor: "from-blue-800 to-indigo-950",
+      speaker: "பாதுகாப்புப் பிரிவு",
+      videoUrl: ""
+    },
+    {
+      id: "v4",
+      title: "மதுரை & கோவை மாவட்ட மாபெரும் பெயிண்டர்கள் விழிப்புணர்வு பேரணி",
+      titleEn: "Madurai & Coimbatore Painters Mega Awareness Rally",
+      duration: "31:05",
+      views: "22.1K",
+      date: "3 வாரங்கள் முன்பு",
+      category: "பேரணி",
+      thumbnailColor: "from-emerald-700 to-stone-900",
+      speaker: "மாவட்ட செயலாளர்கள்",
+      videoUrl: ""
+    }
+  ];
+
+  const [tvMediaItems, setTvMediaItems] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("tnpa2_tv_custom_media");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultTvMedia;
+  });
+
+  const [showTvModal, setShowTvModal] = useState(false);
+  const [editingTvItem, setEditingTvItem] = useState<any | null>(null);
+  const [tvTitleTa, setTvTitleTa] = useState("");
+  const [tvTitleEn, setTvTitleEn] = useState("");
+  const [tvCategory, setTvCategory] = useState("செய்திகள்");
+  const [tvDuration, setTvDuration] = useState("15:00");
+  const [tvSpeaker, setTvSpeaker] = useState("");
+  const [tvVideoUrl, setTvVideoUrl] = useState("");
+
+  const saveTvMediaToStorage = (updatedList: any[]) => {
+    setTvMediaItems(updatedList);
+    localStorage.setItem("tnpa2_tv_custom_media", JSON.stringify(updatedList));
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new CustomEvent("tnpa_tv_media_updated", { detail: updatedList }));
+  };
+
+  const handleSaveTvMedia = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperAdmin) {
+      alert("Super Admin permission required.");
+      return;
+    }
+    if (editingTvItem) {
+      const updated = tvMediaItems.map(item => item.id === editingTvItem.id ? {
+        ...item,
+        title: tvTitleTa || item.title,
+        titleEn: tvTitleEn || item.titleEn,
+        category: tvCategory || item.category,
+        duration: tvDuration || item.duration,
+        speaker: tvSpeaker || item.speaker,
+        videoUrl: tvVideoUrl
+      } : item);
+      saveTvMediaToStorage(updated);
+      onAddAuditLog("Super Admin TV Media Edit", `Updated TV video: ${tvTitleTa}`);
+    } else {
+      const newItem = {
+        id: `tv_${Date.now()}`,
+        title: tvTitleTa || "புதிய தொலைக்காட்சி காணொளி",
+        titleEn: tvTitleEn || "New Broadcast Video",
+        duration: tvDuration || "15:00",
+        views: "1.2K",
+        date: "இப்போது",
+        category: tvCategory,
+        thumbnailColor: "from-[#b91c1c] to-amber-900",
+        speaker: tvSpeaker || "TNPA² Media Desk",
+        videoUrl: tvVideoUrl
+      };
+      saveTvMediaToStorage([newItem, ...tvMediaItems]);
+      onAddAuditLog("Super Admin TV Media Upload", `Uploaded new TV video: ${tvTitleTa}`);
+    }
+    setShowTvModal(false);
+    setEditingTvItem(null);
+    setTvTitleTa("");
+    setTvTitleEn("");
+    setTvSpeaker("");
+    setTvVideoUrl("");
+  };
+
+  const handleDeleteTvMedia = (id: string, title: string) => {
+    if (!isSuperAdmin) {
+      alert("Super Admin permission required.");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete TV media: "${title}"?`)) {
+      const updated = tvMediaItems.filter(item => item.id !== id);
+      saveTvMediaToStorage(updated);
+      onAddAuditLog("Super Admin TV Media Delete", `Deleted TV video: ${title}`);
+    }
+  };
+
+  const openEditTvMedia = (item: any) => {
+    setEditingTvItem(item);
+    setTvTitleTa(item.title);
+    setTvTitleEn(item.titleEn);
+    setTvCategory(item.category);
+    setTvDuration(item.duration);
+    setTvSpeaker(item.speaker || "");
+    setTvVideoUrl(item.videoUrl || "");
+    setShowTvModal(true);
+  };
 
   // Simulated administrators list
   const [adminAccounts, setAdminAccounts] = useState<any[]>([
@@ -251,6 +402,9 @@ export default function SuperAdminBusinessConsole({
   });
 
   // Admin creator form states
+  const [createAdminUsername, setCreateAdminUsername] = useState("");
+  const [createAdminPassword, setCreateAdminPassword] = useState("");
+  const [createAdminAccessKey, setCreateAdminAccessKey] = useState("");
   const [createAdminName, setCreateAdminName] = useState("");
   const [createAdminNameEn, setCreateAdminNameEn] = useState("");
   const [createAdminEmail, setCreateAdminEmail] = useState("");
@@ -791,62 +945,159 @@ export default function SuperAdminBusinessConsole({
     alert("Export successful! File downloading...");
   };
 
+  // Fetch real admin accounts and audit logs from backend API
+  const refreshAdminAccounts = async () => {
+    try {
+      const resp = await fetch("/api/admin/accounts");
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && Array.isArray(data.admins)) {
+          setAdminAccounts(data.admins);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin accounts from backend API:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    refreshAdminAccounts();
+  }, []);
+
   // --- VERSION 14.0 SECURE ADMINISTRATION ACTIONS ---
-  const handleCreateAdmin = (e: React.FormEvent) => {
+  const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createAdminName.trim() || !createAdminEmail.trim() || !createAdminPhone.trim()) {
-      alert("Please fill out all required fields.");
+    if (!createAdminName.trim() || !createAdminEmail.trim() || !createAdminPhone.trim() || !createAdminUsername.trim()) {
+      alert("Please fill out all required fields including Admin Username.");
       return;
     }
-    const newAdmin = {
-      id: `adm_${Date.now()}`,
-      name: createAdminName,
-      nameEn: createAdminNameEn || createAdminName,
-      email: createAdminEmail,
-      phone: createAdminPhone,
-      role: createAdminRole,
-      district: createAdminDistrict,
-      status: "Active",
-      joinedAt: new Date().toISOString().split("T")[0],
-      lastLogin: "Never",
-      devicesCount: 1,
-      suspiciousLogins: 0,
-    };
-    setAdminAccounts(prev => [...prev, newAdmin]);
-    addBusLog("Administrator Created", `Super Admin created a new account for ${newAdmin.nameEn} as ${newAdmin.role}`);
-    
-    // reset form
-    setCreateAdminName("");
-    setCreateAdminNameEn("");
-    setCreateAdminEmail("");
-    setCreateAdminPhone("");
-    alert("Administrator created successfully!");
-  };
 
-  const toggleAdminStatus = (id: string) => {
-    setAdminAccounts(prev => prev.map(adm => {
-      if (adm.id === id) {
-        const nextStatus = adm.status === "Active" ? "Suspended" : "Active";
-        addBusLog(`Account ${nextStatus}`, `Administrator ${adm.nameEn} status toggled to ${nextStatus}`);
-        return { ...adm, status: nextStatus };
+    try {
+      const resp = await fetch("/api/admin/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminUsername: createAdminUsername.trim(),
+          password: createAdminPassword.trim() || undefined,
+          accessKey: createAdminAccessKey.trim() || undefined,
+          role: createAdminRole,
+          name: createAdminName.trim(),
+          nameEn: createAdminNameEn.trim() || createAdminName.trim(),
+          email: createAdminEmail.trim(),
+          phone: createAdminPhone.trim(),
+          district: createAdminDistrict,
+          permissions: permissionsMatrix[createAdminRole] || {
+            view: true, create: true, edit: true, delete: false, approve: true, reject: true, export: true, print: true, share: true, manage: false
+          }
+        })
+      });
+
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        addBusLog("Administrator Provisioned", `Super Admin provisioned account for ${data.admin.nameEn} (${data.admin.adminUsername})`);
+        alert(`Admin Account Created Successfully!\n\nUsername: ${data.credentials.adminUsername}\nGenerated Password: ${data.credentials.generatedPassword}\nGenerated Access Key: ${data.credentials.generatedAccessKey}\n\nPlease copy these credentials securely.`);
+        setCreateAdminUsername("");
+        setCreateAdminPassword("");
+        setCreateAdminAccessKey("");
+        setCreateAdminName("");
+        setCreateAdminNameEn("");
+        setCreateAdminEmail("");
+        setCreateAdminPhone("");
+        refreshAdminAccounts();
+      } else {
+        alert(data.error || "Failed to create administrator account.");
       }
-      return adm;
-    }));
-  };
-
-  const deleteAdminAccount = (id: string) => {
-    const target = adminAccounts.find(adm => adm.id === id);
-    if (!target) return;
-    if (confirm(`Are you sure you want to permanently delete administrator ${target.nameEn}?`)) {
-      setAdminAccounts(prev => prev.filter(adm => adm.id !== id));
-      addBusLog("Administrator Deleted", `Super Admin permanently deleted the account of ${target.nameEn}`);
-      alert("Administrator deleted successfully.");
+    } catch (err: any) {
+      console.error("Error creating admin account:", err);
+      alert(err.message || "Failed to connect to server.");
     }
   };
 
-  const resetAdminPassword = (nameEn: string) => {
-    addBusLog("Password Reset Triggered", `Super Admin initiated a secure OTP-verified password reset link for ${nameEn}`);
-    alert(`Secure OTP-verified password reset link sent to ${nameEn}'s registered email.`);
+  const toggleAdminStatus = async (id: string) => {
+    const target = adminAccounts.find(a => a.id === id);
+    if (!target) return;
+    const nextStatus = target.status === "Active" || target.status === "active" ? "Suspended" : "Active";
+
+    try {
+      const resp = await fetch(`/api/admin/accounts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        addBusLog(`Account ${nextStatus}`, `Administrator ${target.nameEn || target.adminUsername} status set to ${nextStatus}`);
+        refreshAdminAccounts();
+      } else {
+        alert(data.error || "Failed to update admin status.");
+      }
+    } catch (err: any) {
+      console.error("Error updating admin status:", err);
+      alert(err.message || "Failed to connect to server.");
+    }
+  };
+
+  const deleteAdminAccount = async (id: string) => {
+    const target = adminAccounts.find(adm => adm.id === id);
+    if (!target) return;
+    if (confirm(`Are you sure you want to permanently delete administrator ${target.nameEn || target.adminUsername}?`)) {
+      try {
+        const resp = await fetch(`/api/admin/accounts/${id}`, { method: "DELETE" });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          addBusLog("Administrator Deleted", `Super Admin permanently deleted the account of ${target.nameEn || target.adminUsername}`);
+          alert("Administrator deleted successfully.");
+          refreshAdminAccounts();
+        } else {
+          alert(data.error || "Failed to delete administrator.");
+        }
+      } catch (err: any) {
+        console.error("Error deleting admin:", err);
+        alert(err.message || "Failed to delete administrator.");
+      }
+    }
+  };
+
+  const resetAdminPassword = async (adminId: string, nameEn: string) => {
+    try {
+      const resp = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        addBusLog("Password Reset Executed", `Super Admin reset password for ${nameEn} (${adminId})`);
+        alert(`New Password Generated for ${nameEn}:\n\n${data.newPassword}\n\nPlease share this password with the administrator securely.`);
+        refreshAdminAccounts();
+      } else {
+        alert(data.error || "Failed to reset password.");
+      }
+    } catch (err: any) {
+      console.error("Error resetting password:", err);
+      alert(err.message || "Failed to connect to server.");
+    }
+  };
+
+  const regenerateAccessKey = async (adminId: string, nameEn: string) => {
+    try {
+      const resp = await fetch("/api/admin/regenerate-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        addBusLog("Access Key Regenerated", `Super Admin regenerated access key for ${nameEn} (${adminId})`);
+        alert(`New Admin Access Key Generated for ${nameEn}:\n\n${data.newAccessKey}\n\nPlease share this Access Key with the administrator securely.`);
+        refreshAdminAccounts();
+      } else {
+        alert(data.error || "Failed to regenerate access key.");
+      }
+    } catch (err: any) {
+      console.error("Error regenerating access key:", err);
+      alert(err.message || "Failed to connect to server.");
+    }
   };
 
   const handleCreateCustomRole = (e: React.FormEvent) => {
@@ -868,19 +1119,34 @@ export default function SuperAdminBusinessConsole({
     alert(`Custom role '${roleName}' has been added and mapped to default read-only permissions.`);
   };
 
-  const togglePermission = (role: string, permission: string) => {
-    setPermissionsMatrix(prev => {
-      const currentRolePerms = prev[role] || { view: true };
-      const updatedPerms = {
-        ...currentRolePerms,
-        [permission]: !currentRolePerms[permission]
-      };
-      addBusLog("Permissions Adjusted", `Modified '${permission}' permission for role: ${role} to ${updatedPerms[permission]}`);
-      return {
-        ...prev,
-        [role]: updatedPerms
-      };
-    });
+  const togglePermission = async (role: string, permission: string) => {
+    const currentRolePerms = permissionsMatrix[role] || { view: true };
+    const updatedPerms = {
+      ...currentRolePerms,
+      [permission]: !currentRolePerms[permission]
+    };
+
+    setPermissionsMatrix(prev => ({
+      ...prev,
+      [role]: updatedPerms
+    }));
+
+    addBusLog("Permissions Adjusted", `Modified '${permission}' permission for role: ${role} to ${updatedPerms[permission]}`);
+
+    // Sync updated permissions to matching admins in backend
+    const matchingAdmins = adminAccounts.filter(a => a.role === role);
+    for (const adm of matchingAdmins) {
+      try {
+        await fetch(`/api/admin/accounts/${adm.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ permissions: updatedPerms })
+        });
+      } catch (err) {
+        console.warn(`Failed to update permissions for admin ${adm.id}:`, err);
+      }
+    }
+    refreshAdminAccounts();
   };
 
   const resolveSecurityAlert = (id: string) => {
@@ -1067,6 +1333,7 @@ service cloud.firestore {
           { id: "tenders", label: "டெண்டர்கள்", labelEn: "Tender Tracking", icon: <FileText className="w-3.5 h-3.5" /> },
           { id: "awards", label: "விருதுகள் & சான்றிதழ்", labelEn: "Awards Registry", icon: <Award className="w-3.5 h-3.5 text-amber-600" /> },
           { id: "notifications", label: "ஸ்மார்ட் அறிவிப்புகள்", labelEn: "Notification Center", icon: <Bell className="w-3.5 h-3.5" /> },
+          { id: "whatsapp_groups", label: "WhatsApp குழுக்கள்", labelEn: "WhatsApp Groups", icon: <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> },
           { id: "ai_advisor", label: "AI வணிக ஆலோசகர்", labelEn: "AI Strategy Suite", icon: <Cpu className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> },
           { id: "security", label: "பாதுகாப்பு & விதிகள்", labelEn: "Security & Logs", icon: <Lock className="w-3.5 h-3.5" /> }
         ].map((subTab) => (
@@ -2153,6 +2420,7 @@ service cloud.firestore {
               {/* Sub navigation within Security tab */}
               <div className="flex flex-wrap gap-1.5 bg-stone-950 p-1.5 rounded-xl border border-stone-800 select-none">
                 {[
+                  { id: "tv_media", label: "டிவி மீடியா மேலாண்மை", labelEn: "TNPA² TV Media Studio", icon: <Tv className="w-3.5 h-3.5" /> },
                   { id: "telemetry", label: "அலர்ட் & அளவீடுகள்", labelEn: "Alerts & Telemetry", icon: <Activity className="w-3.5 h-3.5" /> },
                   { id: "admins", label: "நிர்வாகிகள் & பாத்திரங்கள்", labelEn: "Admins & Roles", icon: <Users className="w-3.5 h-3.5" /> },
                   { id: "policies", label: "பாதுகாப்புக் கொள்கைகள்", labelEn: "Security Policies", icon: <Sliders className="w-3.5 h-3.5" /> },
@@ -2178,6 +2446,230 @@ service cloud.firestore {
                 ))}
               </div>
             </div>
+
+            {/* SUB-TAB: TNPA2 TV MEDIA STUDIO (SUPER ADMIN EXCLUSIVE) */}
+            {secSubTab === "tv_media" && (
+              <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+                  <div>
+                    <div className="flex items-center gap-2 text-[#b91c1c] mb-1">
+                      <Tv className="w-5 h-5" />
+                      <h4 className="text-base font-black text-stone-900">
+                        {lang === "ta" ? "TNPA² டிவி சேனல் மீடியா மற்றும் காணொளி மேலாண்மை" : "TNPA² TV Channel Media & Video Manager"}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-stone-500">
+                      {lang === "ta" 
+                        ? "சூப்பர் அட்மின் பிரத்தியேகக் கட்டுப்பாடு: TNPA² டிவி சேனலின் அனைத்து காணொளிகளையும் பதிவேற்றவும், திருத்தவும், நீக்கவும். மாற்றங்கள் அனைத்து மாவட்ட உறுப்பினர்களுக்கும் உடனடியாக நிகழ்நேரத்தில் (Real-time) ஒத்திசைக்கப்படும்." 
+                        : "Super Admin Exclusive: Upload, edit, and delete videos for the TNPA² TV channel. Changes instantly propagate in real-time to all users across all districts."}
+                    </p>
+                  </div>
+                  {isSuperAdmin ? (
+                    <button
+                      onClick={() => {
+                        setEditingTvItem(null);
+                        setTvTitleTa("");
+                        setTvTitleEn("");
+                        setTvSpeaker("");
+                        setTvVideoUrl("");
+                        setShowTvModal(true);
+                      }}
+                      className="px-4 py-2.5 bg-[#b91c1c] hover:bg-red-800 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>{lang === "ta" ? "புதிய காணொளி பதிவேற்று" : "Upload New Video"}</span>
+                    </button>
+                  ) : (
+                    <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-bold">
+                      🔒 Super Admin Access Required
+                    </div>
+                  )}
+                </div>
+
+                {/* Videos Table / Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {tvMediaItems.map((item) => (
+                    <div key={item.id} className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4 hover:border-stone-300 transition-all">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.thumbnailColor || 'from-[#b91c1c] to-stone-900'} flex items-center justify-center text-white shrink-0 shadow-inner`}>
+                            <Film className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <span className="inline-block px-2 py-0.5 bg-stone-100 text-stone-700 text-[10px] font-bold rounded-md mb-1">
+                              {item.category} • {item.duration}
+                            </span>
+                            <h5 className="text-xs font-black text-stone-900 leading-tight">
+                              {lang === "ta" ? item.title : item.titleEn}
+                            </h5>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-stone-500 space-y-1 pt-2 border-t border-stone-100">
+                        <div className="flex justify-between">
+                          <span>பேச்சாளர் / Presenter:</span>
+                          <strong className="text-stone-800">{item.speaker || "TNPA² Desk"}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>பார்வையாளர்கள் / Views:</span>
+                          <strong className="text-stone-800">{item.views} ({item.date})</strong>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        {isSuperAdmin ? (
+                          <>
+                            <button
+                              onClick={() => openEditTvMedia(item)}
+                              className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>{lang === "ta" ? "திருத்து" : "Edit"}</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTvMedia(item.id, item.title)}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{lang === "ta" ? "நீக்கு" : "Delete"}</span>
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-stone-400 italic">Super Admin only control</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Upload / Edit Modal */}
+                {showTvModal && (
+                  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+                    <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-stone-200 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="flex justify-between items-center border-b border-stone-100 pb-4">
+                        <div className="flex items-center gap-2">
+                          <Tv className="w-5 h-5 text-[#b91c1c]" />
+                          <h3 className="text-base font-black text-stone-900">
+                            {editingTvItem ? (lang === "ta" ? "டிவி காணொளியைத் திருத்து" : "Edit TV Media") : (lang === "ta" ? "புதிய டிவி காணொளி பதிவேற்று" : "Upload TV Media")}
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => setShowTvModal(false)}
+                          className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 hover:bg-stone-200 cursor-pointer font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleSaveTvMedia} className="space-y-4 text-xs font-semibold text-stone-700">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-stone-600">
+                            {lang === "ta" ? "காணொளி தலைப்பு (தமிழ்)" : "Video Title (Tamil)"}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={tvTitleTa}
+                            onChange={(e) => setTvTitleTa(e.target.value)}
+                            placeholder="எ.கா: மாநில பேரவைக் கூட்டம் சிறப்பு உரை..."
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#b91c1c] text-xs font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-stone-600">
+                            {lang === "ta" ? "காணொளி தலைப்பு (ஆங்கிலம்)" : "Video Title (English)"}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={tvTitleEn}
+                            onChange={(e) => setTvTitleEn(e.target.value)}
+                            placeholder="e.g. State General Council Keynote Address..."
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#b91c1c] text-xs font-medium"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-stone-600">
+                              {lang === "ta" ? "பிரிவு / Category" : "Category"}
+                            </label>
+                            <select
+                              value={tvCategory}
+                              onChange={(e) => setTvCategory(e.target.value)}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#b91c1c] text-xs font-medium bg-white"
+                            >
+                              <option value="செய்திகள்">செய்திகள் (News)</option>
+                              <option value="நலவாரியம்">நலவாரியம் (Welfare)</option>
+                              <option value="உரை">உரை (Speech)</option>
+                              <option value="பயிற்சி">பயிற்சி (Training)</option>
+                              <option value="பேரணி">பேரணி (Rally)</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-stone-600">
+                              {lang === "ta" ? "கால அளவு / Duration" : "Duration"}
+                            </label>
+                            <input
+                              type="text"
+                              value={tvDuration}
+                              onChange={(e) => setTvDuration(e.target.value)}
+                              placeholder="15:30"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#b91c1c] text-xs font-medium"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-stone-600">
+                            {lang === "ta" ? "பேச்சாளர் / Presenter" : "Speaker / Presenter"}
+                          </label>
+                          <input
+                            type="text"
+                            value={tvSpeaker}
+                            onChange={(e) => setTvSpeaker(e.target.value)}
+                            placeholder="எ.கா: S. மைக்கேல் ஆல்வின்"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#b91c1c] text-xs font-medium"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-stone-600">
+                            {lang === "ta" ? "காணொளி இணைப்பு (YouTube / MP4 / HLS URL)" : "Video URL / YouTube Embed URL"}
+                          </label>
+                          <input
+                            type="text"
+                            value={tvVideoUrl}
+                            onChange={(e) => setTvVideoUrl(e.target.value)}
+                            placeholder="https://www.youtube.com/embed/..."
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#b91c1c] text-xs font-medium"
+                          />
+                        </div>
+
+                        <div className="pt-4 flex justify-end gap-3 border-t border-stone-100">
+                          <button
+                            type="button"
+                            onClick={() => setShowTvModal(false)}
+                            className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
+                          >
+                            {lang === "ta" ? "ரத்து செய்" : "Cancel"}
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-5 py-2.5 bg-[#b91c1c] hover:bg-red-800 text-white rounded-xl text-xs font-black cursor-pointer shadow-sm"
+                          >
+                            {editingTvItem ? (lang === "ta" ? "புதுப்பி" : "Update Media") : (lang === "ta" ? "பதிவேற்று & ஒளிபரப்பு" : "Upload & Broadcast")}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* SUB-TAB 1: TELEMETRY & THREAT ALERTS */}
             {secSubTab === "telemetry" && (
@@ -2413,68 +2905,90 @@ service cloud.firestore {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-stone-200 bg-stone-50 font-bold text-stone-700">
+                          <th className="p-2.5">Admin ID / Key</th>
                           <th className="p-2.5">Name (English / தமிழ்)</th>
                           <th className="p-2.5">Email / Phone</th>
-                          <th className="p-2.5">Administrative Role</th>
-                          <th className="p-2.5">District Scope</th>
-                          <th className="p-2.5">Last Portal Entry</th>
-                          <th className="p-2.5">Security Status</th>
-                          <th className="p-2.5 text-right">Emergency Gating Action</th>
+                          <th className="p-2.5">Role</th>
+                          <th className="p-2.5">District</th>
+                          <th className="p-2.5">Status</th>
+                          <th className="p-2.5 text-right">Super Admin Control Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                        {adminAccounts.map((adm, idx) => (
-                          <tr key={`sa_adm_${adm.id}_${idx}`} className="hover:bg-stone-50 transition-all font-medium text-stone-700">
-                            <td className="p-2.5">
-                              <span className="font-extrabold text-stone-950 block">{adm.nameEn}</span>
-                              <span className="text-[10px] text-stone-400">{adm.name}</span>
-                            </td>
-                            <td className="p-2.5 font-mono">
-                              <span className="block">{adm.email}</span>
-                              <span className="text-[10px] text-stone-400">{adm.phone}</span>
-                            </td>
-                            <td className="p-2.5">
-                              <span className="px-2.5 py-0.5 rounded bg-indigo-50 text-indigo-900 font-bold uppercase text-[9px]">
-                                {adm.role}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-stone-600">{adm.district}</td>
-                            <td className="p-2.5 text-stone-500 font-mono text-[11px]">{adm.lastLogin}</td>
-                            <td className="p-2.5">
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                adm.status === "Active" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-850 animate-pulse"
-                              }`}>
-                                {adm.status}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-right space-x-1 whitespace-nowrap">
-                              <button
-                                onClick={() => toggleAdminStatus(adm.id)}
-                                className={`px-2 py-1 rounded text-[9px] font-extrabold uppercase cursor-pointer ${
-                                  adm.status === "Active" 
-                                    ? "bg-amber-100 text-amber-900 hover:bg-amber-200" 
-                                    : "bg-emerald-600 text-white hover:bg-emerald-700"
-                                }`}
-                              >
-                                {adm.status === "Active" ? "Suspend Account" : "Restore Account"}
-                              </button>
-                              <button
-                                onClick={() => resetAdminPassword(adm.nameEn)}
-                                className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-[9px] font-extrabold uppercase cursor-pointer"
-                              >
-                                Reset PIN
-                              </button>
-                              {adm.role !== "Super Admin" && (
+                        {adminAccounts.map((adm, idx) => {
+                          const isSuperAdminAccount = adm.role === "Super Admin" || adm.role === "super_admin" || adm.adminUsername === "superadmin";
+                          const isActive = adm.status === "Active" || adm.status === "active";
+                          return (
+                            <tr key={`sa_adm_${adm.id}_${idx}`} className="hover:bg-stone-50 transition-all font-medium text-stone-700">
+                              <td className="p-2.5 font-mono text-[11px]">
+                                <span className="font-bold text-amber-900 block">@{adm.adminUsername || adm.id}</span>
+                                <span className="text-[10px] text-stone-400">{adm.maskedAccessKey || "Key Hashed"}</span>
+                              </td>
+                              <td className="p-2.5">
+                                <span className="font-extrabold text-stone-950 block">{adm.nameEn || adm.name}</span>
+                                <span className="text-[10px] text-stone-400">{adm.name}</span>
+                              </td>
+                              <td className="p-2.5 font-mono">
+                                <span className="block">{adm.email}</span>
+                                <span className="text-[10px] text-stone-400">{adm.phone}</span>
+                              </td>
+                              <td className="p-2.5">
+                                <span className="px-2.5 py-0.5 rounded bg-indigo-50 text-indigo-900 font-bold uppercase text-[9px]">
+                                  {adm.role}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-stone-600">{adm.district}</td>
+                              <td className="p-2.5">
+                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                                  isActive ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-850 animate-pulse"
+                                }`}>
+                                  {isActive ? "Active" : "Suspended"}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-right space-x-1 whitespace-nowrap">
+                                {!isSuperAdminAccount ? (
+                                  <button
+                                    onClick={() => toggleAdminStatus(adm.id)}
+                                    className={`px-2 py-1 rounded text-[9px] font-extrabold uppercase cursor-pointer ${
+                                      isActive
+                                        ? "bg-amber-100 text-amber-900 hover:bg-amber-200" 
+                                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    }`}
+                                  >
+                                    {isActive ? "Suspend" : "Activate"}
+                                  </button>
+                                ) : (
+                                  <span className="px-2 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded text-[9px] font-extrabold uppercase">
+                                    ★ Primary Super Admin
+                                  </span>
+                                )}
+
                                 <button
-                                  onClick={() => deleteAdminAccount(adm.id)}
-                                  className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-[9px] font-extrabold uppercase cursor-pointer"
+                                  onClick={() => resetAdminPassword(adm.id, adm.nameEn || adm.adminUsername)}
+                                  className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded text-[9px] font-extrabold uppercase cursor-pointer"
                                 >
-                                  Delete
+                                  Reset Pass
                                 </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+
+                                <button
+                                  onClick={() => regenerateAccessKey(adm.id, adm.nameEn || adm.adminUsername)}
+                                  className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded text-[9px] font-extrabold uppercase cursor-pointer"
+                                >
+                                  New Key
+                                </button>
+
+                                {!isSuperAdminAccount && (
+                                  <button
+                                    onClick={() => deleteAdminAccount(adm.id)}
+                                    className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded text-[9px] font-extrabold uppercase cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -2487,10 +3001,44 @@ service cloud.firestore {
                   <div className="bg-white border border-stone-200 p-5 rounded-2xl shadow-sm space-y-4">
                     <div className="border-b border-stone-100 pb-2">
                       <h4 className="text-xs font-black text-stone-900 uppercase">🛡️ Provision New Administrative Credentials</h4>
-                      <p className="text-[10px] text-stone-500">Super Admin only: Generate and assign restricted operational keys</p>
+                      <p className="text-[10px] text-stone-500">Super Admin only: Generate and assign PBKDF2 salted password & access keys</p>
                     </div>
 
                     <form onSubmit={handleCreateAdmin} className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1">Admin Username *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. arumugam_admin"
+                            value={createAdminUsername}
+                            onChange={(e) => setCreateAdminUsername(e.target.value)}
+                            className="w-full border border-stone-300 rounded-xl p-2 text-stone-950 bg-stone-50 focus:outline-none font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1">Password (Auto if empty)</label>
+                          <input
+                            type="text"
+                            placeholder="Auto-generated if empty"
+                            value={createAdminPassword}
+                            onChange={(e) => setCreateAdminPassword(e.target.value)}
+                            className="w-full border border-stone-300 rounded-xl p-2 text-stone-950 bg-stone-50 focus:outline-none font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1">Access Key (Auto if empty)</label>
+                          <input
+                            type="text"
+                            placeholder="Auto-generated if empty"
+                            value={createAdminAccessKey}
+                            onChange={(e) => setCreateAdminAccessKey(e.target.value)}
+                            className="w-full border border-stone-300 rounded-xl p-2 text-stone-950 bg-stone-50 focus:outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1">Full Name (தமிழ்)</label>
@@ -2594,7 +3142,7 @@ service cloud.firestore {
                           <input
                             type="text"
                             required
-                            placeholder="e.g. Election Commissioner"
+                            placeholder="e.g. Legal Advisor"
                             value={newCustomRoleName}
                             onChange={(e) => setNewCustomRoleName(e.target.value)}
                             className="w-full border border-stone-300 rounded-xl p-2 text-stone-950 bg-stone-50 focus:outline-none"
@@ -2605,7 +3153,7 @@ service cloud.firestore {
                           <label className="block text-[10px] font-bold text-stone-500 uppercase mb-1">Role Responsibilities Description</label>
                           <textarea
                             rows={2}
-                            placeholder="Responsible for oversight of Salem division painter general union voting structures..."
+                            placeholder="Responsible for oversight of Salem division painter general union administrative structures..."
                             value={newCustomRoleDesc}
                             onChange={(e) => setNewCustomRoleDesc(e.target.value)}
                             className="w-full border border-stone-300 rounded-xl p-2 text-stone-950 bg-stone-50 focus:outline-none"
@@ -3974,6 +4522,17 @@ service cloud.firestore {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* TAB: DISTRICT WHATSAPP GROUPS MANAGEMENT */}
+        {activeSubTab === "whatsapp_groups" && (
+          <div className="animate-[fadeIn_0.4s_ease-out]">
+            <SuperAdminWhatsAppConsole
+              lang={lang}
+              currentUser={currentUser}
+              onAddAuditLog={(action, details) => addBusLog(action, details)}
+            />
           </div>
         )}
 

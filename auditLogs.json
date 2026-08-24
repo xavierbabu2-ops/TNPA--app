@@ -1,0 +1,92 @@
+[
+  {
+    "id": "log_1786866834185_949",
+    "timestamp": "2026-08-16T07:53:54.185Z",
+    "action": "WHATSAPP_GROUP_CONFIG_UPDATED",
+    "details": "District WhatsApp Group (திருவாரூர்): Official Link Updated with Production Ready Persistence",
+    "performedBy": "Super Admin R. Xavier Babu",
+    "role": "SUPER ADMIN",
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1786866486885_452",
+    "timestamp": "2026-08-16T07:48:06.885Z",
+    "action": "WHATSAPP_GROUP_CONFIG_UPDATED",
+    "details": "District WhatsApp Group (திருச்சிராப்பள்ளி): Updated WhatsApp group configuration for district திருச்சிராப்பள்ளி by Primary Super Admin",
+    "performedBy": "Primary Super Admin",
+    "role": "SUPER ADMIN",
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1786866412657_208",
+    "timestamp": "2026-08-16T07:46:52.657Z",
+    "action": "UNAUTHORIZED_WHATSAPP_CONFIG_ATTEMPT",
+    "details": "District WhatsApp Group Mapping (சேலம்): Unauthorized attempt to modify WhatsApp group link for district 'சேலம்' rejected for role 'NORMAL_ADMIN'. Only Primary Super Admin can configure WhatsApp groups.",
+    "performedBy": "Primary Super Admin",
+    "role": "UNAUTHORIZED_ATTEMPT",
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1786866409305_306",
+    "timestamp": "2026-08-16T07:46:49.305Z",
+    "action": "WHATSAPP_GROUP_CONFIG_UPDATED",
+    "details": "District WhatsApp Group (சேலம்): Updated WhatsApp group configuration for district சேலம் by Primary Super Admin",
+    "performedBy": "Primary Super Admin",
+    "role": "SUPER ADMIN",
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1786865987092_236",
+    "timestamp": "2026-08-16T07:39:47.092Z",
+    "action": "UNAUTHORIZED_WHATSAPP_CONFIG_ATTEMPT",
+    "details": "District WhatsApp Group Mapping (திருவாரூர்): Unauthorized attempt to modify WhatsApp group link for district 'திருவாரூர்' rejected for role 'NORMAL_ADMIN'. Only Primary Super Admin can configure WhatsApp groups.",
+    "performedBy": "Primary Super Admin",
+    "role": "UNAUTHORIZED_ATTEMPT",
+    "ipAddress": "2409:40f4:1002:c6f9:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1786865985425_546",
+    "timestamp": "2026-08-16T07:39:45.425Z",
+    "action": "UNAUTHORIZED_WHATSAPP_CONFIG_ATTEMPT",
+    "details": "District WhatsApp Group Mapping (திருவாரூர்): Unauthorized attempt to modify WhatsApp group link for district 'திருவாரூர்' rejected for role 'NORMAL_ADMIN'. Only Primary Super Admin can configure WhatsApp groups.",
+    "performedBy": "Primary Super Admin",
+    "role": "UNAUTHORIZED_ATTEMPT",
+    "ipAddress": "2409:40f4:1002:c6f9:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1786865958862_195",
+    "timestamp": "2026-08-16T07:39:18.862Z",
+    "action": "UNAUTHORIZED_WHATSAPP_CONFIG_ATTEMPT",
+    "details": "District WhatsApp Group Mapping (திருவாரூர்): Unauthorized attempt to modify WhatsApp group link for district 'திருவாரூர்' rejected for role 'NORMAL_ADMIN'. Only Primary Super Admin can configure WhatsApp groups.",
+    "performedBy": "Primary Super Admin",
+    "role": "UNAUTHORIZED_ATTEMPT",
+    "ipAddress": "2409:40f4:1002:c6f9:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1786865954950_435",
+    "timestamp": "2026-08-16T07:39:14.950Z",
+    "action": "UNAUTHORIZED_WHATSAPP_CONFIG_ATTEMPT",
+    "details": "District WhatsApp Group Mapping (திருவாரூர்): Unauthorized attempt to modify WhatsApp group link for district 'திருவாரூர்' rejected for role 'NORMAL_ADMIN'. Only Primary Super Admin can configure WhatsApp groups.",
+    "performedBy": "Primary Super Admin",
+    "role": "UNAUTHORIZED_ATTEMPT",
+    "ipAddress": "2409:40f4:1002:c6f9:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1786865557759_464",
+    "timestamp": "2026-08-16T07:32:37.759Z",
+    "action": "Super Admin OTP Session Authorized",
+    "details": "Super Admin authorization granted for R. Xavier Babu via verified phone +917010131915",
+    "performedBy": "ரா. சேவியர் பாபு",
+    "role": "super_admin",
+    "ipAddress": "2409:40f4:1002:c6f9:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1786865538527_629",
+    "timestamp": "2026-08-16T07:32:18.527Z",
+    "action": "Super Admin OTP Dispatched",
+    "details": "Super Admin verification OTP dispatched to authorized number: +917010131915",
+    "performedBy": "System OTP Engine",
+    "role": "super_admin",
+    "ipAddress": "2409:40f4:1002:c6f9:8000::, 169.254.169.126"
+  }
+]

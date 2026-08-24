@@ -7,16 +7,24 @@ import {
   ShieldCheck, 
   Building2,
   Sparkles,
-  Award
+  Award,
+  Upload,
+  FileUp,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { MemberRegistration, UserAccount } from "../types";
 import UnionOfficialIdCard from "./UnionOfficialIdCard";
-import { formatMemberNumber } from "../utils/districtCodes";
+import { formatMemberNumber, generateDistrictRegNumber } from "../utils/districtCodes";
+import { storage, db } from "../lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface MemberIdCardPortalProps {
   lang: "ta" | "en";
   currentUser: UserAccount | null;
   registrations: MemberRegistration[];
+  onUpdateRegistration?: (updated: MemberRegistration) => void;
   onAddAuditLog: (action: string, details: string) => void;
 }
 
@@ -24,6 +32,7 @@ export default function MemberIdCardPortal({
   lang,
   currentUser,
   registrations = [],
+  onUpdateRegistration,
   onAddAuditLog
 }: MemberIdCardPortalProps) {
   const isSuperAdmin = currentUser?.role === "super_admin" || currentUser?.role?.includes("admin");
@@ -36,6 +45,8 @@ export default function MemberIdCardPortal({
 
   const [activeSubTab, setActiveSubTab] = useState<"id_card" | "application" | "directory_cards">("id_card");
   const [cardSide, setCardSide] = useState<"front" | "back" | "both">("both");
+  const [uploadingFront, setUploadingFront] = useState(false);
+  const [uploadingBack, setUploadingBack] = useState(false);
 
   // Custom fallback state
   const [customName, setCustomName] = useState(currentUser?.name || "ஆர். ராஜேஷ்");
@@ -53,8 +64,84 @@ export default function MemberIdCardPortal({
   const memberDistrict = currentMember?.district || customDistrict;
   const memberPhone = currentMember?.phone || customPhone;
   const memberBlood = currentMember?.bloodGroup || customBlood;
-  const memberRegNo = currentMember?.regNumber || customRegNo;
+  const rawRegNo = currentMember?.regNumber || currentUser?.regNumber;
+  const memberRegNo = rawRegNo ? formatMemberNumber(rawRegNo, memberDistrict) : generateDistrictRegNumber(memberDistrict);
   const memberPhoto = currentMember?.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200&h=200";
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, side: "front" | "back") => {
+    const file = e.target.files?.[0];
+    if (!file || !currentMember) return;
+
+    const setUploading = side === "front" ? setUploadingFront : setUploadingBack;
+    setUploading(true);
+
+    try {
+      const storageRef = ref(storage, `id_cards/${currentMember.id}_${side}_${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+
+      // Update Firestore
+      const docRef = doc(db, "registrations", currentMember.id);
+      const updateData = side === "front" ? { cardFrontUrl: downloadUrl } : { cardBackUrl: downloadUrl };
+      await updateDoc(docRef, updateData);
+
+      const updatedMember = {
+        ...currentMember,
+        ...(side === "front" ? { cardFrontUrl: downloadUrl } : { cardBackUrl: downloadUrl })
+      };
+
+      if (onUpdateRegistration) {
+        onUpdateRegistration(updatedMember);
+      }
+
+      onAddAuditLog(
+        `Upload ID Card (${side})`,
+        `Successfully uploaded and stored ID card ${side} image for ${currentMember.name} via Firebase Storage`
+      );
+
+      alert(
+        lang === "ta"
+          ? `✅ அடையாள அட்டை ${side === "front" ? "முன்பக்க" : "பின்பக்க"} படம் வெற்றிகரமாக பதிவேற்றப்பட்டு ஃபயர்பேஸ் கிளவுடில் சேமிக்கப்பட்டது!`
+          : `✅ ID card ${side} image uploaded and saved successfully to Firebase Storage!`
+      );
+    } catch (error) {
+      console.error("Storage upload error, using local fallback:", error);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        try {
+          const docRef = doc(db, "registrations", currentMember.id);
+          const updateData = side === "front" ? { cardFrontUrl: dataUrl } : { cardBackUrl: dataUrl };
+          await updateDoc(docRef, updateData);
+        } catch (dbErr) {
+          console.error("Firestore fallback error:", dbErr);
+        }
+
+        const updatedMember = {
+          ...currentMember,
+          ...(side === "front" ? { cardFrontUrl: dataUrl } : { cardBackUrl: dataUrl })
+        };
+
+        if (onUpdateRegistration) {
+          onUpdateRegistration(updatedMember);
+        }
+
+        onAddAuditLog(
+          `Upload ID Card (${side} - Local Fallback)`,
+          `Stored ID card ${side} image locally for ${currentMember.name}`
+        );
+
+        alert(
+          lang === "ta"
+            ? `⚠️ கிளவுட் ஸ்டோரேஜ் இணைப்பு தவறியதால் படம் உள்ளூர் தரவாக சேமிக்கப்பட்டது.`
+            : `⚠️ Cloud storage connection failed. Image saved via local fallback.`
+        );
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handlePrintCard = () => {
     window.print();
@@ -181,6 +268,7 @@ export default function MemberIdCardPortal({
           
           <UnionOfficialIdCard
             member={{
+              id: currentMember?.id || "member_1",
               name: memberName,
               fatherName: memberFather,
               regNumber: memberRegNo,
@@ -193,6 +281,17 @@ export default function MemberIdCardPortal({
               place: memberDistrict || "மதுரை"
             }}
             side={cardSide}
+            currentUser={currentUser}
+            isEditable={isSuperAdmin}
+            onUpdatePhoto={(newUrl) => {
+              if (currentMember) {
+                currentMember.photoUrl = newUrl;
+              }
+              onAddAuditLog("Update Member Card Photo", `Updated official card photo for: ${memberName}`);
+            }}
+            onUpdateLogo={(newLogoUrl) => {
+              onAddAuditLog("Update Association Logo", `Super Admin updated association logo for all ID cards`);
+            }}
           />
 
           {/* Print Action Button */}
@@ -204,6 +303,124 @@ export default function MemberIdCardPortal({
               <Printer className="w-5 h-5" />
               <span>{lang === "ta" ? "அடையாள அட்டை அச்சிடு / PDF (Print Card)" : "Print ID Card / PDF"}</span>
             </button>
+          </div>
+
+          {/* Firebase Storage & Gallery Upload Component */}
+          <div className="w-full max-w-3xl bg-gradient-to-br from-stone-900 to-stone-950 text-white p-6 rounded-3xl border border-amber-500/30 shadow-xl space-y-6 mt-6">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-black">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-amber-400">
+                    {lang === "ta" ? "அடையாள அட்டை கேலரி பதிவேற்றம் (Firebase Storage Sync)" : "Device Gallery Upload & Firebase Storage Sync"}
+                  </h3>
+                  <p className="text-stone-400 text-xs">
+                    {lang === "ta" 
+                      ? "உங்களின் அடையாள அட்டை முன் மற்றும் பின்பக்க படங்களை கேலரியிலிருந்து பதிவேற்றி ஃபயர்பேஸ் கிளவுடில் சேமிக்கவும்."
+                      : "Upload ID card front and back images from your gallery and sync with Firebase Storage & Firestore."}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-3 py-1 rounded-full border border-amber-500/30">
+                Cloud Sync Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Front ID Card Upload */}
+              <div className="space-y-3 bg-stone-900/80 p-5 rounded-2xl border border-stone-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-stone-200">
+                    {lang === "ta" ? "🪪 அடையாள அட்டை முன்பக்கம் (Front Side)" : "🪪 ID Card Front Side"}
+                  </span>
+                  {currentMember?.cardFrontUrl && (
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> {lang === "ta" ? "சேமிக்கப்பட்டது" : "Uploaded"}
+                    </span>
+                  )}
+                </div>
+
+                {currentMember?.cardFrontUrl ? (
+                  <div className="relative group rounded-xl overflow-hidden border border-stone-700 h-40 bg-stone-950 flex items-center justify-center">
+                    <img src={currentMember.cardFrontUrl} alt="ID Front" className="h-full w-full object-contain" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <a href={currentMember.cardFrontUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-amber-500 text-stone-950 font-bold text-xs rounded-lg">
+                        {lang === "ta" ? "பெரிதாக காண்க" : "View"}
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-40 rounded-xl border-2 border-dashed border-stone-700 flex flex-col items-center justify-center gap-2 bg-stone-950/50 text-stone-400">
+                    <FileUp className="w-8 h-8 text-amber-500/60" />
+                    <span className="text-xs font-medium">{lang === "ta" ? "முன்பக்க படத்தைத் தேர்ந்தெடுக்கவும்" : "Select front image file"}</span>
+                  </div>
+                )}
+
+                <label className="block w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs text-center rounded-xl cursor-pointer transition-all shadow-md">
+                  {uploadingFront ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> {lang === "ta" ? "பதிவேற்றப்படுகிறது..." : "Uploading..."}
+                    </span>
+                  ) : (
+                    <span>{lang === "ta" ? "📁 முன்பக்கம் பதிவேற்று (Upload Front)" : "📁 Upload Front Image"}</span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, "front")}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Back ID Card Upload */}
+              <div className="space-y-3 bg-stone-900/80 p-5 rounded-2xl border border-stone-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-stone-200">
+                    {lang === "ta" ? "🪪 அடையாள அட்டை பின்பக்கம் (Back Side)" : "🪪 ID Card Back Side"}
+                  </span>
+                  {currentMember?.cardBackUrl && (
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> {lang === "ta" ? "சேமிக்கப்பட்டது" : "Uploaded"}
+                    </span>
+                  )}
+                </div>
+
+                {currentMember?.cardBackUrl ? (
+                  <div className="relative group rounded-xl overflow-hidden border border-stone-700 h-40 bg-stone-950 flex items-center justify-center">
+                    <img src={currentMember.cardBackUrl} alt="ID Back" className="h-full w-full object-contain" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <a href={currentMember.cardBackUrl} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-amber-500 text-stone-950 font-bold text-xs rounded-lg">
+                        {lang === "ta" ? "பெரிதாக காண்க" : "View"}
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-40 rounded-xl border-2 border-dashed border-stone-700 flex flex-col items-center justify-center gap-2 bg-stone-950/50 text-stone-400">
+                    <FileUp className="w-8 h-8 text-amber-500/60" />
+                    <span className="text-xs font-medium">{lang === "ta" ? "பின்பக்க படத்தைத் தேர்ந்தெடுக்கவும்" : "Select back image file"}</span>
+                  </div>
+                )}
+
+                <label className="block w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs text-center rounded-xl cursor-pointer transition-all shadow-md">
+                  {uploadingBack ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> {lang === "ta" ? "பதிவேற்றப்படுகிறது..." : "Uploading..."}
+                    </span>
+                  ) : (
+                    <span>{lang === "ta" ? "📁 பின்பக்கம் பதிவேற்று (Upload Back)" : "📁 Upload Back Image"}</span>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, "back")}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
         </div>

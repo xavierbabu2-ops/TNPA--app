@@ -220,7 +220,7 @@ export default function AchievementsTvTab({
             darkMode ? "bg-stone-900/30 border-stone-800" : "bg-white border-stone-200 shadow-sm"
           }`}>
             <h5 className="text-xs font-black uppercase tracking-wider text-stone-400 mb-4">
-              {lang === "ta" ? "வாக்கெடுப்பு மற்றும் கருத்துக்கணிப்புகள்" : "Union Member Surveys"}
+              {lang === "ta" ? "உறுப்பினர் கருத்துக்கணிப்புகள்" : "Union Member Surveys"}
             </h5>
 
             {opinionPolls.map((p, idx) => {
@@ -271,7 +271,7 @@ export default function AchievementsTvTab({
 
                   {p.userVoted !== null && (
                     <span className="text-[9px] font-bold text-emerald-600 block">
-                      ✓ {lang === "ta" ? "வாக்கு பதிவு செய்யப்பட்டது! நன்றி." : "Vote recorded securely. Total votes: " + totalVotes}
+                      ✓ {lang === "ta" ? "கருத்து பதிவு செய்யப்பட்டது! நன்றி." : "Response recorded securely. Total responses: " + totalVotes}
                     </span>
                   )}
                 </div>

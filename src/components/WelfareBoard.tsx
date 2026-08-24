@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import GovernmentSchemesAggregator from "./GovernmentSchemesAggregator";
 import { 
   Award, 
   FileText, 
@@ -35,11 +36,12 @@ import {
   Save,
   Undo
 } from "lucide-react";
-import { WelfareApplication, UserAccount } from "../types";
+import { WelfareApplication, UserAccount, MemberRegistration } from "../types";
 
 interface WelfareBoardProps {
   lang: "ta" | "en";
   currentUser: UserAccount | null;
+  registrations: MemberRegistration[];
   welfareApps: WelfareApplication[];
   onAddWelfareApp: (newApp: WelfareApplication) => void;
   onUpdateWelfareApp?: (updated: WelfareApplication) => void;
@@ -63,6 +65,7 @@ export interface SchemeCategory {
 export default function WelfareBoard({
   lang,
   currentUser,
+  registrations,
   welfareApps,
   onAddWelfareApp,
   onUpdateWelfareApp,
@@ -98,11 +101,11 @@ export default function WelfareBoard({
   // Search/Filter for tracking
   const [trackSearch, setTrackSearch] = useState("");
 
-  // Active Navigation View (services, tracker, eforms, builder)
-  const [activeView, setActiveView] = useState<"services" | "tracker" | "eforms" | "builder">("services");
+  // Active Navigation View (services, tracker, eforms, builder, schemes_aggregator)
+  const [activeView, setActiveView] = useState<"services" | "tracker" | "eforms" | "builder" | "schemes_aggregator">("services");
 
   // Helper to coordinate with the legacy showTracker state
-  const toggleView = (view: "services" | "tracker" | "eforms" | "builder") => {
+  const toggleView = (view: "services" | "tracker" | "eforms" | "builder" | "schemes_aggregator") => {
     setActiveView(view);
     if (view === "tracker") {
       setShowTracker(true);
@@ -814,6 +817,22 @@ export default function WelfareBoard({
       return;
     }
 
+    // 45-Day Welfare Board Registration Rule Validation
+    const matchedReg = registrations.find(r => r.regNumber === memberId || r.id === memberId || r.phone === memberPhone);
+    const cardIssueDateStr = matchedReg?.createdAt || new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+    const cardIssueTimestamp = new Date(cardIssueDateStr).getTime();
+    const elapsedDays = Math.floor((Date.now() - cardIssueTimestamp) / (1000 * 60 * 60 * 24));
+    const isEligible45Days = elapsedDays >= 45;
+
+    if (!isEligible45Days) {
+      alert(
+        lang === "ta"
+          ? `⚠️ நல வாரியப் பதிவு விதிமுறை மீறல்: உறுப்பினர் அட்டை பெற்று 45 நாட்களுக்குப் பிறகே நல வாரியத்தில் பதிவு செய்ய வேண்டும். தற்போது ${elapsedDays} நாட்களே ஆகியுள்ளன (இன்னும் ${45 - elapsedDays} நாட்கள் காத்திருக்க வேண்டும்).`
+          : `⚠️ Welfare Board Rule: Registration is permitted only 45 days after membership card issuance. Only ${elapsedDays} days have passed (please wait ${45 - elapsedDays} more days).`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     setTimeout(() => {
@@ -1024,6 +1043,15 @@ export default function WelfareBoard({
           >
             ⚙️ {lang === "ta" ? "வடிவமைப்பாளர்" : "Form Builder"}
           </button>
+
+          <button
+            onClick={() => toggleView("schemes_aggregator")}
+            className={`px-3 py-2 rounded-xl text-[11px] font-black tracking-wider uppercase transition-all cursor-pointer ${
+              activeView === "schemes_aggregator" ? "bg-amber-500 text-stone-950" : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+            }`}
+          >
+            🏛️ {lang === "ta" ? "அரசு திட்டங்கள் ஏஜென்ட்" : "Govt Schemes AI"}
+          </button>
         </div>
       </div>
 
@@ -1181,6 +1209,45 @@ export default function WelfareBoard({
               <h3 className="font-extrabold text-sm md:text-base mt-0.5">{lang === "ta" ? selectedScheme.title : selectedScheme.titleEn}</h3>
             </div>
           </div>
+
+          {/* 45-Day Welfare Board Rule Calculation Banner */}
+          {(() => {
+            const matchedReg = registrations.find(r => r.regNumber === memberId || r.id === memberId || r.phone === memberPhone);
+            const cardIssueDateStr = matchedReg?.createdAt || new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+            const cardIssueTimestamp = new Date(cardIssueDateStr).getTime();
+            const elapsedDays = Math.floor((Date.now() - cardIssueTimestamp) / (1000 * 60 * 60 * 24));
+            const isEligible45Days = elapsedDays >= 45;
+            const remainingDays = isEligible45Days ? 0 : (45 - elapsedDays);
+
+            return (
+              <div className={`p-4 rounded-2xl border flex items-center justify-between ${isEligible45Days ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-red-50 border-red-300 text-red-900'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${isEligible45Days ? 'bg-emerald-600 text-white' : 'bg-[#b91c1c] text-white'}`}>
+                    {isEligible45Days ? '✓' : '45'}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wide">
+                      {lang === "ta" ? "நல வாரியப் பதிவு 45 நாட்கள் விதி சரிபார்ப்பு" : "Welfare Board 45-Day Rule Compliance"}
+                    </div>
+                    <div className="text-xs font-bold mt-0.5">
+                      {isEligible45Days ? (
+                        lang === "ta" 
+                          ? `உறுப்பினர் அட்டை பெற்று ${elapsedDays} நாட்கள் நிறைவு! நல வாரியத்தில் பதிவு செய்ய முழுத்தகுதி பெற்றுள்ளீர்கள்.`
+                          : `Membership card issued ${elapsedDays} days ago. Fully eligible for Welfare Board registration.`
+                      ) : (
+                        lang === "ta"
+                          ? `⚠️ அட்டை பெற்று 45 நாட்களுக்குப் பிறகே நல வாரியத்தில் பதிவு செய்ய முடியும். இன்னும் ${remainingDays} நாட்கள் காத்திருக்க வேண்டும்.`
+                          : `⚠️ Welfare Board registration is allowed only 45 days after receiving the membership card. Please wait ${remainingDays} more days.`
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[10px] font-mono font-bold bg-white/80 px-2.5 py-1 rounded-lg border">
+                  {elapsedDays} / 45 Days
+                </div>
+              </div>
+            );
+          })()}
 
           {/* The form */}
           <form onSubmit={handleApply} className="space-y-5 bg-stone-50 border border-stone-200 p-5 rounded-2xl">
@@ -1428,6 +1495,22 @@ export default function WelfareBoard({
 
           </form>
         </div>
+      )}
+
+      {/* GOVERNMENT SCHEMES AGGREGATOR VIEW */}
+      {activeView === "schemes_aggregator" && (
+        <GovernmentSchemesAggregator
+          lang={lang}
+          currentUser={currentUser}
+          onSelectSchemeForApplication={(schemeTitle) => {
+            setActiveView("services");
+            const matched = schemes.find(s => s.title === schemeTitle);
+            if (matched) {
+              setSelectedSchemeId(matched.id);
+            }
+          }}
+          onAddAuditLog={onAddAuditLog}
+        />
       )}
 
       {/* 15 SCHEMES GRID SELECTOR LISTING */}

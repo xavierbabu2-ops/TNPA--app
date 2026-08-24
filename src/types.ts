@@ -1,22 +1,40 @@
 export type UserRole = 
   | "visitor" 
   | "member" 
+  | "union_admin"
   | "district_admin" 
   | "state_admin" 
+  | "judicial_admin"
   | "state_treasurer" 
   | "state_president" 
   | "super_admin";
 
+export interface AdminPermissions {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+  approve: boolean;
+  manage_users: boolean;
+  manage_content: boolean;
+  manage_livetv: boolean;
+  manage_reports: boolean;
+}
+
 export interface UserAccount {
   id: string;
   role: UserRole;
+  adminUsername?: string;
   name: string;
   nameEn: string;
   phone: string;
   email: string;
   district: string;
   districtEn: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "Active" | "Suspended" | "Deactivated";
+  permissions?: AdminPermissions;
+  accessKeyMasked?: string;
+  isPrimarySuperAdmin?: boolean;
   regNumber?: string;
   photoUrl: string;
   password?: string;
@@ -28,6 +46,10 @@ export interface UserAccount {
   bloodGroup?: string;
   address?: string;
   renewalHistory?: { renewalDate: string; feePaid: number; validityUntil: string; txnId: string }[];
+  whatsappConsentStatus?: WhatsAppConsentStatus;
+  whatsappConsentDate?: string;
+  whatsappInviteLinkShown?: string;
+  whatsappGroupName?: string;
 }
 
 export interface AuditLog {
@@ -145,6 +167,8 @@ export interface MemberRegistration {
   experienceYears: number;
   specialization?: string;
   photoUrl: string;
+  cardFrontUrl?: string;
+  cardBackUrl?: string;
   aadhaarFrontUrl?: string;
   aadhaarBackUrl?: string;
   additionalDocsUrl?: string;
@@ -155,6 +179,10 @@ export interface MemberRegistration {
   correctionRemarks?: string;
   createdAt: string;
   renewalHistory?: { renewalDate: string; feePaid: number; validityUntil: string; txnId: string }[];
+  whatsappConsentStatus?: WhatsAppConsentStatus;
+  whatsappConsentDate?: string;
+  whatsappInviteLinkShown?: string;
+  whatsappGroupName?: string;
 }
 
 export interface PaymentRecord {
@@ -217,5 +245,157 @@ export interface KnowledgeArticle {
   category: "rules" | "policies" | "materials" | "faq" | "schemes";
   content: string;
   contentEn: string;
+}
+
+export interface DetailedAuditRecord {
+  id: string;
+  action: string;
+  fieldChanged: string;
+  previousValue: string;
+  newValue: string;
+  timestamp: string;
+  editorName: string;
+  editorId: string;
+  userRole: string;
+  adminUsername: string;
+  ipAddress: string;
+  contentId: string;
+  memberId?: string;
+  reason?: string;
+  isUnauthorizedAttempt?: boolean;
+}
+
+export type OfficialEditRecord = DetailedAuditRecord;
+
+// ============================================================================
+// DISTRICT WHATSAPP GROUP JOIN SYSTEM TYPES
+// ============================================================================
+
+export type WhatsAppConsentStatus = "NOT_ASKED" | "DECLINED" | "ACCEPTED" | "JOIN_LINK_OPENED";
+
+export interface DistrictWhatsAppGroup {
+  id: string;
+  district: string;           // e.g. "திருவாரூர்"
+  districtEn: string;         // e.g. "Tiruvarur"
+  groupName: string;          // e.g. "TNPA திருவாரூர் மாவட்ட உறுப்பினர்கள்"
+  inviteLink: string;         // e.g. "https://chat.whatsapp.com/G123xExampleCode"
+  status: "active" | "inactive";
+  coordinatorName: string;   // e.g. "M. Selvam"
+  coordinatorPhone: string;  // e.g. "+91 98765 43210"
+  lastUpdated: string;
+  lastUpdatedBy?: string;
+}
+
+export interface WhatsAppConsentRecord {
+  id: string;
+  memberId: string;
+  memberName: string;
+  memberPhone: string;
+  district: string;
+  memberRole?: string;
+  regNumber?: string;
+  consentStatus: WhatsAppConsentStatus;
+  consentDate: string;
+  inviteLinkShown?: string;
+  groupName?: string;
+  lastUpdated: string;
+}
+
+export interface DistrictWhatsAppReportRow {
+  district: string;
+  districtEn: string;
+  totalMembers: number;
+  acceptedCount: number;
+  declinedCount: number;
+  notAskedCount: number;
+  linkOpenedCount: number;
+  groupStatus: "active" | "inactive" | "not_configured";
+  groupName?: string;
+  inviteLink?: string;
+  coordinatorName?: string;
+  coordinatorPhone?: string;
+}
+
+// ============================================================================
+// SELF-HEALING & AUTO-RECOVERY SYSTEM TYPES
+// ============================================================================
+
+export type HealthStatus = "healthy" | "degraded" | "critical" | "offline";
+
+export interface SubsystemHealth {
+  id: string;
+  name: string;
+  nameTa: string;
+  category: "frontend" | "backend" | "database" | "auth" | "media" | "network" | "payment";
+  status: HealthStatus;
+  responseTimeMs: number;
+  lastChecked: string;
+  lastSuccess: string;
+  lastError?: string;
+  availability: number; // percentage e.g. 99.9
+  details?: Record<string, any>;
+}
+
+export interface BreadcrumbItem {
+  time: string;
+  category: "ui" | "navigation" | "network" | "storage" | "auth" | "media" | "system";
+  message: string;
+  data?: any;
+}
+
+export interface RootCauseAnalysis {
+  suspectedCause: string;
+  suspectedCauseTa: string;
+  confidence: number; // 0.0 - 1.0
+  isKnownPattern: boolean;
+  affectedDependencies: string[];
+  mitigationStrategy: string;
+  mitigationStrategyTa: string;
+  requiresAdminApproval: boolean;
+}
+
+export interface IncidentRecord {
+  id: string;
+  timestamp: string;
+  module: string;
+  moduleTa: string;
+  severity: "low" | "medium" | "high" | "critical";
+  errorType: string;
+  errorMessage: string;
+  stackTrace?: string;
+  fingerprint: string;
+  breadcrumbs: BreadcrumbItem[];
+  rootCauseAnalysis: RootCauseAnalysis;
+  autoFixAttempted: boolean;
+  autoFixType?: string;
+  autoFixDetails?: string;
+  autoFixDetailsTa?: string;
+  fixStatus: "pending" | "resolved" | "rolled_back" | "failed" | "requires_admin_approval";
+  attemptsCount: number;
+  backupSnapshotId?: string;
+  adminActionRequired?: boolean;
+  adminActionTaken?: string;
+  adminResolvedBy?: string;
+  resolvedAt?: string;
+}
+
+export interface StateBackupSnapshot {
+  id: string;
+  timestamp: string;
+  reason: string;
+  scope: "local_storage" | "form_draft" | "session_state" | "network_queue" | "system_config";
+  payload: string; // serialized JSON
+  checksum: string;
+  restorable: boolean;
+}
+
+export interface SelfHealingStatusSummary {
+  systemOverallHealth: HealthStatus;
+  subsystems: SubsystemHealth[];
+  activeIncidentsCount: number;
+  autoResolvedTodayCount: number;
+  pendingAdminApprovalCount: number;
+  lastAutoHealTimestamp?: string;
+  circuitBreakerStatus: "CLOSED" | "HALF_OPEN" | "OPEN";
 }
 

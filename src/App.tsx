@@ -78,9 +78,16 @@ import LiveCommunication from "./components/LiveCommunication";
 import DigitalServices from "./components/DigitalServices";
 import EnterpriseCommandCenter from "./components/EnterpriseCommandCenter";
 import SuperAdminBusinessConsole from "./components/SuperAdminBusinessConsole";
+import SuperAdminOtpAuth, { getStoredSuperAdminSession, clearStoredSuperAdminSession } from "./components/SuperAdminOtpAuth";
 import TnpaTvChannel from "./components/TnpaTvChannel";
 import PainterJobsPortal from "./components/PainterJobsPortal";
 import MemberIdCardPortal from "./components/MemberIdCardPortal";
+import { MemberCardPortal } from "./components/MemberCardPortal";
+import { MemberCardVerificationModal } from "./components/MemberCardVerificationModal";
+import { getMemberCardRequestByToken } from "./utils/memberCardStorage";
+import { MemberCardRequest } from "./types/memberCard";
+import DistrictHierarchyDirectory from "./components/DistrictHierarchyDirectory";
+import RoleBasedControlPortal from "./components/RoleBasedControlPortal";
 
 export default function App() {
   console.log("App component initializing...");
@@ -96,11 +103,16 @@ export default function App() {
 
   // AUTH STATE: null represents non-logged visitor (Visitor / Guest mode)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [isSuperAdminOtpVerified, setIsSuperAdminOtpVerified] = useState<boolean>(() => {
+    const stored = getStoredSuperAdminSession();
+    return !!(stored && stored.token);
+  });
   const [customFlagUrl, setCustomFlagUrl] = useState<string | null>(null);
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
   const flagInputRef = React.useRef<HTMLInputElement>(null);
   const logoInputRef = React.useRef<HTMLInputElement>(null);
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = currentUser?.role === "super_admin" && isSuperAdminOtpVerified;
+  const [showDistrictDirectoryModal, setShowDistrictDirectoryModal] = useState(false);
 
   // Welfare claims list (synced globally)
   const [welfareApplications, setWelfareApplications] = useState<WelfareApplication[]>([
@@ -155,7 +167,26 @@ export default function App() {
   });
 
   // Active Main Navigation tab
-  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control">("home");
+
+  // Public QR Code verification modal state
+  const [verifyCardToken, setVerifyCardToken] = useState<string | null>(null);
+  const [verifiedCardRequest, setVerifiedCardRequest] = useState<MemberCardRequest | null>(null);
+
+  // Check URL params for verification token on mount
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("verify_card") || params.get("verify_member_card");
+      if (token) {
+        setVerifyCardToken(token);
+        const found = getMemberCardRequestByToken(token);
+        setVerifiedCardRequest(found);
+      }
+    } catch (e) {
+      console.error("Error reading URL search params:", e);
+    }
+  }, []);
 
   // Custom Accessibility states
   const [textSize, setTextSize] = useState<"normal" | "large" | "extra-large">("normal");
@@ -261,10 +292,26 @@ export default function App() {
   };
 
   // Handle Logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (currentUser) {
       handleAddAuditLog("Secure Logout", `User session ended for ${currentUser.nameEn}.`);
     }
+    try {
+      const stored = getStoredSuperAdminSession();
+      if (stored?.token) {
+        await fetch("/api/superadmin/auth/logout", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${stored.token}`,
+            "x-superadmin-token": stored.token
+          }
+        });
+      }
+    } catch {
+      // ignore network errors on logout
+    }
+    clearStoredSuperAdminSession();
+    setIsSuperAdminOtpVerified(false);
     setCurrentUser(null);
     setActiveTab("home");
   };
@@ -403,10 +450,15 @@ export default function App() {
                   className="h-6 w-6 rounded-full object-cover border border-amber-500 shrink-0" 
                 />
                 <div className="text-left leading-none">
-                  <span className="font-bold text-[10px] text-amber-400 block truncate max-w-[75px]">
+                  <span className="font-bold text-[10px] text-amber-400 flex items-center gap-1 truncate max-w-[90px]">
                     {lang === "ta" ? currentUser.name : currentUser.nameEn}
+                    {currentUser.role === "super_admin" && (
+                      <span title={isSuperAdminOtpVerified ? "Super Admin OTP Verified" : "OTP Pending"} className={`w-2 h-2 rounded-full inline-block ${isSuperAdminOtpVerified ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+                    )}
                   </span>
-                  <span className="text-[8px] text-stone-300 block font-mono uppercase mt-0.5">{currentUser.role.replace("_", " ")}</span>
+                  <span className="text-[8px] text-stone-300 block font-mono uppercase mt-0.5">
+                    {currentUser.role === "super_admin" && isSuperAdminOtpVerified ? "SUPER ADMIN 🛡️" : currentUser.role.replace("_", " ")}
+                  </span>
                 </div>
                 
                 <button
@@ -531,12 +583,14 @@ export default function App() {
             { id: "digital_services", label: "டிஜிட்டல் சேவைகள் ✨", labelEn: "Digital Services ✨" },
             { id: "command_center", label: "கட்டளை மையம் 🏛️", labelEn: "Command Center 🏛️" },
             { id: "tv_channel", label: "TNPA² TV 📺", labelEn: "TNPA² TV 📺" },
-            { id: "id_card_portal", label: "அடையாள அட்டை & விண்ணப்பம் 🪪", labelEn: "ID Card & Application 🪪" },
+            { id: "member_card", label: "உறுப்பினர் அட்டை 🪪", labelEn: "Member Card 🪪" },
+            { id: "id_card_portal", label: "அடையாள அட்டை & விண்ணப்பம்", labelEn: "ID Card & Application" },
             { id: "live_comm", label: "நேரடித் தொடர்பு 🔴", labelEn: "Live Meetings 🔴" },
             { id: "advisor", label: "AI ஆலோசகர்", labelEn: "AI Welfare Advisor" },
             { id: "payment", label: "சந்தா செலுத்த", labelEn: "Pay Subscription" },
             { id: "directory", label: "மாவட்ட தொடர்புகள்", labelEn: "Districts Directory" },
             { id: "gallery", label: "மீடியா அரங்கு", labelEn: "Photo Gallery" },
+            { id: "role_control", label: "அதிகாரப் பிரிவுகள் & சூப்பர் கீ 🛡️", labelEn: "Role Tiers & Super Key 🛡️" },
             ...(currentUser?.role === "super_admin" ? [{ id: "business_console", label: "வணிக மேலாண்மை 💼", labelEn: "Business Console 💼" }] : []),
             { id: "admin", label: "உறுப்பினர் & நிர்வாகம்", labelEn: "Portal Sign In" }
           ].map((tab) => (
@@ -1021,6 +1075,16 @@ export default function App() {
                   </div>
                 ))}
               </div>
+
+              <div className="pt-3">
+                <button
+                  onClick={() => setShowDistrictDirectoryModal(true)}
+                  className="w-full py-3.5 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                >
+                  <Users className="w-5 h-5 text-amber-300" />
+                  <span>{lang === "ta" ? "🏛️ 38 மாவட்டங்கள் மற்றும் அனைத்து அடுக்கு நிர்வாகிகள் முழுப் பட்டியல் (View 38 Districts & All Tiers Directory)" : "🏛️ View 38 Districts & All Tiers Complete Directory"}</span>
+                </button>
+              </div>
             </section>
 
             {/* SUPER ADMIN, ADMIN POWERS & SPECIAL AI OPTIONS HUB */}
@@ -1170,7 +1234,7 @@ export default function App() {
                   { title: "உறுப்பினர் சேர்க்கை", titleEn: "Member Enrolment", desc: "ஆன்லைன் மூலம் சங்கத்தில் இணைந்து உங்கள் டிஜிட்டல் அடையாள அட்டையை உடனடியாகப் பெறுங்கள்.", descEn: "Join the union online, fill the details & download your instant digital ID card.", tab: "register", icon: <UserPlus className="w-5 h-5 text-amber-700" />, badge: "புதியது / New" },
                   { title: "அரசு நலவாரியத் திட்டங்கள்", titleEn: "Welfare Schemes & Claims", desc: "அரசு நலவாரிய நிதி உதவி, விபத்து காப்பீடு & கல்வி உதவித்தொகை விண்ணப்பங்கள்.", descEn: "Government Welfare Board pension, accident relief & educational grant portal.", tab: "welfare_board", icon: <HeartHandshake className="w-5 h-5 text-rose-700" />, badge: "முக்கியம் / Core" },
                   { title: "டிஜிட்டல் சேவைகள் & QR", titleEn: "Digital Services & ID Verifier", desc: "QR அட்டை சரிபார்ப்பு, சுற்றறிக்கை பதிவிறக்கம் மற்றும் சான்றிதழ் கருவிகள்.", descEn: "Instant QR card verification, circular downloads and digital verification portal.", tab: "digital_services", icon: <ShieldCheck className="w-5 h-5 text-emerald-700" />, badge: "சரிபார்ப்பு / QR" },
-                  { title: "கட்டளை மையம் & தேர்தல்", titleEn: "Command Center & Elections", desc: "சங்கத்தின் மாநில/மாவட்டத் தேர்தல் வாக்களிப்பு & நிர்வாக அறிவிப்புகள்.", descEn: "Union elections voting portal, circular repository and state leadership desk.", tab: "command_center", icon: <Award className="w-5 h-5 text-amber-700" />, badge: "நிர்வாகம் / Desk" },
+                  { title: "மாநில கட்டளை மையம்", titleEn: "State Command Center", desc: "சங்கத்தின் மாநில/மாவட்ட நிர்வாக அறிவிப்புகள், திட்டங்கள் மற்றும் சுற்றறிக்கைகள்.", descEn: "Union state/district administration desk, projects and circular repository.", tab: "command_center", icon: <Award className="w-5 h-5 text-amber-700" />, badge: "நிர்வாகம் / Desk" },
                   { title: "நேரடித் தொடர்பு & குறைதீர்ப்பு", titleEn: "Live Communication & Grievance", desc: "மாநில தலைவர்களுடன் நேரலை கூட்டங்கள், குரல் பதிவுகள் மற்றும் குறைதீர்ப்பு.", descEn: "Live meeting broadcasts, audio voice notes & direct grievance reporting system.", tab: "live_comm", icon: <Volume2 className="w-5 h-5 text-red-700" />, badge: "நேரலை / Live" },
                   { title: "AI நலவாரிய ஆலோசகர்", titleEn: "AI Tamil Welfare Advisor", desc: "நலவாரியத் திட்டங்கள், ஓய்வூதியம் மற்றும் விண்ணப்ப சந்தேகங்களுக்கு AI உதவி.", descEn: "Ask our automated AI Chatbot in Tamil/English about pensions, marriage grants, etc.", tab: "advisor", icon: <MessageSquare className="w-5 h-5 text-[#b91c1c]" />, badge: "AI Smart" },
                   { title: "சந்தா செலுத்த", titleEn: "Online Subscription & Receipts", desc: "மாதாந்திர/ஆண்டு சந்தா தொகையை UPI/QR மூலம் செலுத்தி ரசீது பெறுக.", descEn: "Pay monthly union subscription fees via UPI & download official payment receipts.", tab: "payment", icon: <CreditCard className="w-5 h-5 text-blue-700" />, badge: "ரசீது / Receipt" },
@@ -1302,7 +1366,7 @@ export default function App() {
                   {lang === "ta" ? "சங்க புகைப்படக் கண்காட்சி" : "Media gallery & event highlights"}
                 </h4>
               </div>
-              <GallerySlider lang={lang} />
+              <GallerySlider lang={lang} currentUser={currentUser} onAddAuditLog={handleAddAuditLog} />
             </section>
 
             {/* CONTACT & SUPPORT HUB */}
@@ -1613,7 +1677,7 @@ export default function App() {
         {/* TAB 6: PHOTO & VIDEO GALLERY */}
         {activeTab === "gallery" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
-            <GallerySlider lang={lang} />
+            <GallerySlider lang={lang} currentUser={currentUser} onAddAuditLog={handleAddAuditLog} />
           </div>
         )}
 
@@ -1623,6 +1687,7 @@ export default function App() {
             <WelfareBoard
               lang={lang}
               currentUser={currentUser}
+              registrations={registrations}
               welfareApps={welfareApplications}
               onAddWelfareApp={(newApp) => setWelfareApplications((prev) => [newApp, ...prev])}
               onUpdateWelfareApp={(updatedApp) => {
@@ -1694,6 +1759,7 @@ export default function App() {
                 onAddWelfareApp={(newApp) => setWelfareApplications((prev) => [newApp, ...prev])}
                 payments={payments}
                 onAddPayment={handleNewPayment}
+                onNavigateToMemberCard={() => setActiveTab("member_card")}
                 onUpdateProfile={(updated) => {
                   setCurrentUser(updated);
                   alert(lang === "ta" ? "சுயவிவரம் சேமிக்கப்பட்டது!" : "Biography saved successfully!");
@@ -1753,9 +1819,45 @@ export default function App() {
         {/* TAB 12: SUPER ADMIN EXCLUSIVE BUSINESS COMMAND CENTER - VERSION 13.0 */}
         {activeTab === "business_console" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
-            <SuperAdminBusinessConsole
+            {!isSuperAdminOtpVerified ? (
+              <div className="py-8">
+                <SuperAdminOtpAuth
+                  lang={lang}
+                  onSuccess={(verifiedUser, token) => {
+                    setIsSuperAdminOtpVerified(true);
+                    setCurrentUser(verifiedUser);
+                    handleAddAuditLog(
+                      "Super Admin Gateway Unlocked",
+                      `Business Console access granted after verified OTP login for ${verifiedUser.nameEn || verifiedUser.name}`
+                    );
+                  }}
+                  onCancel={() => setActiveTab("home")}
+                  onAddAuditLog={handleAddAuditLog}
+                  requiredForTitle="Super Admin Business Console"
+                  requiredForTitleTa="சூப்பர் அட்மின் வணிக மேலாண்மை மையம்"
+                />
+              </div>
+            ) : (
+              <SuperAdminBusinessConsole
+                lang={lang}
+                currentUser={currentUser}
+                onAddAuditLog={handleAddAuditLog}
+              />
+            )}
+          </div>
+        )}
+
+        {/* ROLE TIERS & SUPER KEY PORTAL */}
+        {activeTab === "role_control" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <RoleBasedControlPortal
               lang={lang}
               currentUser={currentUser}
+              onUpdateUserRole={(newRole) => {
+                if (currentUser) {
+                  setCurrentUser({ ...currentUser, role: newRole });
+                }
+              }}
               onAddAuditLog={handleAddAuditLog}
             />
           </div>
@@ -1780,12 +1882,45 @@ export default function App() {
               lang={lang}
               currentUser={currentUser}
               registrations={registrations}
+              onUpdateRegistration={(updated) => setRegistrations((prev) => prev.map(r => r.id === updated.id ? updated : r))}
               onAddAuditLog={handleAddAuditLog}
             />
           </div>
         )}
 
+        {/* TAB: MEMBER CARD (உறுப்பினர் அட்டை ₹100 PORTAL) */}
+        {activeTab === "member_card" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <MemberCardPortal
+              currentUser={currentUser}
+              onNavigateToAuth={() => setActiveTab("admin")}
+              onNavigateToRegister={() => setActiveTab("register")}
+            />
+          </div>
+        )}
+
       </main>
+
+      {/* PUBLIC QR CODE VERIFICATION MODAL */}
+      {verifyCardToken && (
+        <MemberCardVerificationModal
+          token={verifyCardToken}
+          cardRequest={verifiedCardRequest}
+          onClose={() => {
+            setVerifyCardToken(null);
+            setVerifiedCardRequest(null);
+            // Clean URL query param without full reload
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete("verify_card");
+              url.searchParams.delete("verify_member_card");
+              window.history.replaceState({}, document.title, url.pathname);
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+        />
+      )}
 
       {/* 5. SIDE EMERGENCY & FLOATING DIALERS */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
@@ -1831,6 +1966,13 @@ export default function App() {
           activeDistrictsCount: 38
         }}
       />
+
+      {showDistrictDirectoryModal && (
+        <DistrictHierarchyDirectory 
+          lang={lang} 
+          onClose={() => setShowDistrictDirectoryModal(false)} 
+        />
+      )}
 
       {/* 6. ENTERPRISE FOOTER */}
       <footer className="bg-stone-900 text-stone-100 py-10 px-6 border-t-4 border-amber-500 shrink-0 text-left">

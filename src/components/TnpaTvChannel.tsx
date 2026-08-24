@@ -235,8 +235,8 @@ export default function TnpaTvChannel({
     }
   ];
 
-  // Past Video Archive
-  const [videoArchive, setVideoArchive] = useState<TvVideoItem[]>([
+  // Past Video Archive with Real-time Super Admin sync
+  const defaultArchive: TvVideoItem[] = [
     {
       id: "v1",
       title: "மாநில பேரவைக் கூட்டம் 2026 - தலைவர்கள் சிறப்பு உரை",
@@ -281,7 +281,42 @@ export default function TnpaTvChannel({
       thumbnailColor: "from-emerald-800 to-teal-950",
       speaker: "மாவட்ட நிர்வாகிகள்"
     }
-  ]);
+  ];
+
+  const [videoArchive, setVideoArchive] = useState<TvVideoItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("tnpa2_tv_custom_media");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultArchive;
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const saved = localStorage.getItem("tnpa2_tv_custom_media");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setVideoArchive(parsed);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("tnpa_tv_media_updated", handleStorageChange as EventListener);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("tnpa_tv_media_updated", handleStorageChange as EventListener);
+    };
+  }, []);
 
   // ==========================================
   // AI AUTO NEWS STUDIO STATES & ENGINE

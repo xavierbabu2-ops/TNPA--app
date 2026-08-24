@@ -21,7 +21,6 @@ import {
   History,
   UserCheck,
   MapPin,
-  Vote,
   Briefcase,
   Layers,
   ChevronRight,
@@ -110,7 +109,7 @@ export default function EnterpriseCommandCenter({
 }: EnterpriseCommandCenterProps) {
   // Navigation for Command Center Tabs
   const [activeTab, setActiveTab] = useState<
-    "state_cc" | "district_cc" | "elections" | "ai_governance" | "engagement" | "projects" | "library" | "offline_sync" | "backup_dr"
+    "state_cc" | "district_cc" | "ai_governance" | "engagement" | "projects" | "library" | "offline_sync" | "backup_dr"
   >("state_cc");
 
   // Persona Sandbox to simulate different roles
@@ -126,42 +125,6 @@ export default function EnterpriseCommandCenter({
 
   // Selected District state for District Command Center
   const [selectedDistrictKey, setSelectedDistrictKey] = useState<string>("chennai");
-
-  // Election module states
-  const [elections, setElections] = useState([
-    {
-      id: "elec_2026_state",
-      title: "மாநில பொதுத் தேர்தல் 2026",
-      titleEn: "State Executive General Election 2026",
-      status: "active", // active, completed, scheduled
-      date: "2026-09-12",
-      votedCount: 4120,
-      candidates: [
-        { id: "cand_1", name: "எஸ். மைக்கேல் ஆல்வின்", nameEn: "S. Michael Alvin", post: "State President", symbol: "🎨 Brush & Palette", votes: 2450, approved: true },
-        { id: "cand_2", name: "ரா. சேவியர் பாபு", nameEn: "R. Xavier Babu", post: "State General Secretary", symbol: "📐 Ladder & T-Square", votes: 1670, approved: true },
-        { id: "cand_3", name: "சி. இராமநாதன்", nameEn: "C. Ramanathan", post: "State President", symbol: "🖌️ Paint Spray Gun", votes: 0, approved: false } // pending nomination
-      ],
-      votersEligibility: "Min age 18, 1 year paid up union subscription",
-      auditTrail: [
-        { time: "2026-08-01 09:00", text: "Election announced by Super Admin." },
-        { time: "2026-08-02 11:30", text: "Candidate nomination received for S. Michael Alvin." },
-        { time: "2026-08-03 14:00", text: "Nomination verified and approved for R. Xavier Babu." }
-      ]
-    }
-  ]);
-
-  const [nominationName, setNominationName] = useState("");
-  const [nominationNameEn, setNominationNameEn] = useState("");
-  const [nominationSymbol, setNominationSymbol] = useState("🎨 Brush & Palette");
-  const [nominationBio, setNominationBio] = useState("");
-  const [electionWorkflows, setElectionWorkflows] = useState({
-    voterEligibilityAge: 18,
-    requireActiveSubscription: true,
-    workflowStages: "Draft -> Verification -> Live Ballot -> Certified Audit"
-  });
-
-  const [hasVoted, setHasVoted] = useState(false);
-  const [voteConfirmationToken, setVoteConfirmationToken] = useState("");
 
   // AI Governance & Automation Center (Version 15.0) States
   const [reportsSummary, setReportsSummary] = useState("");
@@ -205,7 +168,7 @@ export default function EnterpriseCommandCenter({
   const [generatedReport, setGeneratedReport] = useState<any>(null);
 
   // 5. AI Meeting Assistant
-  const [meetingTopicInput, setMeetingTopicInput] = useState("Discussing GO 124 Welfare updates & scheduling District Elections");
+  const [meetingTopicInput, setMeetingTopicInput] = useState("Discussing GO 124 Welfare updates & District Administration");
   const [generatedMeetingData, setGeneratedMeetingData] = useState<any>(null);
 
   // 6. AI News & Content Drafting
@@ -260,112 +223,6 @@ export default function EnterpriseCommandCenter({
     return TN_DISTRICTS.find(d => d.key === selectedDistrictKey) || TN_DISTRICTS[0];
   }, [selectedDistrictKey]);
 
-  // Handle Candidate nomination submission
-  const handleRegisterNomination = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nominationName.trim()) return;
-
-    const newCandidate = {
-      id: `cand_${Date.now()}`,
-      name: nominationName,
-      nameEn: nominationNameEn || nominationName,
-      post: "State President",
-      symbol: nominationSymbol,
-      votes: 0,
-      approved: false // requires Nomination Verification by Admins
-    };
-
-    if (isOffline) {
-      // Offline support - queue it up
-      const queuedItem = {
-        type: "NOMINATION",
-        data: newCandidate,
-        timestamp: new Date().toLocaleTimeString()
-      };
-      setOfflineQueue(prev => [...prev, queuedItem]);
-      onAddAuditLog("Offline Nomination Draft Saved", `Candidate nomination draft for ${newCandidate.nameEn} created in offline mode.`);
-      alert(lang === "ta" ? "இணைய இணைப்பு இல்லை! உங்கள் விண்ணப்பம் வரைவாக சேமிக்கப்பட்டு ஆஃப்லைனில் வைக்கப்பட்டது." : "Offline Mode Active! Candidate nomination cached locally & will sync when network is restored.");
-    } else {
-      setElections(prev => prev.map(elec => {
-        if (elec.id === "elec_2026_state") {
-          return {
-            ...elec,
-            candidates: [...elec.candidates, newCandidate],
-            auditTrail: [...elec.auditTrail, {
-              time: new Date().toLocaleString(),
-              text: `Nomination submitted by ${newCandidate.nameEn}.`
-            }]
-          };
-        }
-        return elec;
-      }));
-      onAddAuditLog("Nomination Registered", `Candidate nomination filed for ${newCandidate.nameEn} under review.`);
-      alert(lang === "ta" ? "வேட்புமனு வெற்றிகரமாக தாக்கல் செய்யப்பட்டது! நிர்வாகியின் ஒப்புதலுக்காக காத்திருக்கிறது." : "Nomination successfully filed! Pending Verification by election officials.");
-    }
-
-    setNominationName("");
-    setNominationNameEn("");
-    setNominationBio("");
-  };
-
-  // Admin approves nomination candidate
-  const handleVerifyNomination = (candidateId: string, approve: boolean) => {
-    setElections(prev => prev.map(elec => {
-      if (elec.id === "elec_2026_state") {
-        return {
-          ...elec,
-          candidates: elec.candidates.map(cand => {
-            if (cand.id === candidateId) {
-              return { ...cand, approved: approve };
-            }
-            return cand;
-          }),
-          auditTrail: [...elec.auditTrail, {
-            time: new Date().toLocaleString(),
-            text: `Nomination for ${elec.candidates.find(c => c.id === candidateId)?.nameEn} was ${approve ? 'Approved' : 'Rejected'} by Admin.`
-          }]
-        };
-      }
-      return elec;
-    }));
-
-    const candName = elections[0].candidates.find(c => c.id === candidateId)?.nameEn || "Candidate";
-    onAddAuditLog("Nomination Verified", `Nomination for ${candName} was ${approve ? 'Approved' : 'Rejected'}.`);
-    alert(lang === "ta" ? "மனு சரிபார்க்கப்பட்டு நிலை மாற்றப்பட்டது!" : `Candidate nomination status successfully updated.`);
-  };
-
-  // Secure Vote dispatch
-  const handleCastVote = (candidateId: string) => {
-    if (hasVoted) return;
-
-    const token = `TNPA-VOTE-${Math.floor(100000 + Math.random() * 900000)}-SHA256`;
-    
-    setElections(prev => prev.map(elec => {
-      if (elec.id === "elec_2026_state") {
-        return {
-          ...elec,
-          votedCount: elec.votedCount + 1,
-          candidates: elec.candidates.map(cand => {
-            if (cand.id === candidateId) {
-              return { ...cand, votes: cand.votes + 1 };
-            }
-            return cand;
-          }),
-          auditTrail: [...elec.auditTrail, {
-            time: new Date().toLocaleString(),
-            text: `Secure cryptographic vote confirmed with token ${token.substring(0, 15)}...`
-          }]
-        };
-      }
-      return elec;
-    }));
-
-    setVoteConfirmationToken(token);
-    setHasVoted(true);
-    onAddAuditLog("Secure Vote Casted", "Member successfully completed voting in state general ballot.");
-    alert(lang === "ta" ? "உங்கள் வாக்கு பாதுகாப்பாக செலுத்தப்பட்டது! ரசீது உருவாக்கப்பட்டது." : "Vote secured cryptographically! Your vote receipt token is displayed below.");
-  };
-
   // AI Governance Actions
   const handleGenerateAISummary = async () => {
     setSummaryLoading(true);
@@ -378,8 +235,8 @@ export default function EnterpriseCommandCenter({
       );
       setAiMeetingBrief(
         lang === "ta"
-          ? "தலைமை நிர்வாகக் கூட்ட சுருக்கம்: 1. சேலம் மற்றும் தர்மபுரியில் உறுப்பினர் சந்தா புதுப்பிக்கும் சிறப்பு முகாம்களை ஆகஸ்ட் 15க்குள் துவங்குதல். 2. நிலுவையில் உள்ள மருத்துவ நிவாரண விண்ணப்பங்களுக்கு மாநில பொதுநிதியிலிருந்து அவசர கால முன்பணம் ஒதுக்குதல். 3. வரவிருக்கும் 2026 பொதுத் தேர்தலுக்கான வாக்காளர் சரிபார்ப்பு காலக்கெடுவை நீட்டித்தல்."
-          : "Executive Council Meeting Agenda Briefing: 1. Launch a subscription renewal drive in Salem and Dharmapuri by Aug 15. 2. Authorize immediate partial disbursement from mutual reserve fund for pending medical aid applications. 3. Extend voter verification schedules to secure maximum democratic participation."
+          ? "தலைமை நிர்வாகக் கூட்ட சுருக்கம்: 1. சேலம் மற்றும் தர்மபுரியில் உறுப்பினர் சந்தா புதுப்பிக்கும் சிறப்பு முகாம்களை ஆகஸ்ட் 15க்குள் துவங்குதல். 2. நிலுவையில் உள்ள மருத்துவ நிவாரண விண்ணப்பங்களுக்கு மாநில பொதுநிதியிலிருந்து அவசர கால முன்பணம் ஒதுக்குதல். 3. நலவாரிய டிஜிட்டல் பாஸ்புக் விநியோகத்தை அனைத்து மாவட்டங்களிலும் துரிதப்படுத்துதல்."
+          : "Executive Council Meeting Agenda Briefing: 1. Launch a subscription renewal drive in Salem and Dharmapuri by Aug 15. 2. Authorize immediate partial disbursement from mutual reserve fund for pending medical aid applications. 3. Accelerate welfare board digital passbook distribution across all districts."
       );
       setSummaryLoading(false);
       onAddAuditLog("AI Governance Summary Executed", "Summarized state reports, highlighting compliance risk and meeting briefs.");
@@ -706,8 +563,8 @@ export default function EnterpriseCommandCenter({
       } else if (query.includes("fee") || query.includes("கட்டணம்") || query.includes("சந்தா")) {
         setAiLibraryResponse(
           lang === "ta"
-            ? "கண்டறியப்பட்ட பிரிவு: 'சங்கத்தின் அரசியல் சாசனம் & துணை விதிகள்'. ஆண்டு சந்தா ₹500. புதுப்பிக்கத் தவறும் பட்சத்தில் வாக்காளர் தகுதி மற்றும் நலத்திட்ட பலன்கள் தற்காலிகமாக நிறுத்தி வைக்கப்படலாம்."
-            : "Semantic Match Found in 'Union Constitution' (Article 12, Sec 3): Annual subscription is set to ₹500, due before August 10. Failure to renew results in temporary suspension of voter privileges and welfare board eligibility."
+            ? "கண்டறியப்பட்ட பிரிவு: 'சங்கத்தின் அரசியல் சாசனம் & துணை விதிகள்'. ஆண்டு சந்தா ₹500. புதுப்பிக்கத் தவறும் பட்சத்தில் உறுப்பினர் தகுதி மற்றும் நலத்திட்ட பலன்கள் தற்காலிகமாக நிறுத்தி வைக்கப்படலாம்."
+            : "Semantic Match Found in 'Union Constitution' (Article 12, Sec 3): Annual subscription is set to ₹500, due before August 10. Failure to renew results in temporary suspension of membership privileges and welfare board eligibility."
         );
       } else {
         setAiLibraryResponse(
@@ -740,13 +597,13 @@ export default function EnterpriseCommandCenter({
       return;
     }
 
-    // Create a mock conflict to show interactive conflict resolution
-    const candidateConflict = offlineQueue.find(q => q.type === "NOMINATION");
-    if (candidateConflict) {
+    // Create a mock conflict to show interactive conflict resolution if tasks exist
+    const taskConflict = offlineQueue.find(q => q.type === "TASK");
+    if (taskConflict) {
       setSyncConflict({
-        local: { ...candidateConflict.data, bio: "Local Draft Bio: Senior Artisan with 25 years experience." },
-        server: { id: candidateConflict.data.id, name: candidateConflict.data.name, nameEn: candidateConflict.data.nameEn, bio: "Server Master: Registered without bio by Madurai Branch clerk." },
-        queueItemIndex: offlineQueue.indexOf(candidateConflict)
+        local: { ...taskConflict.data, title: "Local Draft Task Title" },
+        server: { id: taskConflict.data.id, title: "Server Version Task Title" },
+        queueItemIndex: offlineQueue.indexOf(taskConflict)
       });
       return;
     }
@@ -756,20 +613,6 @@ export default function EnterpriseCommandCenter({
   };
 
   const processFullSync = () => {
-    // Sync nominations
-    const queuedNominations = offlineQueue.filter(q => q.type === "NOMINATION");
-    if (queuedNominations.length > 0) {
-      setElections(prev => prev.map(elec => {
-        if (elec.id === "elec_2026_state") {
-          return {
-            ...elec,
-            candidates: [...elec.candidates, ...queuedNominations.map(q => q.data)]
-          };
-        }
-        return elec;
-      }));
-    }
-
     // Sync tasks
     const queuedTasks = offlineQueue.filter(q => q.type === "TASK");
     if (queuedTasks.length > 0) {
@@ -787,18 +630,10 @@ export default function EnterpriseCommandCenter({
 
     const chosen = keepLocal ? syncConflict.local : syncConflict.server;
     
-    // Add chosen candidate to live ballot list
-    setElections(prev => prev.map(elec => {
-      if (elec.id === "elec_2026_state") {
-        return {
-          ...elec,
-          candidates: [...elec.candidates, chosen]
-        };
-      }
-      return elec;
-    }));
+    // Add chosen task
+    setTasks(prev => [chosen, ...prev]);
 
-    // Remove solved nomination and sync remaining items in queue
+    // Remove solved item and sync remaining items in queue
     const remainingQueue = [...offlineQueue];
     remainingQueue.splice(syncConflict.queueItemIndex, 1);
     
@@ -819,7 +654,6 @@ export default function EnterpriseCommandCenter({
   // Backup & Recovery Simulator
   const handleCompileEncryptedBackup = () => {
     const backupObj = {
-      elections,
       tasks,
       systemHealth: "100%",
       districtScores: TN_DISTRICTS.map(d => ({ key: d.key, score: d.score })),
@@ -894,8 +728,8 @@ export default function EnterpriseCommandCenter({
             </h2>
             <p className="text-xs text-stone-300">
               {lang === "ta" 
-                ? "மாநில, மாவட்ட நிர்வாக உள்கட்டமைப்பு, டிஜிட்டல் தேர்தல் மற்றும் செயற்கை நுண்ணறிவு நிர்வாக தளம்"
-                : "Live State Command, District Analytics, Cryptographic Elections, and AI-Powered Governance Hub"}
+                ? "மாநில, மாவட்ட நிர்வாக உள்கட்டமைப்பு மற்றும் செயற்கை நுண்ணறிவு நிர்வாக தளம்"
+                : "Live State Command, District Analytics, and AI-Powered Governance Hub"}
             </p>
           </div>
 
@@ -955,7 +789,6 @@ export default function EnterpriseCommandCenter({
           {[
             { id: "state_cc", label: "மாநில கட்டளை மையம்", labelEn: "State Command Center", icon: <Tv className="w-4 h-4" /> },
             { id: "district_cc", label: "மாவட்ட மேலாண்மை", labelEn: "District Command Center", icon: <MapPin className="w-4 h-4" /> },
-            { id: "elections", label: "டிஜிட்டல் தேர்தல் பிரிவு", labelEn: "Digital Election System", icon: <Vote className="w-4 h-4" /> },
             { id: "ai_governance", label: "AI நிர்வாக மேம்பாடு", labelEn: "AI Governance Platform", icon: <Sparkles className="w-4 h-4 text-amber-400" /> },
             { id: "engagement", label: "உறுப்பினர் ஈடுபாடு", labelEn: "Member Engagement", icon: <Award className="w-4 h-4 text-rose-400" /> },
             { id: "projects", label: "திட்ட மேலாண்மை", labelEn: "Project Management", icon: <Briefcase className="w-4 h-4" /> },
@@ -988,9 +821,9 @@ export default function EnterpriseCommandCenter({
             <div>
               <span className="font-extrabold text-white block">Role Privileges:</span>
               <p className="text-stone-400 mt-1">
-                {sandboxRole === "super_admin" && "✓ Complete state control, Election Config, Disaster Backup authority."}
+                {sandboxRole === "super_admin" && "✓ Complete state control, Disaster Backup authority."}
                 {sandboxRole === "district_admin" && "✓ District performance analytics, filing district reports, task management."}
-                {sandboxRole === "member" && "✓ Cast ballot, check voter eligibility, request certificates, read library."}
+                {sandboxRole === "member" && "✓ Request certificates, read library, submit grievances."}
                 {sandboxRole === "visitor" && "✓ Read-only constitutional guidelines, public bulletin updates."}
               </p>
             </div>
@@ -1248,279 +1081,6 @@ export default function EnterpriseCommandCenter({
                       </p>
                     </div>
                   )}
-                </div>
-
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: DIGITAL ELECTION SYSTEM */}
-          {activeTab === "elections" && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="flex justify-between items-center border-b border-stone-200 pb-3">
-                <div>
-                  <h3 className="text-base font-extrabold text-stone-900 uppercase">
-                    {lang === "ta" ? "பாதுகாப்பான டிஜிட்டல் தேர்தல் பிரிவு" : "DIGITAL ELECTION PORTAL"}
-                  </h3>
-                  <p className="text-xs text-stone-500">
-                    {lang === "ta" ? "மக்களாட்சி முறைப்படி வேட்புமனு தாக்கல், சரிபார்ப்பு மற்றும் வாக்குப்பதிவு" : "Democratic voting process matching secure blockchain confirmation parameters."}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl text-xs font-bold">
-                  <Vote className="w-4 h-4 animate-pulse" />
-                  <span>{lang === "ta" ? "தேர்தல் நேரலை" : "Election Active"}</span>
-                </div>
-              </div>
-
-              {/* Voter eligibility hud */}
-              <div className="bg-gradient-to-r from-stone-950 to-stone-800 text-white p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-md">
-                <div className="space-y-1">
-                  <span className="text-[10px] text-amber-400 font-bold uppercase tracking-widest block">VOTER QUALIFICATION SYSTEM</span>
-                  <h4 className="text-sm font-extrabold">
-                    {lang === "ta" ? "உங்கள் வாக்காளர் தகுதியை சரிபார்க்கவும்" : "Check Voter Eligibility Status"}
-                  </h4>
-                  <p className="text-[11px] text-stone-300">
-                    Rule: {elections[0].votersEligibility}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      if (sandboxRole === "visitor") {
-                        alert(lang === "ta" ? "விருந்தினர்களுக்கு வாக்களிக்கும் உரிமை இல்லை! தயவுசெய்து உள்நுழையவும்." : "Guest account cannot vote. Registered union members only.");
-                      } else {
-                        alert(lang === "ta" ? "வாழ்த்துக்கள்! நீங்கள் வாக்களிக்க தகுதி பெற்றுள்ளீர்கள். சந்தா செலுத்தப்பட்டு கணக்கு செயலில் உள்ளது." : "VOTER REGISTER VERIFIED: Age 18+ and Subscription paid status cleared. Ready to ballot.");
-                      }
-                    }}
-                    className="px-4 py-2 bg-amber-500 text-stone-950 hover:bg-amber-600 rounded-xl text-xs font-black transition-all cursor-pointer shadow"
-                  >
-                    {lang === "ta" ? "தகுதியை சரிபார்" : "Verify My Eligibility"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Candidate Registration & Nomination Verification Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Nomination Form */}
-                <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black text-stone-900 uppercase flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-amber-500" />
-                    <span>{lang === "ta" ? "வேட்புமனு தாக்கல் படிவம்" : "Candidate Nomination Form"}</span>
-                  </h4>
-
-                  {["super_admin", "district_admin", "member"].includes(sandboxRole) ? (
-                    <form onSubmit={handleRegisterNomination} className="space-y-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-stone-500 block uppercase mb-1">Candidate Name (Tamil)</label>
-                        <input
-                          type="text"
-                          required
-                          value={nominationName}
-                          onChange={(e) => setNominationName(e.target.value)}
-                          placeholder="உதாரணம்: ஆர். பழனிவேல்"
-                          className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-800"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-stone-500 block uppercase mb-1">Candidate Name (English)</label>
-                        <input
-                          type="text"
-                          required
-                          value={nominationNameEn}
-                          onChange={(e) => setNominationNameEn(e.target.value)}
-                          placeholder="e.g., R. Palanivel"
-                          className="w-full border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-800"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[10px] font-bold text-stone-500 block uppercase mb-1">Select Post</label>
-                          <select className="w-full border border-stone-200 rounded-xl px-2 py-2 text-xs text-stone-800">
-                            <option value="State President">State President (மாநில தலைவர்)</option>
-                            <option value="State Treasurer">State Treasurer (மாநில பொருளாளர்)</option>
-                            <option value="District Secretary">District Secretary (மாவட்ட செயலாளர்)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-stone-500 block uppercase mb-1">Election Symbol</label>
-                          <select
-                            value={nominationSymbol}
-                            onChange={(e) => setNominationSymbol(e.target.value)}
-                            className="w-full border border-stone-200 rounded-xl px-2 py-2 text-xs text-stone-800"
-                          >
-                            <option value="🎨 Brush & Palette">🎨 Brush & Palette</option>
-                            <option value="📐 Ladder & T-Square">📐 Ladder & T-Square</option>
-                            <option value="🖌️ Paint Spray Gun">🖌️ Paint Spray Gun</option>
-                            <option value="🏢 Roller & Scaffold">🏢 Roller & Scaffold</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="w-full py-2 bg-stone-950 hover:bg-[#b91c1c] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
-                      >
-                        {lang === "ta" ? "மனு தாக்கல் செய்க" : "File Candidate Nomination"}
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="p-6 text-center bg-stone-50 rounded-xl border border-stone-100">
-                      <Lock className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-                      <p className="text-xs text-stone-500 font-bold">Please sign in as member or admin to file nominations.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Candidate Nomination Verification Panel (Role Super Admin Only) */}
-                <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black text-stone-900 uppercase">
-                    {lang === "ta" ? "வேட்புமனு சரிபார்ப்பு தணிக்கை" : "Nomination Verification Bureau"}
-                  </h4>
-
-                  <div className="space-y-3 max-h-[220px] overflow-y-auto">
-                    {elections[0].candidates.map((cand, idx) => (
-                      <div key={`ecc_cand1_${cand.id}_${idx}`} className="p-3 border border-stone-100 rounded-xl bg-stone-50 flex justify-between items-center text-xs">
-                        <div>
-                          <span className="font-bold text-stone-900 block">{lang === "ta" ? cand.name : cand.nameEn}</span>
-                          <span className="text-[10px] text-stone-500 block">{cand.post} | Symbol: {cand.symbol}</span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded inline-block mt-1 ${
-                            cand.approved ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
-                          }`}>
-                            {cand.approved ? "Approved Ballot" : "Pending Verification"}
-                          </span>
-                        </div>
-
-                        {["super_admin"].includes(sandboxRole) && (
-                          <div className="flex gap-1.5">
-                            {!cand.approved ? (
-                              <button
-                                onClick={() => handleVerifyNomination(cand.id, true)}
-                                className="px-2.5 py-1 bg-[#b91c1c] text-white rounded-lg font-bold hover:bg-rose-700 cursor-pointer text-[10px]"
-                              >
-                                Approve
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleVerifyNomination(cand.id, false)}
-                                className="px-2.5 py-1 bg-stone-800 text-stone-300 rounded-lg font-bold hover:bg-stone-700 cursor-pointer text-[10px]"
-                              >
-                                Suspend
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Secure Voting Terminal */}
-              <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <h4 className="text-xs font-black text-stone-900 uppercase flex items-center gap-1.5">
-                  <Lock className="w-4 h-4 text-[#b91c1c]" />
-                  <span>{lang === "ta" ? "பாதுகாப்பான வாக்குப் பதிவு முனையம்" : "SECURE ENCRYPTED VOTING TERMINAL"}</span>
-                </h4>
-
-                {hasVoted ? (
-                  <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-2">
-                    <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
-                    <h5 className="font-bold text-stone-900 text-sm">
-                      {lang === "ta" ? "வாக்கு பதிவு வெற்றிகரமாக முடிந்தது!" : "Your Vote is Securely Casted!"}
-                    </h5>
-                    <p className="text-xs text-stone-600">
-                      Receipt Token: <span className="font-mono font-bold text-emerald-800 bg-emerald-100/50 px-2 py-0.5 rounded">{voteConfirmationToken}</span>
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-xs text-stone-500 leading-relaxed">
-                      Select one approved candidate below to cast your secure democratic vote. Your selection is processed with client-side hashing parameters.
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {elections[0].candidates.filter(c => c.approved).map((cand, idx) => (
-                        <div key={`ecc_cand2_${cand.id}_${idx}`} className="p-4 border border-stone-200 rounded-xl hover:border-amber-400 bg-stone-50/50 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-extrabold text-stone-900 text-sm block">{lang === "ta" ? cand.name : cand.nameEn}</span>
-                            <span className="text-[10px] text-stone-500 block">Post: {cand.post}</span>
-                            <span className="text-stone-700 font-bold block mt-1">Symbol: {cand.symbol}</span>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              if (confirm(lang === "ta" ? `நீங்கள் ${cand.name} அவர்களுக்கு வாக்களிக்கப் போகிறீர்கள். உறுதிப்படுத்துக?` : `Are you sure you want to vote for ${cand.nameEn}? This cannot be modified.`)) {
-                                handleCastVote(cand.id);
-                              }
-                            }}
-                            className="px-4 py-2 bg-stone-900 hover:bg-[#b91c1c] text-white rounded-xl font-bold transition-all cursor-pointer text-xs flex items-center gap-1.5 shadow"
-                          >
-                            <Vote className="w-3.5 h-3.5" />
-                            <span>{lang === "ta" ? "வாக்களி" : "Vote Symbol"}</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Real-time election tallies & Audit Logs */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* Result Publication chart */}
-                <div className="md:col-span-2 bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black text-stone-900 uppercase">
-                    {lang === "ta" ? "லைவ் தேர்தல் முடிவுகள் பதாகை" : "Live Democratic Vote Tallies"}
-                  </h4>
-
-                  <div className="space-y-4">
-                    {elections[0].candidates.filter(c => c.approved).map((cand, idx) => {
-                      const totalVotes = elections[0].votedCount || 1;
-                      const percentage = Math.round((cand.votes / totalVotes) * 100);
-                      return (
-                        <div key={`ecc_cand3_${cand.id}_${idx}`} className="space-y-1.5 text-xs">
-                          <div className="flex justify-between font-bold text-stone-800">
-                            <span>{lang === "ta" ? cand.name : cand.nameEn} ({cand.symbol})</span>
-                            <span className="font-mono">{cand.votes.toLocaleString()} votes ({percentage}%)</span>
-                          </div>
-                          <div className="h-3 w-full bg-stone-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#b91c1c] rounded-full transition-all duration-500" style={{ width: `${percentage}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <div className="pt-2 border-t border-stone-100 flex justify-between items-center text-[10px] text-stone-500">
-                      <span>Total Registered Votes Casted: <span className="font-bold text-stone-800 font-mono">{elections[0].votedCount.toLocaleString()}</span></span>
-                      <span>Certified Audit Hash: <span className="font-mono">SHA256-VOTETRUST</span></span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Secure Audit Trail */}
-                <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-xs font-black text-stone-900 uppercase">
-                      {lang === "ta" ? "தேர்தல் தணிக்கை குறிப்பேடு" : "Election Security Audit Logs"}
-                    </h4>
-                    <div className="space-y-2 mt-3 max-h-[140px] overflow-y-auto">
-                      {elections[0].auditTrail.map((log, i) => (
-                        <div key={i} className="text-[10px] border-b border-stone-50 pb-1.5">
-                          <span className="text-stone-400 block font-mono">{log.time}</span>
-                          <p className="text-stone-700 leading-tight">{log.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-stone-100 text-[9px] text-stone-400 font-semibold leading-tight">
-                    *Cryptographic voter identity protection is active on all node ledgers.
-                  </div>
                 </div>
 
               </div>
@@ -2861,13 +2421,13 @@ export default function EnterpriseCommandCenter({
                     </h4>
                   </div>
                   <p className="text-xs text-stone-600 leading-relaxed">
-                    Conflict found for nominee nomination register: Local client cache has different bio information than the existing state server master. Select action below:
+                    Conflict found for task entry register: Local client cache has different title information than the existing state server master. Select action below:
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-3 border border-amber-200 rounded-xl bg-white space-y-1 text-xs">
                       <span className="font-bold text-emerald-800 block">Version A (Keep Local Draft Cache)</span>
-                      <p className="text-[11px] text-stone-600">{syncConflict.local.bio}</p>
+                      <p className="text-[11px] text-stone-600">{syncConflict.local.title}</p>
                       <button
                         onClick={() => handleResolveConflict(true)}
                         className="mt-3 w-full py-1.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 cursor-pointer text-[10px]"
@@ -2878,7 +2438,7 @@ export default function EnterpriseCommandCenter({
 
                     <div className="p-3 border border-stone-200 rounded-xl bg-stone-50 space-y-1 text-xs">
                       <span className="font-bold text-stone-700 block">Version B (Keep State Server Master)</span>
-                      <p className="text-[11px] text-stone-400">{syncConflict.server.bio}</p>
+                      <p className="text-[11px] text-stone-400">{syncConflict.server.title}</p>
                       <button
                         onClick={() => handleResolveConflict(false)}
                         className="mt-3 w-full py-1.5 bg-stone-800 text-white rounded-lg font-bold hover:bg-stone-700 cursor-pointer text-[10px]"

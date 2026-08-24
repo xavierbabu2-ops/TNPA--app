@@ -26,7 +26,9 @@ import {
   HelpCircle,
   Search,
   RefreshCw,
-  Camera
+  Camera,
+  CreditCard,
+  Video
 } from "lucide-react";
 import { 
   Leader, 
@@ -41,6 +43,12 @@ import {
   UserRole 
 } from "../types";
 import SmartAIAnalytics from "./SmartAIAnalytics";
+import { generateDistrictRegNumber } from "../utils/districtCodes";
+
+import { AdminMemberCardVerification } from "./AdminMemberCardVerification";
+import SelfHealingConsole from "./SelfHealingConsole";
+import SuperAdminIdCardEditor from "./SuperAdminIdCardEditor";
+import UnionConferenceStudio from "./UnionConferenceStudio";
 
 interface AdminPanelProps {
   lang: "ta" | "en";
@@ -97,7 +105,7 @@ export default function AdminPanel({
   const isSuperAdmin = currentUser?.role === "super_admin";
   // Sidebar tab selection
   const [adminTab, setAdminTab] = useState<
-    "dashboard" | "ai_analytics" | "member_approvals" | "welfare_approvals" | "payment_verifications" | "news_circulars" | "leaders_directory" | "system_controls" | "audit_logs"
+    "dashboard" | "ai_analytics" | "member_approvals" | "welfare_approvals" | "payment_verifications" | "member_card_payments" | "news_circulars" | "leaders_directory" | "system_controls" | "audit_logs" | "self_healing" | "id_card_customizer" | "conference_studio"
   >("dashboard");
 
   // Leader state editor
@@ -174,7 +182,10 @@ export default function AdminPanel({
 
   // Double workflow: approve membership
   const handleApproveMember = (id: string) => {
-    const regNumber = `TNP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const targetMember = registrations.find(r => r.id === id);
+    const regNumber = targetMember?.regNumber && targetMember.regNumber.length > 3
+      ? targetMember.regNumber
+      : generateDistrictRegNumber(targetMember?.district || "சென்னை");
     const updated = registrations.map((r) => {
       if (r.id === id) {
         onAddAuditLog(
@@ -578,6 +589,24 @@ export default function AdminPanel({
               </button>
             )}
 
+            {/* Member Card Payment Verification (Super Admin, Treasurer, State Admin) */}
+            {canApprovePayments && (
+              <button
+                onClick={() => setAdminTab("member_card_payments")}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                  adminTab === "member_card_payments" ? "bg-[#b91c1c] text-white shadow" : "text-stone-300 hover:bg-stone-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-amber-400" />
+                  <span>{lang === "ta" ? "உறுப்பினர் அட்டை கட்டணங்கள்" : "Member Card Payments"}</span>
+                </div>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500 text-stone-950 font-black text-[8px] uppercase tracking-wider">
+                  ₹100
+                </span>
+              </button>
+            )}
+
             {/* News Circulars Uploads */}
             {["super_admin", "district_admin", "state_admin"].includes(currentUser.role) && (
               <button
@@ -627,6 +656,48 @@ export default function AdminPanel({
               >
                 <Settings className="w-4 h-4 text-amber-500 animate-[spin_10s_linear_infinite]" />
                 <span>{lang === "ta" ? "சங்கக் கட்டுப்பாடுகள்" : "System Settings"}</span>
+              </button>
+            )}
+
+            {/* Self-Healing & Health System */}
+            {["super_admin", "state_admin", "state_president"].includes(currentUser.role) && (
+              <button
+                onClick={() => setAdminTab("self_healing")}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                  adminTab === "self_healing" ? "bg-amber-500 text-stone-950 shadow" : "text-amber-400 hover:bg-stone-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>{lang === "ta" ? "தானியங்கி பாதுகாப்பு" : "Self-Healing Engine"}</span>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </button>
+            )}
+
+            {/* Super Admin ID Card Design & Direct Editor */}
+            {isSuperAdmin && (
+              <button
+                onClick={() => setAdminTab("id_card_customizer")}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  adminTab === "id_card_customizer" ? "bg-amber-500 text-stone-950 shadow" : "text-amber-300 hover:bg-stone-800"
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-amber-400" />
+                <span>{lang === "ta" ? "🎛️ அட்டை வடிவமைப்பு & எடிட்டர்" : "🎛️ ID Card Customizer"}</span>
+              </button>
+            )}
+
+            {/* Union Video & Audio Conference Studio (Leaders & Admins) */}
+            {["union_admin", "district_admin", "state_admin", "state_president", "state_treasurer", "super_admin"].includes(currentUser.role) && (
+              <button
+                onClick={() => setAdminTab("conference_studio")}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  adminTab === "conference_studio" ? "bg-[#b91c1c] text-white shadow" : "text-amber-300 hover:bg-stone-800"
+                }`}
+              >
+                <Video className="w-4 h-4 text-amber-400" />
+                <span>{lang === "ta" ? "🎥 பொறுப்பாளர்கள் கான்பரன்ஸ்" : "🎥 Leaders Conference Studio"}</span>
               </button>
             )}
           </nav>
@@ -1463,6 +1534,13 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* TAB: MEMBER CARD PAYMENT VERIFICATION & CONFIGURATION */}
+        {adminTab === "member_card_payments" && (
+          <div className="space-y-6 text-left animate-[fadeIn_0.5s_ease-out]">
+            <AdminMemberCardVerification currentAdminName={currentUser.name || 'Admin'} />
+          </div>
+        )}
+
         {/* TAB 5: PUBLISH NEWS & BULLETINS */}
         {adminTab === "news_circulars" && (
           <div className="space-y-6 text-left animate-[fadeIn_0.5s_ease-out]">
@@ -2076,6 +2154,44 @@ export default function AdminPanel({
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* TAB 9: SELF-HEALING & HEALTH COMMAND CONSOLE */}
+        {adminTab === "self_healing" && (
+          <div className="space-y-6 text-left animate-[fadeIn_0.5s_ease-out]">
+            <SelfHealingConsole
+              currentUserRole={currentUser.role}
+              adminName={currentUser.name || currentUser.adminUsername || "Admin"}
+              onAddAuditLog={onAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* TAB 10: SUPER ADMIN ID CARD DESIGN & DIRECT EDITOR */}
+        {adminTab === "id_card_customizer" && isSuperAdmin && (
+          <div className="space-y-6 text-left animate-[fadeIn_0.3s_ease-out]">
+            <SuperAdminIdCardEditor
+              lang={lang}
+              currentUser={currentUser}
+              registrations={registrations}
+              onUpdateRegistration={(updated) => {
+                const nextRegs = registrations.map(r => r.id === updated.id ? updated : r);
+                onUpdateRegistrations(nextRegs);
+              }}
+              onAddAuditLog={onAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* TAB 11: LEADERS VIDEO & AUDIO CONFERENCE STUDIO */}
+        {adminTab === "conference_studio" && (
+          <div className="space-y-6 text-left animate-[fadeIn_0.3s_ease-out]">
+            <UnionConferenceStudio
+              lang={lang}
+              currentUser={currentUser}
+              onAddAuditLog={onAddAuditLog}
+            />
           </div>
         )}
 

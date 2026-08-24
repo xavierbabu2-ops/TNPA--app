@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
+import ImageEditorModal from "./ImageEditorModal";
+import ChangeHistoryModal from "./ChangeHistoryModal";
 import { 
   Video, Calendar, Users, BarChart3, PlusCircle, Volume2, 
   Send, Trash2, Check, AlertCircle, Share2, Bell, Download, 
   MapPin, Clock, User, Award, Shield, MessageSquare, Plus, 
   CheckSquare, CheckCircle2, ShieldAlert, ArrowRight, HelpCircle, 
-  FileText, Camera, Paperclip, Vote, ChevronRight, Play, MicOff, Maximize2
+  FileText, Camera, Paperclip, ChevronRight, Play, MicOff, Maximize2, Edit3, History, ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -139,6 +141,49 @@ export default function LiveCommunication({ lang, currentUser, onAddAuditLog }: 
   const [newMeetLink, setNewMeetLink] = useState("https://youtube.com/live/example");
   const [newMeetPassword, setNewMeetPassword] = useState("");
   const [bannerPreview, setBannerPreview] = useState("https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&q=80&w=800");
+
+  const isPrimarySuperAdmin = currentUser?.role === "super_admin" || currentUser?.isPrimarySuperAdmin === true || currentUser?.adminUsername === "superadmin";
+  const isAdmin = isPrimarySuperAdmin; // Strictly Primary Super Admin can edit official events
+  const [editingMeetingForPhoto, setEditingMeetingForPhoto] = useState<Meeting | null>(null);
+  const [selectedMeetingForHistory, setSelectedMeetingForHistory] = useState<Meeting | null>(null);
+
+  const handleSaveEventPhoto = async (newPhotoUrl: string) => {
+    if (!editingMeetingForPhoto) return;
+    const targetId = editingMeetingForPhoto.id;
+    const prevBanner = editingMeetingForPhoto.banner;
+
+    setMeetings(prev => prev.map(m => m.id === targetId ? { ...m, banner: newPhotoUrl, isEdited: true, lastEditedAt: new Date().toLocaleDateString("en-IN") } : m));
+
+    try {
+      const res = await fetch(`/api/events/${targetId}/photo`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": currentUser?.role || "super_admin",
+          "x-username": currentUser?.adminUsername || "superadmin"
+        },
+        body: JSON.stringify({
+          photoUrl: newPhotoUrl,
+          previousPhotoUrl: prevBanner,
+          userRole: currentUser?.role || "super_admin",
+          adminUsername: currentUser?.adminUsername || "superadmin",
+          editorName: currentUser?.name || currentUser?.nameEn || "Super Admin R. Xavier Babu",
+          editorId: currentUser?.id || "usr_super_admin",
+          reason: `Live Event banner photo update for: ${editingMeetingForPhoto.name}`
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.errorTa || data.error || "Permission Denied");
+      }
+    } catch (err) {
+      console.warn("Failed to persist event photo:", err);
+    }
+
+    onAddAuditLog("Update Event Photo", `Updated photo/banner for event: ${editingMeetingForPhoto.name}`);
+    setEditingMeetingForPhoto(null);
+  };
 
   // Notifications timing configuration
   const [notifyImmediately, setNotifyImmediately] = useState(true);
@@ -631,7 +676,7 @@ export default function LiveCommunication({ lang, currentUser, onAddAuditLog }: 
                   >
                     <div>
                       {/* Banner Image */}
-                      <div className="h-32 w-full bg-stone-100 relative">
+                      <div className="h-32 w-full bg-stone-100 relative group">
                         <img
                           src={meet.banner}
                           alt={meet.name}
@@ -650,13 +695,51 @@ export default function LiveCommunication({ lang, currentUser, onAddAuditLog }: 
                             {meet.type.split(" ")[0]}
                           </span>
                         </div>
+
+                        {/* Admin Direct Photo Edit Button & History Button */}
+                        <div className="absolute top-2 right-2 flex gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMeetingForHistory(meet);
+                            }}
+                            title="View Change History"
+                            className="px-2 py-1 bg-stone-900 hover:bg-stone-800 text-amber-300 font-bold text-[10px] rounded-lg shadow-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                          >
+                            <History className="w-3.5 h-3.5" />
+                            <span>{lang === "ta" ? "வரலாறு" : "History"}</span>
+                          </button>
+
+                          {isPrimarySuperAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingMeetingForPhoto(meet);
+                              }}
+                              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-[10px] rounded-lg shadow-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>{lang === "ta" ? "படம் மாற்று" : "Edit Photo"}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Info Body */}
                       <div className="p-4 space-y-2">
-                        <h5 className="font-extrabold text-stone-900 text-xs md:text-sm line-clamp-2">
-                          {meet.name}
-                        </h5>
+                        <div className="flex items-center justify-between gap-2">
+                          <h5 className="font-extrabold text-stone-900 text-xs md:text-sm line-clamp-2">
+                            {meet.name}
+                          </h5>
+                          {meet.isEdited && (
+                            <span className="shrink-0 text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              <span>{lang === "ta" ? "திருத்தப்பட்டது" : "Updated"}</span>
+                            </span>
+                          )}
+                        </div>
                         <p className="text-stone-500 text-[11px] line-clamp-2 leading-relaxed">
                           {meet.description}
                         </p>
@@ -762,9 +845,9 @@ export default function LiveCommunication({ lang, currentUser, onAddAuditLog }: 
             {polls.length > 0 && (
               <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-4 text-left">
                 <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
-                  <Vote className="w-5 h-5 text-amber-500" />
+                  <HelpCircle className="w-5 h-5 text-amber-500" />
                   <h4 className="font-extrabold text-[#b91c1c] text-xs uppercase tracking-wider">
-                    {lang === "ta" ? "நேரடி கருத்துக்கணிப்பு" : "LIVE UNION POLL"}
+                    {lang === "ta" ? "நேரடி கருத்துக்கணிப்பு" : "LIVE MEMBER SURVEY"}
                   </h4>
                 </div>
 
@@ -774,8 +857,8 @@ export default function LiveCommunication({ lang, currentUser, onAddAuditLog }: 
                   </h5>
                   <span className="text-[9px] text-stone-400 block mt-1">
                     {polls[0].votedOption !== undefined 
-                      ? (lang === "ta" ? "✓ வாக்கு பதிவு செய்யப்பட்டது" : "✓ Thank you for voting") 
-                      : (lang === "ta" ? "கீழே உள்ள விருப்பங்களில் ஒன்றை தேர்வு செய்க:" : "Cast your choice below:")}
+                      ? (lang === "ta" ? "✓ கருத்து பதிவு செய்யப்பட்டது" : "✓ Thank you for participating") 
+                      : (lang === "ta" ? "கீழே உள்ள விருப்பங்களில் ஒன்றை தேர்வு செய்க:" : "Select your response below:")}
                   </span>
                 </div>
 
@@ -2026,6 +2109,31 @@ export default function LiveCommunication({ lang, currentUser, onAddAuditLog }: 
 
         </div>
       )}
+
+      {/* Image Editor Modal for Live Events / Meetings */}
+      <ImageEditorModal
+        isOpen={editingMeetingForPhoto !== null}
+        title={lang === "ta" ? "நேரலை நிகழ்ச்சி புகைப்பட மாற்றம்" : "Live Event Photo Editor"}
+        lang={lang}
+        currentImageUrl={editingMeetingForPhoto?.banner}
+        aspectRatio={16 / 9}
+        onSave={handleSaveEventPhoto}
+        onClose={() => setEditingMeetingForPhoto(null)}
+        onRemove={() => {
+          if (editingMeetingForPhoto) {
+            handleSaveEventPhoto("https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&q=80&w=800");
+          }
+        }}
+      />
+
+      {/* Change History Audit Modal for Live Events */}
+      <ChangeHistoryModal
+        isOpen={selectedMeetingForHistory !== null}
+        contentId={selectedMeetingForHistory?.id || ""}
+        title={lang === "ta" ? `நிகழ்ச்சி மாற்ற வரலாறு: ${selectedMeetingForHistory?.name}` : `Event History: ${selectedMeetingForHistory?.name}`}
+        currentUser={currentUser}
+        onClose={() => setSelectedMeetingForHistory(null)}
+      />
 
     </div>
   );

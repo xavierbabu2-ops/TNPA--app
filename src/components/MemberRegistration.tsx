@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import UnionOfficialIdCard from "./UnionOfficialIdCard";
+import DistrictWhatsAppJoinModal from "./DistrictWhatsAppJoinModal";
 import { 
   User, 
   Shield, 
@@ -26,7 +27,12 @@ import {
   AlertTriangle,
   Info,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  MessageSquare,
+  ExternalLink,
+  KeyRound,
+  X,
+  Lock
 } from "lucide-react";
 import { MemberRegistration as RegType } from "../types";
 import { auth } from "../lib/firebase";
@@ -73,6 +79,8 @@ export default function MemberRegistration({
   const [otpInfo, setOtpInfo] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [latestDebugOtp, setLatestDebugOtp] = useState<string | null>(null);
 
   // --- STEP 2: Address Info State ---
   const [state, setState] = useState("Tamil Nadu");
@@ -108,6 +116,17 @@ export default function MemberRegistration({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureImage, setSignatureImage] = useState<string>("");
+
+  // District WhatsApp Join Modal State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
+  const [whatsAppMemberData, setWhatsAppMemberData] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    district: string;
+    role?: string;
+    regNumber?: string;
+  } | null>(null);
 
   // Tracking section search states
   const [searchPhoneOrId, setSearchPhoneOrId] = useState("");
@@ -175,7 +194,45 @@ export default function MemberRegistration({
     }
   }, [step, signatureType]);
 
-  // Server-side SMS OTP Dispatching (No reCAPTCHA)
+  // Safe API fetch helper to prevent "Unexpected end of JSON input" on empty/invalid responses
+  const safeFetchJson = async (url: string, options: RequestInit) => {
+    let resp: Response;
+    try {
+      resp = await fetch(url, options);
+    } catch (netErr: any) {
+      console.error("Network fetch failure:", netErr);
+      throw new Error(lang === "ta" 
+        ? "சேவையகத்துடன் தொடர்புகொள்வதில் பிழை ஏற்பட்டது. இணைய இணைப்பை சரிபார்க்கவும்." 
+        : "Failed to connect to OTP server. Please check network connection.");
+    }
+
+    const text = await resp.text();
+    let data: any = {};
+    if (text && text.trim().length > 0) {
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        console.error("Non-JSON API response body:", text);
+        throw new Error(lang === "ta" 
+          ? "சேவையகத்திலிருந்து செல்லுபடியாகாத பதில் வந்தது. மீண்டும் முயற்சிக்கவும்." 
+          : "Invalid response received from server. Please try again.");
+      }
+    } else {
+      console.error("Empty response body received from server");
+      throw new Error(lang === "ta" 
+        ? "சேவையகத்திலிருந்து காலியான பதில் வந்தது. மீண்டும் முயற்சிக்கவும்." 
+        : "Server returned an empty response. Please try again.");
+    }
+
+    if (!resp.ok || data.success === false) {
+      const errDetail = lang === "ta" ? (data.errorTa || data.error) : (data.error || data.errorTa);
+      throw new Error(errDetail || (lang === "ta" ? "செயல்பாடு தோல்வியடைந்தது." : "Request failed."));
+    }
+
+    return data;
+  };
+
+  // Server-side SMS OTP Dispatching (No reCAPTCHA, 100% Free)
   const handleSendOTP = async () => {
     setOtpError("");
     setOtpInfo("");
@@ -194,6 +251,8 @@ export default function MemberRegistration({
       tenDigit = cleanDigits.slice(2);
     } else if (cleanDigits.length === 11 && cleanDigits.startsWith("0")) {
       tenDigit = cleanDigits.slice(1);
+    } else if (cleanDigits.length > 10) {
+      tenDigit = cleanDigits.slice(-10);
     } else {
       setOtpError(lang === "ta" ? "சரியான 10 இலக்க இந்திய கைபேசி எண்ணை உள்ளிடவும்!" : "Please enter a valid 10-digit mobile number!");
       return;
@@ -206,27 +265,33 @@ export default function MemberRegistration({
 
     const formattedPhone = `+91${tenDigit}`;
     setIsSendingOtp(true);
+    setShowOtpModal(true);
 
     try {
-      const resp = await fetch("/api/otp/send", {
+      const data = await safeFetchJson("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: formattedPhone })
       });
-      const data = await resp.json();
-
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || (lang === "ta" ? "SMS ஓடிபி அனுப்புவதில் பிழை ஏற்பட்டது." : "Failed to send SMS OTP."));
-      }
 
       setOtpSent(true);
       setOtpTimer(60);
       setIsSendingOtp(false);
       setOtpError("");
       if (data.debugCode) {
-        setOtpInfo(lang === "ta" ? `SMS ஓடிபி அனுப்பப்பட்டது! (ஓடிபி எண்: ${data.debugCode})` : `SMS OTP dispatched! (OTP Code: ${data.debugCode})`);
+        setLatestDebugOtp(data.debugCode);
+        setOtpInfo(
+          lang === "ta"
+            ? `SMS ஓடிபி உங்களின் கைபேசி எண்ணிற்கு (${formattedPhone}) அனுப்பப்பட்டது! (சரிபார்ப்பு குறியீடு: ${data.debugCode})`
+            : `SMS OTP dispatched to ${formattedPhone}! (Verification Code: ${data.debugCode})`
+        );
       } else {
-        setOtpInfo(lang === "ta" ? "SMS ஓடிபி உங்களின் கைபேசி எண்ணிற்கு அனுப்பப்பட்டது." : "SMS OTP sent to your mobile phone.");
+        setLatestDebugOtp(null);
+        setOtpInfo(
+          lang === "ta"
+            ? `SMS ஓடிபி உங்களின் கைபேசி எண்ணிற்கு (${formattedPhone}) வெற்றிகரமாக அனுப்பப்பட்டது.`
+            : `SMS OTP sent to ${formattedPhone} successfully.`
+        );
       }
       onAddAuditLog("SMS OTP Dispatched", `SMS OTP requested for ${formattedPhone}.`);
     } catch (err: any) {
@@ -236,15 +301,27 @@ export default function MemberRegistration({
     }
   };
 
-  // Server-side SMS OTP Verification (No reCAPTCHA)
-  const handleVerifyOTP = async () => {
-    if (!otpInput.trim()) {
+  // Server-side SMS OTP Verification (No reCAPTCHA, 100% Free)
+  const handleVerifyOTP = async (customCode?: string) => {
+    const codeToVerify = (typeof customCode === "string" ? customCode : otpInput).trim();
+    if (!codeToVerify) {
       setOtpError(lang === "ta" ? "SMS மூலம் வந்த 6 இலக்க ஓடிபி எண்ணை உள்ளிடவும்!" : "Please enter the 6-digit SMS OTP code!");
       return;
     }
 
     const cleanDigits = phone.replace(/\D/g, "");
-    let tenDigit = cleanDigits.length === 10 ? cleanDigits : cleanDigits.slice(-10);
+    let tenDigit = "";
+    if (cleanDigits.length === 10) {
+      tenDigit = cleanDigits;
+    } else if (cleanDigits.length === 12 && cleanDigits.startsWith("91")) {
+      tenDigit = cleanDigits.slice(2);
+    } else if (cleanDigits.length === 11 && cleanDigits.startsWith("0")) {
+      tenDigit = cleanDigits.slice(1);
+    } else if (cleanDigits.length > 10) {
+      tenDigit = cleanDigits.slice(-10);
+    } else {
+      tenDigit = cleanDigits;
+    }
     const formattedPhone = `+91${tenDigit}`;
 
     setIsVerifyingOtp(true);
@@ -252,22 +329,23 @@ export default function MemberRegistration({
     setOtpInfo("");
 
     try {
-      const resp = await fetch("/api/otp/verify", {
+      const data = await safeFetchJson("/api/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formattedPhone, code: otpInput.trim() })
+        body: JSON.stringify({ phone: formattedPhone, code: codeToVerify })
       });
-      const data = await resp.json();
-
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || (lang === "ta" ? "தவறான 6 இலக்க ஓடிபி எண்!" : "Incorrect 6-digit OTP code."));
-      }
 
       setIsPhoneVerified(true);
       setOtpSent(false);
       setIsVerifyingOtp(false);
+      setShowOtpModal(false);
       setOtpError("");
-      setOtpInfo(lang === "ta" ? "கைபேசி எண் வெற்றிகரமாக சரிபார்க்கப்பட்டது!" : "Mobile number verified successfully!");
+      setLatestDebugOtp(null);
+      setOtpInfo(
+        lang === "ta"
+          ? "கைபேசி எண் வெற்றிகரமாக சரிபார்க்கப்பட்டது!"
+          : "Mobile number verified successfully!"
+      );
       onAddAuditLog("SMS OTP Verified", `Phone number ${phone} verified via SMS OTP.`);
     } catch (err: any) {
       setIsVerifyingOtp(false);
@@ -347,16 +425,17 @@ export default function MemberRegistration({
   // Simulated File Upload handler
   const handleFileUploadSimulated = (fieldName: string, file: File) => {
     if (file.size > 5 * 1024 * 1024) {
-      alert(lang === "ta" ? "கோப்பின் அளவு 5MB-க்கும் குறைவாக இருக்க வேண்டும்!" : "File exceeds maximum size limit of 5MB!");
+      setError(lang === "ta" ? "கோப்பின் அளவு 5MB-க்கும் குறைவாக இருக்க வேண்டும்!" : "File exceeds maximum size limit of 5MB!");
       return;
     }
 
     const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "application/pdf"];
     if (!allowedTypes.includes(file.type)) {
-      alert(lang === "ta" ? "JPG, PNG, அல்லது PDF கோப்புகள் மட்டுமே அனுமதிக்கப்படும்!" : "Only JPG, PNG, or PDF formats are supported!");
+      setError(lang === "ta" ? "JPG, PNG, அல்லது PDF கோப்புகள் மட்டுமே அனுமதிக்கப்படும்!" : "Only JPG, PNG, or PDF formats are supported!");
       return;
     }
 
+    setError(null);
     // Dynamic progress bar simulator
     setUploadProgress(prev => ({ ...prev, [fieldName]: 10 }));
     let progress = 10;
@@ -416,12 +495,17 @@ export default function MemberRegistration({
         setError(lang === "ta" ? "பிறந்த தேதியைத் தேர்ந்தெடுக்கவும்!" : "Please select Date of Birth!");
         return false;
       }
-      if (!phone.trim() || phone.length < 10) {
-        setError(lang === "ta" ? "சரியான கைபேசி எண்ணை உள்ளிடவும்!" : "Please enter valid 10-digit mobile number!");
+      const cleanDigits = phone.replace(/\D/g, "");
+      if (!cleanDigits || cleanDigits.length < 10) {
+        setError(lang === "ta" ? "சரியான 10 இலக்க இந்திய கைபேசி எண்ணை உள்ளிடவும்!" : "Please enter valid 10-digit mobile number!");
         return false;
       }
       if (!isPhoneVerified) {
-        setError(lang === "ta" ? "தயவுசெய்து உங்கள் தொலைபேசி எண்ணை SMS ஓடிபி மூலம் சரிபார்க்கவும்!" : "Please verify your mobile number via SMS OTP first!");
+        setError(lang === "ta" ? "தயவுசெய்து உங்கள் கைபேசி எண்ணை OTP மூலம் சரிபார்க்கவும்!" : "Please verify your mobile number via OTP first!");
+        setShowOtpModal(true);
+        if (!otpSent && !isSendingOtp) {
+          handleSendOTP();
+        }
         return false;
       }
       if (!aadhaar.trim() || aadhaar.replace(/-/g, "").length !== 12) {
@@ -537,11 +621,16 @@ export default function MemberRegistration({
     onSubmitRegistration(finalReg);
     setTrackedApplication(finalReg);
     
-    alert(
-      lang === "ta"
-        ? "நன்றி! உங்கள் உறுப்பினர் சேர்க்கை விண்ணப்பம் வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது. தற்போதைய நிலை: பரியோசனை நிலையில் (Pending Review)"
-        : "Success! Your application has been registered securely. Current Status: Pending Review."
-    );
+    // Set WhatsApp modal data and trigger consent modal
+    setWhatsAppMemberData({
+      id: finalReg.id,
+      name: finalReg.name,
+      phone: finalReg.phone,
+      district: finalReg.district,
+      role: finalReg.profession || "Member",
+      regNumber: finalReg.regNumber || ""
+    });
+    setShowWhatsAppModal(true);
 
     // Swap to tracking tab to show details & timeline
     setEditingId(null);
@@ -611,7 +700,8 @@ export default function MemberRegistration({
 
     setStep(1);
     setActivePortalTab("apply");
-    alert(lang === "ta" ? "திருத்தப் பதிவேற்றப் பயன்முறை துவங்கப்பட்டது! பிழைகளைச் சரிசெய்து மீண்டும் சமர்ப்பிக்கவும்." : "Correction editing mode initiated. Review flagged fields and resubmit.");
+    setError(null);
+    setOtpInfo(lang === "ta" ? "திருத்தப் பதிவேற்றப் பயன்முறை துவங்கப்பட்டது! பிழைகளைச் சரிசெய்து மீண்டும் சமர்ப்பிக்கவும்." : "Correction editing mode initiated. Review flagged fields and resubmit.");
   };
 
   // Simulate scanning of QR code (Verified portal display)
@@ -878,7 +968,15 @@ export default function MemberRegistration({
                     </div>
 
                     <div>
-                      <label className="block font-bold text-stone-700 mb-1">கைபேசி எண் (Active Mobile) *</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block font-bold text-stone-700">கைபேசி எண் (Active Mobile) *</label>
+                        {isPhoneVerified && (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            {lang === "ta" ? "சரிபார்க்கப்பட்டது" : "Verified"}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <div className="relative flex-grow">
                           <input
@@ -887,29 +985,45 @@ export default function MemberRegistration({
                             required
                             disabled={isPhoneVerified || isSendingOtp}
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                            onChange={(e) => {
+                              setPhone(e.target.value.replace(/\D/g, ""));
+                              if (isPhoneVerified) setIsPhoneVerified(false);
+                            }}
                             placeholder="944xxxxxxx"
-                            className="w-full pl-8 pr-3 py-2 border rounded-xl bg-stone-50 disabled:bg-stone-100 disabled:text-stone-500"
+                            className={`w-full pl-8 pr-3 py-2 border rounded-xl bg-stone-50 disabled:bg-stone-100 disabled:text-stone-600 font-mono font-medium ${isPhoneVerified ? 'border-emerald-400 bg-emerald-50/40 text-emerald-900' : 'border-stone-300'}`}
                           />
-                          <Smartphone className="w-4 h-4 text-stone-400 absolute left-2.5 top-2.5" />
+                          <Smartphone className={`w-4 h-4 absolute left-2.5 top-2.5 ${isPhoneVerified ? 'text-emerald-600' : 'text-stone-400'}`} />
                         </div>
-                        {!isPhoneVerified && (
+                        {!isPhoneVerified ? (
                           <button
                             type="button"
                             onClick={handleSendOTP}
-                            disabled={isSendingOtp || otpTimer > 0}
-                            className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-400 text-white rounded-xl text-xs font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1.5"
+                            disabled={isSendingOtp || phone.replace(/\D/g, "").length < 10}
+                            className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 text-white rounded-xl text-xs font-bold cursor-pointer shrink-0 transition-colors flex items-center gap-1.5 shadow-xs"
                           >
                             {isSendingOtp ? (
                               <>
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                 <span>{lang === "ta" ? "அனுப்புகிறது..." : "Sending..."}</span>
                               </>
-                            ) : otpSent && otpTimer > 0 ? (
-                              <span>{otpTimer}s</span>
                             ) : (
-                              <span>{otpSent ? (lang === "ta" ? "மீண்டும் அனுப்ப" : "Resend OTP") : (lang === "ta" ? "SMS OTP அனுப்ப" : "Send SMS OTP")}</span>
+                              <>
+                                <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                                <span>{otpSent ? (lang === "ta" ? "OTP சாளரம் / மீண்டும்" : "Verify / Resend OTP") : (lang === "ta" ? "OTP சரிபார்" : "Verify Phone OTP")}</span>
+                              </>
                             )}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsPhoneVerified(false);
+                              setOtpSent(false);
+                              setLatestDebugOtp(null);
+                            }}
+                            className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+                          >
+                            {lang === "ta" ? "எண் மாற்றுக" : "Change Phone"}
                           </button>
                         )}
                       </div>
@@ -929,48 +1043,32 @@ export default function MemberRegistration({
                         </div>
                       )}
 
-                      {/* Real OTP verification input */}
+                      {/* Quick Inline Trigger for unverified OTP */}
                       {otpSent && !isPhoneVerified && (
-                        <div className="mt-2.5 p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-2.5 text-xs">
-                          <div className="flex justify-between items-center">
-                            <span className="font-extrabold text-blue-900">
-                              {lang === "ta" ? "SMS மூலம் வந்த 6 இலக்க OTP குறியீட்டை உள்ளிடவும்" : "Enter the 6-digit SMS OTP code sent to your phone"}
+                        <div className="mt-2.5 p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-stone-800 font-medium">
+                            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>
+                              {otpTimer > 0 
+                                ? `${lang === "ta" ? "மீண்டும் அனுப்ப" : "Resend in"}: 00:${otpTimer < 10 ? `0${otpTimer}` : otpTimer}`
+                                : (lang === "ta" ? "OTP அனுப்பப்பட்டுவிட்டது" : "OTP dispatched")}
                             </span>
-                            {otpTimer > 0 && <span className="text-stone-500 font-mono text-xs">00:{otpTimer < 10 ? `0${otpTimer}` : otpTimer}</span>}
                           </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              maxLength={6}
-                              value={otpInput}
-                              onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
-                              placeholder="E.g. 849201"
-                              className="px-3 py-1.5 border border-stone-300 rounded-lg text-center font-mono font-black tracking-widest text-base bg-white text-stone-900 focus:outline-none focus:border-amber-500 w-32"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleVerifyOTP}
-                              disabled={isVerifyingOtp}
-                              className="px-4 py-1.5 bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5"
-                            >
-                              {isVerifyingOtp ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>{lang === "ta" ? "சரிபார்க்கிறது..." : "Verifying..."}</span>
-                                </>
-                              ) : (
-                                <span>{lang === "ta" ? "சரிபார் (Verify OTP)" : "Verify OTP"}</span>
-                              )}
-                            </button>
-                          </div>
-                          {otpError && <p className="text-rose-600 font-bold mt-1 text-xs">{otpError}</p>}
+                          <button
+                            type="button"
+                            onClick={() => setShowOtpModal(true)}
+                            className="px-3 py-1 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <KeyRound className="w-3 h-3 text-amber-400" />
+                            <span>{lang === "ta" ? "OTP சாளரத்தைத் திற" : "Open OTP Window"}</span>
+                          </button>
                         </div>
                       )}
 
                       {isPhoneVerified && (
                         <div className="mt-2 flex items-center gap-1.5 text-emerald-700 font-bold text-xs bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
                           <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>{lang === "ta" ? "தொலைபேசி எண் ஃபயர்பேஸ் மூலம் வெற்றிகரமாக சரிபார்க்கப்பட்டது!" : "Mobile Number Verified via Firebase SMS OTP!"}</span>
+                          <span>{lang === "ta" ? "தொலைபேசி எண் வெற்றிகரமாக OTP மூலம் சரிபார்க்கப்பட்டது!" : "Mobile Number Verified via Free Server OTP Engine!"}</span>
                         </div>
                       )}
                     </div>
@@ -1633,6 +1731,7 @@ export default function MemberRegistration({
                     {/* Dues Renewal and ID Actions */}
                     <div className="flex flex-wrap justify-center gap-4">
                       <button
+                        type="button"
                         onClick={() => window.print()}
                         className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
                       >
@@ -1655,6 +1754,45 @@ export default function MemberRegistration({
 
                   </div>
                 )}
+
+                {/* District WhatsApp Group Banner in Tracking View */}
+                <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-emerald-950 text-white rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-emerald-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-6 h-6 text-emerald-300 fill-emerald-500" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
+                        {lang === "ta" ? "சங்கத் தொடர்புகள்" : "Union Network"}
+                      </span>
+                      <h4 className="text-sm font-bold text-white">
+                        {lang === "ta" ? `${trackedApplication.district} மாவட்ட WhatsApp குழு` : `${trackedApplication.district} District WhatsApp Group`}
+                      </h4>
+                      <p className="text-xs text-emerald-200 mt-0.5">
+                        {lang === "ta" ? "அதிகாரப்பூர்வ மாவட்ட சங்க அறிவிப்புகளை உடனடியாகப் பெற இணைக." : "Join your official district union WhatsApp group."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWhatsAppMemberData({
+                        id: trackedApplication.id,
+                        name: trackedApplication.name,
+                        phone: trackedApplication.phone,
+                        district: trackedApplication.district,
+                        role: trackedApplication.profession || "Member",
+                        regNumber: trackedApplication.regNumber || ""
+                      });
+                      setShowWhatsAppModal(true);
+                    }}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black py-2.5 px-5 rounded-xl text-xs flex items-center gap-2 shadow transition-all shrink-0 cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4 fill-stone-950" />
+                    <span>{lang === "ta" ? "குழுவில் இணைய கட்டுப்பாடு" : "Join WhatsApp Group"}</span>
+                  </button>
+                </div>
 
               </div>
             )}
@@ -1766,6 +1904,177 @@ export default function MemberRegistration({
         )}
 
       </div>
+
+      {/* District WhatsApp Group Consent & Join Modal */}
+      {showWhatsAppModal && whatsAppMemberData && (
+        <DistrictWhatsAppJoinModal
+          lang={lang}
+          isOpen={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+          memberDetails={whatsAppMemberData}
+          onConsentRecorded={(status, inviteLink, groupName) => {
+            console.log(`WhatsApp Consent recorded: ${status} for ${whatsAppMemberData.district}`);
+          }}
+        />
+      )}
+
+      {/* Dedicated New Member Mobile Registration OTP Verification Modal */}
+      {showOtpModal && !isPhoneVerified && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden transform transition-all">
+            {/* Header */}
+            <div className="bg-stone-900 text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-stone-900 font-bold">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm leading-tight text-white">
+                    {lang === "ta" ? "கைபேசி எண் OTP சரிபார்ப்பு" : "Mobile OTP Verification"}
+                  </h3>
+                  <p className="text-[11px] text-stone-300">
+                    {lang === "ta" ? "புதிய உறுப்பினர் நேரடி உறுதிப்படுத்தல்" : "New Member Live Verification"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOtpModal(false)}
+                className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-xs text-stone-600">
+                  {lang === "ta"
+                    ? "கீழ்க்கண்ட கைபேசி எண்ணிற்கு 6 இலக்க OTP அனுப்பப்பட்டுள்ளது:"
+                    : "A 6-digit OTP code has been dispatched to:"}
+                </p>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-100 border border-stone-300 rounded-full text-stone-900 font-mono font-bold text-sm">
+                  <Smartphone className="w-3.5 h-3.5 text-stone-600" />
+                  <span>+91 {phone.replace(/\D/g, "").slice(-10)}</span>
+                </div>
+              </div>
+
+              {/* Debug / Instant Code Banner for 100% Free instant testing */}
+              {latestDebugOtp && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between text-xs text-amber-900">
+                    <span className="font-semibold flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      {lang === "ta" ? "சரிபார்ப்பு OTP குறியீடு:" : "Verification OTP Code:"}
+                    </span>
+                    <span className="font-mono font-black text-sm tracking-wider px-2 py-0.5 bg-white border border-amber-300 rounded text-amber-900">
+                      {latestDebugOtp}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpInput(latestDebugOtp);
+                      handleVerifyOTP(latestDebugOtp);
+                    }}
+                    className="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{lang === "ta" ? "தானாக நிரப்பி சரிபார் (Auto-Fill & Verify)" : "Auto-Fill & Verify OTP"}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* 6 Digit Input */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-stone-700 text-center">
+                  {lang === "ta" ? "6 இலக்க OTP எண்ணை உள்ளிடவும்" : "Enter 6-Digit OTP"}
+                </label>
+                <div className="flex justify-center">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    autoFocus
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
+                    placeholder="••••••"
+                    className="w-48 px-3 py-2 border-2 border-stone-300 focus:border-amber-500 rounded-xl text-center font-mono font-black text-xl tracking-[0.4em] bg-stone-50 focus:bg-white focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Timer and Resend Action */}
+              <div className="flex items-center justify-between text-xs text-stone-500 pt-1">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>
+                    {otpTimer > 0 
+                      ? `${lang === "ta" ? "மீண்டும் அனுப்ப" : "Resend in"}: 00:${otpTimer < 10 ? `0${otpTimer}` : otpTimer}`
+                      : (lang === "ta" ? "OTP வரவில்லையா?" : "Didn't receive OTP?")
+                    }
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isSendingOtp || otpTimer > 0}
+                  onClick={handleSendOTP}
+                  className="font-bold text-stone-900 hover:text-amber-600 disabled:text-stone-400 disabled:cursor-not-allowed transition-colors text-xs flex items-center gap-1 cursor-pointer"
+                >
+                  {isSendingOtp ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  ) : null}
+                  <span>{lang === "ta" ? "மீண்டும் அனுப்பு" : "Resend OTP"}</span>
+                </button>
+              </div>
+
+              {/* Inline Messages in Modal */}
+              {otpError && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-rose-700 text-xs font-medium">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {/* Verify Button */}
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  className="flex-1 py-2.5 border border-stone-300 hover:bg-stone-100 text-stone-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  {lang === "ta" ? "ரத்து செய்" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleVerifyOTP()}
+                  disabled={isVerifyingOtp || otpInput.trim().length !== 6}
+                  className="flex-1 py-2.5 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  {isVerifyingOtp ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>{lang === "ta" ? "சரிபார்க்கிறது..." : "Verifying..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>{lang === "ta" ? "உறுதிப்படுத்து (Verify)" : "Verify OTP"}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-stone-50 border-t border-stone-100 px-5 py-2.5 text-center text-[10px] text-stone-500 flex items-center justify-center gap-1">
+              <Lock className="w-3 h-3 text-stone-400" />
+              <span>{lang === "ta" ? "100% பாதுகாப்பான மற்றும் இலவச சரிபார்ப்பு முறை" : "100% Secure & Zero-Cost OTP Verification"}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

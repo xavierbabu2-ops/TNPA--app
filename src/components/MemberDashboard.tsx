@@ -28,6 +28,7 @@ interface MemberDashboardProps {
   onAddPayment: (newPay: PaymentRecord) => void;
   onUpdateProfile: (updatedProfile: UserAccount) => void;
   onAddAuditLog: (action: string, details: string) => void;
+  onNavigateToMemberCard?: () => void;
 }
 
 export default function MemberDashboard({
@@ -38,7 +39,8 @@ export default function MemberDashboard({
   payments,
   onAddPayment,
   onUpdateProfile,
-  onAddAuditLog
+  onAddAuditLog,
+  onNavigateToMemberCard
 }: MemberDashboardProps) {
   const [memberTab, setMemberTab] = useState<"id_card" | "welfare_schemes" | "my_dues" | "update_profile">("id_card");
   
@@ -255,6 +257,21 @@ export default function MemberDashboard({
               <CreditCard className="w-4 h-4" />
               <span>{lang === "ta" ? "எனது சந்தா / ரசீதுகள்" : "My Dues & Receipts"}</span>
             </button>
+
+            {onNavigateToMemberCard && (
+              <button
+                onClick={onNavigateToMemberCard}
+                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer bg-gradient-to-r from-amber-600 to-amber-700 text-white hover:from-amber-500 hover:to-amber-600 shadow-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-amber-200" />
+                  <span>{lang === "ta" ? "உறுப்பினர் அட்டை" : "Member Card"}</span>
+                </div>
+                <span className="px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-200 font-black text-[8px] uppercase">
+                  ₹100
+                </span>
+              </button>
+            )}
 
             <button
               onClick={() => setMemberTab("update_profile")}
