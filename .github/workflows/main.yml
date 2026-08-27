@@ -1,0 +1,23 @@
+name: CI Workflow
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run a one-line script
+      run: echo Hello, World!
+
+    - name: Run a multi-line script
+      run: |
+        echo Add other script steps here,
+        echo to build and test your code.
