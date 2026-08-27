@@ -1,0 +1,20 @@
+{
+  "name": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் சங்கம்",
+  "short_name": "TNPA²",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#d97706",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=192",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=512",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

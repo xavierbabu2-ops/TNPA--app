@@ -1,0 +1,23 @@
+{
+  "packageId": "com.tnpa.artists.app",
+  "host": "tnpa.app",
+  "name": "TNPA²",
+  "launcherName": "TNPA²",
+  "display": "standalone",
+  "themeColor": "#d97706",
+  "backgroundColor": "#0f172a",
+  "startUrl": "/",
+  "iconUrl": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=512",
+  "splashScreenImageUrl": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=512",
+  "shortcuts": [],
+  "generatorApp": "Bubblewrap CLI",
+  "webManifestUrl": "https://tnpa.app/manifest.json",
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "android"
+  },
+  "minSdkVersion": 21,
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "enableNotifications": true
+}
