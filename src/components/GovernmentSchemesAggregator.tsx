@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { db } from "../lib/firebase";
+import { collection, getDocs, setDoc, doc } from "firebase/firestore";
 import { 
   Sparkles, 
   RefreshCw, 
@@ -52,7 +54,7 @@ export default function GovernmentSchemesAggregator({
   const [selectedScheme, setSelectedScheme] = useState<GovernmentScheme | null>(null);
 
   // Initial rich list of official labor department and welfare schemes
-  const [schemes, setSchemes] = useState<GovernmentScheme[]>([
+  const defaultSchemes: GovernmentScheme[] = [
     {
       id: "scheme_01",
       title: "தமிழ்நாடு கட்டுமானத் தொழிலாளர்கள் நலவாரிய ஓய்வூதியத் திட்டம்",
@@ -149,9 +151,37 @@ export default function GovernmentSchemesAggregator({
       applyUrl: "https://www.tn.gov.in",
       documents: ["திருமண அழைப்பிதழ்", "மணமகன் / மணமகள் ஆதார்", "பள்ளிச் சான்றிதழ் (வயது உறுதி)", "வாரிய அட்டை"]
     }
-  ]);
+  ];
 
-  // Function to trigger Gemini AI to fetch and parse latest official schemes
+  const [schemes, setSchemes] = useState<GovernmentScheme[]>(defaultSchemes);
+
+  // Load schemes from Firestore on mount
+  useEffect(() => {
+    async function loadSchemesFromFirestore() {
+      try {
+        const querySnapshot = await getDocs(collection(db, "government_schemes"));
+        if (!querySnapshot.empty) {
+          const loaded: GovernmentScheme[] = [];
+          querySnapshot.forEach((docSnap) => {
+            loaded.push(docSnap.data() as GovernmentScheme);
+          });
+          if (loaded.length > 0) {
+            setSchemes(loaded);
+          }
+        } else {
+          // Seed initial default schemes into Firestore
+          for (const s of defaultSchemes) {
+            await setDoc(doc(db, "government_schemes", s.id), s);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading schemes from Firestore:", err);
+      }
+    }
+    loadSchemesFromFirestore();
+  }, []);
+
+  // Function to trigger Gemini AI to fetch and parse latest official schemes and store in Firestore
   const handleFetchLatestSchemesViaGemini = async () => {
     setIsFetching(true);
     try {
@@ -166,12 +196,17 @@ export default function GovernmentSchemesAggregator({
       const data = await response.json();
       if (data.success && Array.isArray(data.schemes) && data.schemes.length > 0) {
         setSchemes(data.schemes);
-        onAddAuditLog("Gemini Govt Schemes Fetched", `Successfully synchronized ${data.schemes.length} latest official schemes via Gemini AI.`);
+        // Save to Firestore
+        for (const s of data.schemes) {
+          if (s.id) {
+            await setDoc(doc(db, "government_schemes", s.id), s);
+          }
+        }
+        onAddAuditLog("Gemini Govt Schemes Fetched", `Successfully synchronized and stored ${data.schemes.length} latest official schemes via Gemini AI in Firestore.`);
         alert(lang === "ta" 
-          ? `✓ ஜெினி AI மூலம் சமீபத்திய அரசு திட்டங்கள் வெற்றிகரமாகப் புதுப்பிக்கப்பட்டன! (${data.schemes.length} திட்டங்கள்)`
-          : `✓ Successfully fetched and parsed latest government schemes via Gemini AI! (${data.schemes.length} schemes)`);
+          ? `✓ ஜெினி AI மூலம் சமீபத்திய அரசு திட்டங்கள் வெற்றிகரமாகப் பெறப்பட்டு ஃபயர்வோர் (Firestore) தரவுத்தளத்தில் சேமிக்கப்பட்டன! (${data.schemes.length} திட்டங்கள்)`
+          : `✓ Successfully fetched, parsed, and stored latest government schemes via Gemini AI in Firestore! (${data.schemes.length} schemes)`);
       } else {
-        // Fallback or alert
         alert(lang === "ta" 
           ? "தற்போதைய அனைத்து அதிகாரப்பூர்வ நலவாரிய மற்றும் மத்திய அரசு திட்டங்களும் புதுப்பிக்கப்பட்டுள்ளன." 
           : "All official welfare and central schemes are already up to date.");

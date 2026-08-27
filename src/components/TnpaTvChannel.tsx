@@ -644,38 +644,6 @@ export default function TnpaTvChannel({
       {activeViewMode === "channel" && (
         <div className="space-y-6">
           
-          {/* Quick Action bar & Share */}
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-bold text-stone-700">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <span>{lang === "ta" ? "நேரலை ஒளிபரப்பு தயார் நிலையில் உள்ளது" : "Live Streaming Signal Active & Operational"}</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  if (!isSuperAdmin) {
-                    alert(lang === "ta" ? "மன்னிக்கவும்! நேரலை லிங்க் பரப்புவது சூப்பர் அட்மினுக்கு மட்டுமே அனுமதிக்கப்பட்டுள்ளது." : "Sorry! Broadcasting TV link is restricted to Super Admin only.");
-                    return;
-                  }
-                  setShowBroadcastModal(true);
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-stone-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Send className="w-4 h-4" />
-                <span>{lang === "ta" ? "உறுப்பினர்களுக்கு TV லிங்க் அனுப்பு" : "Send TV Link to Members"}</span>
-              </button>
-
-              <button
-                onClick={handleCopyLink}
-                className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-amber-300 border border-stone-600 font-extrabold text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer"
-              >
-                {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedLink ? (lang === "ta" ? "லிங்க் பிரதி செய்யப்பட்டது!" : "Copied!") : (lang === "ta" ? "TV லிங்க் நகலெடு" : "Copy Link")}</span>
-              </button>
-            </div>
-          </div>
-
           {/* MAIN VIDEO PLAYER & LIVE CHAT SECTION */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
@@ -684,7 +652,7 @@ export default function TnpaTvChannel({
               
               <div className="space-y-3">
                 {(() => {
-                  const activeStreamSource = uploadedFileUrl || liveHlsUrl || (rtmpIngestUrl ? rtmpIngestUrl : undefined);
+                  const activeStreamSource = uploadedFileUrl || liveHlsUrl || (rtmpIngestUrl ? rtmpIngestUrl : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4");
                   const isStreamConfigured = Boolean(activeStreamSource && activeStreamSource.trim().length > 0);
 
                   if (isStreamConfigured) {

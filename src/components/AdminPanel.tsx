@@ -2179,6 +2179,9 @@ export default function AdminPanel({
                 const nextRegs = registrations.map(r => r.id === updated.id ? updated : r);
                 onUpdateRegistrations(nextRegs);
               }}
+              onAddRegistration={(newReg) => {
+                onUpdateRegistrations([newReg, ...registrations]);
+              }}
               onAddAuditLog={onAddAuditLog}
             />
           </div>

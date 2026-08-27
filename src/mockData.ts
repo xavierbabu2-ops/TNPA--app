@@ -22,17 +22,6 @@ export const initialLeaders: Leader[] = [
     photoUrl: "/r_xavier_babu.svg",
     district: "தமிழ்நாடு",
     districtEn: "Tamil Nadu"
-  },
-  {
-    id: "l3",
-    name: "R. சக்திவேல்",
-    nameEn: "R. Sakthivel",
-    role: "மாநில பொருளாளர்",
-    roleEn: "State Treasurer",
-    phone: "+919080047281",
-    photoUrl: "/r_sakthivel.svg",
-    district: "தமிழ்நாடு",
-    districtEn: "Tamil Nadu"
   }
 ];
 

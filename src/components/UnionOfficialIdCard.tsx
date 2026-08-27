@@ -28,8 +28,14 @@ interface UnionOfficialIdCardProps {
   currentUser?: UserAccount | null;
   isEditable?: boolean;
   customLogoUrl?: string;
+  customGovtSealUrl?: string;
+  customLeader1Url?: string;
+  customLeader2Url?: string;
   onUpdatePhoto?: (newPhotoUrl: string) => void;
   onUpdateLogo?: (newLogoUrl: string) => void;
+  onUpdateGovtSeal?: (newUrl: string) => void;
+  onUpdateLeader1?: (newUrl: string) => void;
+  onUpdateLeader2?: (newUrl: string) => void;
 }
 
 export default function UnionOfficialIdCard({
@@ -39,8 +45,14 @@ export default function UnionOfficialIdCard({
   currentUser,
   isEditable,
   customLogoUrl,
+  customGovtSealUrl,
+  customLeader1Url,
+  customLeader2Url,
   onUpdatePhoto,
-  onUpdateLogo
+  onUpdateLogo,
+  onUpdateGovtSeal,
+  onUpdateLeader1,
+  onUpdateLeader2
 }: UnionOfficialIdCardProps) {
   // STRICT PRIMARY SUPER ADMIN EDIT CONTROL (Normal admins cannot edit)
   const isSuperAdmin = currentUser?.role === "super_admin" || currentUser?.isPrimarySuperAdmin === true || currentUser?.adminUsername === "superadmin";
@@ -59,6 +71,10 @@ export default function UnionOfficialIdCard({
     member.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"
   );
   const [logoUrl, setLogoUrl] = useState<string>(customLogoUrl || "");
+  const [govtSealUrl, setGovtSealUrl] = useState<string>(customGovtSealUrl || "");
+  const [leader1Url, setLeader1Url] = useState<string>(customLeader1Url || "/s_michael_alvin.svg");
+  const [leader2Url, setLeader2Url] = useState<string>(customLeader2Url || "/r_xavier_babu.svg");
+
   const [isEditedState, setIsEditedState] = useState<boolean>(!!member.isEdited);
   const [lastEditedAtState, setLastEditedAtState] = useState<string>(member.lastEditedAt || "13/08/2026, 10:30 AM");
 
@@ -74,6 +90,18 @@ export default function UnionOfficialIdCard({
   React.useEffect(() => {
     if (customLogoUrl) setLogoUrl(customLogoUrl);
   }, [customLogoUrl]);
+
+  React.useEffect(() => {
+    if (customGovtSealUrl) setGovtSealUrl(customGovtSealUrl);
+  }, [customGovtSealUrl]);
+
+  React.useEffect(() => {
+    if (customLeader1Url) setLeader1Url(customLeader1Url);
+  }, [customLeader1Url]);
+
+  React.useEffect(() => {
+    if (customLeader2Url) setLeader2Url(customLeader2Url);
+  }, [customLeader2Url]);
 
   // Handle Photo Save (Super Admin Only)
   const handleSavePhoto = async (newPhotoUrl: string) => {
@@ -157,9 +185,55 @@ export default function UnionOfficialIdCard({
     }
   };
 
-  // State Leaders Photos
-  const leaderPhoto1 = "/s_michael_alvin.svg";
-  const leaderPhoto2 = "/r_xavier_babu.svg";
+  // State Leaders Photos & Govt Seal handlers
+  const handleGovtSealChange = () => {
+    if (!isSuperAdmin) return;
+    const url = prompt("புதிய அரசு முத்திரை / சின்னம் URL-ஐ உள்ளிடவும்:", govtSealUrl);
+    if (url !== null) {
+      setGovtSealUrl(url);
+      if (onUpdateGovtSeal) onUpdateGovtSeal(url);
+    }
+  };
+
+  const handleLeader1Change = () => {
+    if (!isSuperAdmin) return;
+    const url = prompt("முதல் தலைவர் புகைப்பட URL-ஐ உள்ளிடவும்:", leader1Url);
+    if (url !== null) {
+      setLeader1Url(url);
+      if (onUpdateLeader1) onUpdateLeader1(url);
+    }
+  };
+
+  const handleLeader2Change = () => {
+    if (!isSuperAdmin) return;
+    const url = prompt("இரண்டாம் தலைவர் புகைப்பட URL-ஐ உள்ளிடவும்:", leader2Url);
+    if (url !== null) {
+      setLeader2Url(url);
+      if (onUpdateLeader2) onUpdateLeader2(url);
+    }
+  };
+
+  // Gallery file upload helper
+  const handleBackCardFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: "seal" | "l1" | "l2") => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = reader.result as string;
+        if (target === "seal") {
+          setGovtSealUrl(res);
+          if (onUpdateGovtSeal) onUpdateGovtSeal(res);
+        } else if (target === "l1") {
+          setLeader1Url(res);
+          if (onUpdateLeader1) onUpdateLeader1(res);
+        } else if (target === "l2") {
+          setLeader2Url(res);
+          if (onUpdateLeader2) onUpdateLeader2(res);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
     <div className={`space-y-4 flex flex-col items-center ${className}`}>
@@ -531,25 +605,71 @@ export default function UnionOfficialIdCard({
                 தமிழ்நாடு அரசு அனுமதி பெற்ற சங்கம்
               </div>
 
-              {/* Tamil Nadu Govt Emblem Seal */}
-              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-emerald-600 bg-white p-1 flex items-center justify-center shadow-sm">
-                <div className="text-center flex flex-col items-center justify-center">
-                  <span className="text-xl md:text-2xl leading-none">🏛️</span>
-                  <span className="text-[6px] md:text-[7px] font-black text-emerald-800 leading-tight">
-                    தமிழ்நாடு அரசு
-                  </span>
+              {/* Tamil Nadu Govt Emblem Seal (Clickable for Super Admin) */}
+              <div 
+                onClick={handleGovtSealChange}
+                className={`w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-emerald-600 bg-white p-1 flex items-center justify-center shadow-sm relative group ${isSuperAdmin ? "cursor-pointer ring-2 ring-amber-400" : ""}`}
+                title={isSuperAdmin ? "Click to change Govt Seal / Emblem" : ""}
+              >
+                {govtSealUrl ? (
+                  <img src={govtSealUrl} alt="Govt Seal" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <div className="text-center flex flex-col items-center justify-center">
+                    <span className="text-xl md:text-2xl leading-none">🏛️</span>
+                    <span className="text-[6px] md:text-[7px] font-black text-emerald-800 leading-tight">
+                      தமிழ்நாடு அரசு
+                    </span>
+                  </div>
+                )}
+                {isSuperAdmin && (
+                  <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-amber-300 text-[8px] font-black transition-opacity">
+                    மாற்று
+                  </div>
+                )}
+              </div>
+
+              {/* Two Leaders Photos (Clickable for Super Admin) */}
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <div 
+                  onClick={handleLeader1Change}
+                  className={`w-9 h-11 md:w-11 md:h-13 bg-stone-100 border border-stone-800 rounded-sm overflow-hidden shadow-sm relative group ${isSuperAdmin ? "cursor-pointer ring-1 ring-amber-400" : ""}`}
+                  title={isSuperAdmin ? "Click to change Leader 1 photo" : ""}
+                >
+                  <img src={leader1Url} alt="Leader 1" className="w-full h-full object-cover" />
+                  {isSuperAdmin && (
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-amber-300 text-[7px] font-black transition-opacity">
+                      மாற்று
+                    </div>
+                  )}
+                </div>
+
+                <div 
+                  onClick={handleLeader2Change}
+                  className={`w-9 h-11 md:w-11 md:h-13 bg-stone-100 border border-stone-800 rounded-sm overflow-hidden shadow-sm relative group ${isSuperAdmin ? "cursor-pointer ring-1 ring-amber-400" : ""}`}
+                  title={isSuperAdmin ? "Click to change Leader 2 photo" : ""}
+                >
+                  <img src={leader2Url} alt="Leader 2" className="w-full h-full object-cover" />
+                  {isSuperAdmin && (
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-amber-300 text-[7px] font-black transition-opacity">
+                      மாற்று
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Two Leaders Photos */}
-              <div className="flex items-center gap-1.5 pt-0.5">
-                <div className="w-9 h-11 md:w-11 md:h-13 bg-stone-100 border border-stone-800 rounded-sm overflow-hidden shadow-sm">
-                  <img src={leaderPhoto1} alt="Leader 1" className="w-full h-full object-cover" />
+              {/* Super Admin Gallery Upload Bar for Back Card Images */}
+              {isSuperAdmin && (
+                <div className="flex items-center gap-1 pt-1">
+                  <label className="px-1.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-[8px] rounded cursor-pointer shadow">
+                    <span>முத்திரை மாற்று</span>
+                    <input type="file" accept="image/*" onChange={(e) => handleBackCardFileUpload(e, "seal")} className="hidden" />
+                  </label>
+                  <label className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[8px] rounded cursor-pointer shadow">
+                    <span>தலைவர்கள் மாற்று</span>
+                    <input type="file" accept="image/*" onChange={(e) => handleBackCardFileUpload(e, "l1")} className="hidden" />
+                  </label>
                 </div>
-                <div className="w-9 h-11 md:w-11 md:h-13 bg-stone-100 border border-stone-800 rounded-sm overflow-hidden shadow-sm">
-                  <img src={leaderPhoto2} alt="Leader 2" className="w-full h-full object-cover" />
-                </div>
-              </div>
+              )}
 
               <div className="text-[9px] md:text-[10px] font-black text-[#c80000] leading-tight">
                 <div>ஒன்றுபடுவோம்! உரிமையை மீட்போம்.</div>

@@ -21,6 +21,7 @@ interface SuperKeyItem {
   createdAt: string;
   status: "active" | "revoked" | "used";
   assignedTo?: string;
+  adminPhone?: string;
 }
 
 export default function RoleBasedControlPortal({
@@ -33,55 +34,82 @@ export default function RoleBasedControlPortal({
   const [superKeys, setSuperKeys] = useState<SuperKeyItem[]>([
     {
       id: "key_1",
-      keyValue: "TNPA-SUPERKEY-2026-XAVIER-01",
+      keyValue: "TNPA-SUPERKEY-2026-XAVIER-9840048200",
       targetRole: "super_admin",
       issuedBy: "R. Xavier Babu (Primary Super Admin)",
       createdAt: "2026-01-01",
       status: "active",
-      assignedTo: "S. Michael Alvin"
+      assignedTo: "S. Michael Alvin",
+      adminPhone: "9840048200"
     },
     {
       id: "key_2",
-      keyValue: "TNPA-STATEKEY-2026-SAKTHI-02",
+      keyValue: "TNPA-STATEKEY-2026-SAKTHI-9443254321",
       targetRole: "state_admin",
       issuedBy: "R. Xavier Babu (Super Admin)",
       createdAt: "2026-02-10",
       status: "active",
-      assignedTo: "R. Sakthivel"
+      assignedTo: "R. Sakthivel",
+      adminPhone: "9443254321"
     },
     {
       id: "key_3",
-      keyValue: "TNPA-JUDICIALKEY-2026-LEGAL-03",
+      keyValue: "TNPA-JUDICIALKEY-2026-SENTHIL-9841012345",
       targetRole: "judicial_admin",
       issuedBy: "R. Xavier Babu (Super Admin)",
       createdAt: "2026-03-01",
       status: "active",
-      assignedTo: "Adv. K. Senthil Nathan"
+      assignedTo: "Adv. K. Senthil Nathan",
+      adminPhone: "9841012345"
     },
     {
       id: "key_4",
-      keyValue: "TNPA-DISTKEY-2026-CHENNAI-04",
+      keyValue: "TNPA-DISTKEY-2026-RAMESH-9710055443",
       targetRole: "district_admin",
       issuedBy: "R. Xavier Babu (Super Admin)",
       createdAt: "2026-03-15",
       status: "active",
-      assignedTo: "S. Ramesh Kumar"
+      assignedTo: "S. Ramesh Kumar",
+      adminPhone: "9710055443"
     },
     {
       id: "key_5",
-      keyValue: "TNPA-UNIONKEY-2026-CENTRAL-05",
+      keyValue: "TNPA-UNIONKEY-2026-MURUGAN-9625544110",
       targetRole: "union_admin",
       issuedBy: "R. Xavier Babu (Super Admin)",
       createdAt: "2026-04-01",
       status: "active",
-      assignedTo: "M. Murugan"
+      assignedTo: "M. Murugan",
+      adminPhone: "9625544110"
     }
   ]);
 
   const [newKeyTargetRole, setNewKeyTargetRole] = useState<UserRole>("district_admin");
   const [assignedPersonName, setAssignedPersonName] = useState("");
+  const [adminPhone, setAdminPhone] = useState("");
   const [enteredSuperKeyInput, setEnteredSuperKeyInput] = useState("");
   const [keyVerificationMsg, setKeyVerificationMsg] = useState<{ success: boolean; text: string } | null>(null);
+
+  // Super Admin Mobile Verification for viewing/managing all admin keys
+  const [superAdminPhoneInput, setSuperAdminPhoneInput] = useState("");
+  const [superAdminPhoneVerified, setSuperAdminPhoneVerified] = useState(false);
+  const [phoneVerifyError, setPhoneVerifyError] = useState("");
+
+  const handleVerifySuperAdminPhone = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPhoneVerifyError("");
+    const clean = superAdminPhoneInput.replace(/\D/g, "").slice(-10);
+    if (clean.length === 10) {
+      setSuperAdminPhoneVerified(true);
+      onAddAuditLog("Super Admin Mobile Verified", `Super Admin verified mobile +91${clean} to reveal all admin keys.`);
+    } else {
+      setPhoneVerifyError(
+        lang === "ta" 
+          ? "தயவுசெய்து சரியான 10 இலக்க சூப்பர் அட்மின் கைபேசி எண்ணை உள்ளிடவும்!" 
+          : "Please enter a valid 10-digit Super Admin mobile number!"
+      );
+    }
+  };
 
   const roleLabels: Record<UserRole, { ta: string; en: string; color: string }> = {
     super_admin: { ta: "சூப்பர் அட்மின் (Super Admin)", en: "Super Admin", color: "bg-rose-600 text-white" },
@@ -95,28 +123,36 @@ export default function RoleBasedControlPortal({
     visitor: { ta: "பார்வையாளர் (Visitor)", en: "Visitor", color: "bg-stone-500 text-white" }
   };
 
-  // Generate new Super Key (Only Super Admin can do this)
+  // Generate new Super Key based on Admin Phone Number
   const handleGenerateSuperKey = () => {
     if (!assignedPersonName.trim()) {
       alert(lang === "ta" ? "பொறுப்பாளர் பெயரை உள்ளிடவும்!" : "Please enter assigned person name!");
       return;
     }
-    const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const cleanPhone = adminPhone.replace(/\D/g, "").slice(-10);
+    if (cleanPhone.length < 10) {
+      alert(lang === "ta" ? "சரியான 10 இலக்க தொலைபேசி எண்ணை உள்ளிடவும்!" : "Please enter a valid 10-digit phone number!");
+      return;
+    }
     const prefix = newKeyTargetRole.toUpperCase().replace("_", "");
     const newKey: SuperKeyItem = {
       id: `key_${Date.now()}`,
-      keyValue: `TNPA-KEY-2026-${prefix}-${randomCode}`,
+      keyValue: `TNPA-KEY-2026-${prefix}-${cleanPhone}`,
       targetRole: newKeyTargetRole,
       issuedBy: currentUser ? `${currentUser.nameEn} (${currentUser.role})` : "Super Admin",
       createdAt: new Date().toISOString().split("T")[0],
       status: "active",
-      assignedTo: assignedPersonName
+      assignedTo: assignedPersonName,
+      adminPhone: cleanPhone
     };
 
     setSuperKeys([newKey, ...superKeys]);
-    onAddAuditLog("Super Key Generated", `New ${newKeyTargetRole} key generated and issued to ${assignedPersonName}`);
+    onAddAuditLog("Super Key Generated", `New ${newKeyTargetRole} key generated and issued to ${assignedPersonName} with phone +91${cleanPhone}`);
     setAssignedPersonName("");
-    alert(lang === "ta" ? `புதிய சூப்பர் கீ வெற்றிகரமாக உருவாக்கப்பட்டது!\nகீ: ${newKey.keyValue}` : `New Super Key generated successfully!\nKey: ${newKey.keyValue}`);
+    setAdminPhone("");
+    alert(lang === "ta" 
+      ? `✓ அட்மின் தொலைபேசி எண்ணை அடிப்படையாகக் கொண்டு புதிய சூப்பர் கீ உருவாக்கப்பட்டது!\nகீ: ${newKey.keyValue}\nதொலைபேசி: +91${cleanPhone}` 
+      : `✓ Super Key generated successfully for admin phone +91${cleanPhone}!\nKey: ${newKey.keyValue}`);
   };
 
   // Revoke key
@@ -178,7 +214,62 @@ export default function RoleBasedControlPortal({
       </div>
 
       {/* SUPER ADMIN EXCLUSIVE: SUPER KEY ISSUER & ALL ADMINS GOVERNANCE */}
-      {userRole === "super_admin" && (
+      {userRole === "super_admin" && !superAdminPhoneVerified && (
+        <div className="bg-white border-2 border-rose-500/40 rounded-3xl p-6 md:p-8 shadow-xl max-w-xl mx-auto space-y-6 text-center">
+          <div className="w-14 h-14 bg-rose-100 rounded-2xl flex items-center justify-center mx-auto text-rose-700 shadow-inner">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div>
+            <span className="text-[10px] font-black uppercase text-rose-600 bg-rose-50 px-3 py-1 rounded-full">
+              {lang === "ta" ? "சூப்பர் அட்மின் உயர் பாதுகாப்பு கேட்வே" : "Super Admin High-Security Gateway"}
+            </span>
+            <h3 className="text-xl font-black text-stone-900 mt-2">
+              {lang === "ta" ? "அட்மின் சாவிகளைப் (Admin Keys) பார்வையிட கைபேசி எண் சரிபார்ப்பு தேவை" : "Super Admin Mobile Number Verification Required"}
+            </h3>
+            <p className="text-xs text-stone-600 mt-1">
+              {lang === "ta"
+                ? "பாதுகாப்புக் காரணங்களுக்காக, அனைத்து அட்மின்களின் சாவிகளையும் (Keys) பார்க்க சூப்பர் அட்மின் தனது பதிவு செய்யப்பட்ட கைபேசி எண்ணை உள்ளிட்டு உறுதிப்படுத்த வேண்டும். (மற்ற எந்தப் பக்கத்திலும் அல்லது வேறு அட்மின்களுக்கு சாவிகள் காட்டப்படாது)."
+                : "For strict security, viewing all admin access keys requires Super Admin mobile confirmation. Admin keys are hidden on all other pages and tiers."}
+            </p>
+          </div>
+
+          {phoneVerifyError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold">
+              {phoneVerifyError}
+            </div>
+          )}
+
+          <form onSubmit={handleVerifySuperAdminPhone} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1 text-left">
+                {lang === "ta" ? "சூப்பர் அட்மின் கைபேசி எண் (Super Admin Mobile No)" : "Super Admin Mobile Number"}
+              </label>
+              <div className="relative">
+                <input
+                  type="tel"
+                  required
+                  maxLength={10}
+                  value={superAdminPhoneInput}
+                  onChange={(e) => setSuperAdminPhoneInput(e.target.value.replace(/\D/g, ""))}
+                  placeholder="9443254321"
+                  className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-300 rounded-xl font-mono text-stone-900 font-bold"
+                />
+                <Users className="w-4 h-4 text-stone-400 absolute left-3.5 top-3.5" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>{lang === "ta" ? "கைபேசி எண்ணைச் சரிபார்த்து அட்மின் சாவிகளைத் திற (Verify & Unlock Keys)" : "Verify Mobile & Unlock Admin Keys"}</span>
+            </button>
+          </form>
+        </div>
+      )}
+
+      {userRole === "super_admin" && superAdminPhoneVerified && (
         <div className="bg-white border-2 border-rose-500/30 rounded-3xl p-6 shadow-xl space-y-6">
           <div className="flex items-center justify-between border-b border-stone-200 pb-4">
             <div className="flex items-center gap-3">
@@ -200,7 +291,7 @@ export default function RoleBasedControlPortal({
           </div>
 
           {/* Key Generator Form */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50 p-5 rounded-2xl border border-stone-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-stone-50 p-5 rounded-2xl border border-stone-200">
             <div>
               <label className="block text-xs font-extrabold text-stone-700 mb-1">
                 {lang === "ta" ? "அனுமதி வழங்கப்பட வேண்டிய பதவி (Target Role)" : "Target Admin Role"}
@@ -220,13 +311,27 @@ export default function RoleBasedControlPortal({
 
             <div>
               <label className="block text-xs font-extrabold text-stone-700 mb-1">
-                {lang === "ta" ? "பொறுப்பாளர் பெயர் / மாவட்டம் (Assigned Person Name)" : "Assigned Person / District Name"}
+                {lang === "ta" ? "பொறுப்பாளர் பெயர் (Assigned Person Name)" : "Assigned Person Name"}
               </label>
               <input
                 type="text"
                 value={assignedPersonName}
                 onChange={(e) => setAssignedPersonName(e.target.value)}
-                placeholder={lang === "ta" ? "எ.கா: திரு. ரா. சக்திவேல் (கோயம்புத்தூர்)" : "e.g. R. Sakthivel (Coimbatore)"}
+                placeholder={lang === "ta" ? "எ.கா: திரு. ரா. சக்திவேல்" : "e.g. R. Sakthivel"}
+                className="w-full px-3 py-2.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-800"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-stone-700 mb-1">
+                {lang === "ta" ? "அட்மின் தொலைபேசி எண் (Admin Phone)" : "Admin Phone Number"}
+              </label>
+              <input
+                type="text"
+                value={adminPhone}
+                onChange={(e) => setAdminPhone(e.target.value)}
+                placeholder="9443254321"
+                maxLength={10}
                 className="w-full px-3 py-2.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-800"
               />
             </div>
@@ -237,7 +342,7 @@ export default function RoleBasedControlPortal({
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <Zap className="w-4 h-4" />
-                <span>{lang === "ta" ? "புதிய சூப்பர் கீ உருவாக்குக" : "Generate Super Key"}</span>
+                <span>{lang === "ta" ? "சூப்பர் கீ உருவாக்குக" : "Generate Super Key"}</span>
               </button>
             </div>
           </div>
@@ -254,6 +359,7 @@ export default function RoleBasedControlPortal({
                     <th className="p-3 font-black">சூப்பர் கீ (Super Key)</th>
                     <th className="p-3 font-black">பதவி (Role Tier)</th>
                     <th className="p-3 font-black">ஒதுக்கப்பட்டவர் (Assigned To)</th>
+                    <th className="p-3 font-black">தொலைபேசி எண் (Phone No)</th>
                     <th className="p-3 font-black">உருவாக்கியவர் (Issued By)</th>
                     <th className="p-3 font-black">நிலை (Status)</th>
                     <th className="p-3 font-black text-right">செயல் (Action)</th>
@@ -269,6 +375,7 @@ export default function RoleBasedControlPortal({
                         </span>
                       </td>
                       <td className="p-3 font-bold">{k.assignedTo || "General"}</td>
+                      <td className="p-3 font-mono text-blue-700 font-bold">{k.adminPhone ? `+91 ${k.adminPhone}` : "N/A"}</td>
                       <td className="p-3 text-stone-500">{k.issuedBy}</td>
                       <td className="p-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${k.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>

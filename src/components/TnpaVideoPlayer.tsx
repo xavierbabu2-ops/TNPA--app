@@ -308,26 +308,29 @@ export default function TnpaVideoPlayer({
           </div>
         ) : null}
 
-        {/* Video Player or YouTube or Default Stream Placeholder */}
-        {isYouTube && src ? (
-          <iframe
-            src={getYouTubeEmbedUrl(src)}
-            title={title}
-            className="w-full h-full border-0 absolute inset-0 z-10"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        ) : src ? (
-          <video
-            ref={videoRef}
-            src={src}
-            poster={poster}
-            autoPlay={isPlaying}
-            muted={isMuted}
-            playsInline
-            className="w-full h-full object-contain absolute inset-0 z-10"
-            onClick={togglePlay}
-          />
+        {/* Video Player or Default Stream Placeholder */}
+        {src ? (
+          isYouTube ? (
+            <iframe
+              src={getYouTubeEmbedUrl(src)}
+              title={title}
+              className="w-full h-full border-0 absolute inset-0 z-10"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              src={src}
+              poster={poster}
+              autoPlay={isPlaying}
+              muted={isMuted}
+              playsInline
+              className="w-full h-full object-contain absolute inset-0 z-10"
+              onClick={togglePlay}
+              onError={() => setHasError(true)}
+            />
+          )
         ) : (
           <div className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-stone-950 via-stone-900 to-stone-950 text-center">
             {/* Background pattern / glow */}

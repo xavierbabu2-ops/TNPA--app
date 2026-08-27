@@ -178,6 +178,10 @@ export interface MemberRegistration {
   status: "pending" | "approved" | "rejected" | "under_review" | "needs_correction";
   correctionRemarks?: string;
   createdAt: string;
+  cardType?: "member" | "official";
+  designation?: string;
+  brandEdition?: string;
+  brandBanner?: string;
   renewalHistory?: { renewalDate: string; feePaid: number; validityUntil: string; txnId: string }[];
   whatsappConsentStatus?: WhatsAppConsentStatus;
   whatsappConsentDate?: string;
@@ -317,6 +321,36 @@ export interface DistrictWhatsAppReportRow {
 }
 
 // ============================================================================
+export interface OfficeBearerAnnouncement {
+  id: string;
+  title: string;
+  titleEn: string;
+  position: string; // e.g. "மாவட்ட தலைவர்" / "District President"
+  district: string;
+  districtEn: string;
+  description: string;
+  descriptionEn: string;
+  lastDate: string;
+  status: "active" | "closed";
+  createdAt: string;
+}
+
+export interface OfficeBearerApplication {
+  id: string;
+  announcementId?: string;
+  applicantName: string;
+  applicantPhone: string;
+  district: string;
+  districtEn: string;
+  targetPosition: string;
+  membershipYears: number; // எத்தனை வருடங்களாக சங்கத்தில் உறுப்பினராக உள்ளனர்
+  districtAchievements: string; // அவர்கள் மாவட்டத்தில் அவர்கள் செய்த சிறப்புகள்
+  memberRegNumber?: string;
+  appliedAt: string;
+  status: "pending" | "approved" | "rejected";
+  superAdminRemarks?: string;
+}
+
 // SELF-HEALING & AUTO-RECOVERY SYSTEM TYPES
 // ============================================================================
 

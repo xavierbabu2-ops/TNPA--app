@@ -1441,14 +1441,29 @@ Verification Hash: TNP-MEM-${Math.floor(100000 + Math.random() * 900000)}
 
                     {/* Multimedia Simulation Window */}
                     <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4 relative group flex items-center justify-center border border-stone-800 shadow">
-                      <iframe
-                        src={selectedCourse.videoUrl}
-                        title="Course Simulation"
-                        className="w-full h-full border-none"
-                        allowFullScreen
-                      />
-                      <div className="absolute top-2 left-2 bg-red-600 text-white font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow">
-                        Live Simulation Player
+                      {selectedCourse.videoUrl && (selectedCourse.videoUrl.includes("youtube.com") || selectedCourse.videoUrl.includes("youtu.be")) ? (
+                        <iframe
+                          src={`${selectedCourse.videoUrl}${selectedCourse.videoUrl.includes("?") ? "&" : "?"}autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1`}
+                          title={selectedCourse.title}
+                          className="w-full h-full border-0 absolute inset-0 z-10"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          controls
+                          autoPlay
+                          playsInline
+                          poster="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=1200&auto=format&fit=crop"
+                          className="w-full h-full object-contain"
+                          src={selectedCourse.videoUrl || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      )}
+                      <div className="absolute top-2 left-2 z-20 bg-red-600 text-white font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        <span>TNPA² YouTube Masterclass</span>
                       </div>
                     </div>
 

@@ -88,6 +88,12 @@ import { getMemberCardRequestByToken } from "./utils/memberCardStorage";
 import { MemberCardRequest } from "./types/memberCard";
 import DistrictHierarchyDirectory from "./components/DistrictHierarchyDirectory";
 import RoleBasedControlPortal from "./components/RoleBasedControlPortal";
+import OfficeBearerPortal from "./components/OfficeBearerPortal";
+import PainterInsurancePortal from "./components/PainterInsurancePortal";
+import PainterSkillAcademy from "./components/PainterSkillAcademy";
+import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
+import PlayStorePromoStudio from "./components/PlayStorePromoStudio";
+import GrievanceSupportDesk from "./components/GrievanceSupportDesk";
 
 export default function App() {
   console.log("App component initializing...");
@@ -591,6 +597,12 @@ export default function App() {
             { id: "directory", label: "மாவட்ட தொடர்புகள்", labelEn: "Districts Directory" },
             { id: "gallery", label: "மீடியா அரங்கு", labelEn: "Photo Gallery" },
             { id: "role_control", label: "அதிகாரப் பிரிவுகள் & சூப்பர் கீ 🛡️", labelEn: "Role Tiers & Super Key 🛡️" },
+            { id: "office_bearers", label: "பொறுப்பாளர் நியமனம் 🏅", labelEn: "Office Bearers 🏅" },
+            { id: "insurance", label: "காப்பீடு & கோரிக்கை 🛡️", labelEn: "Insurance & Relief 🛡️" },
+            { id: "academy", label: "பயிற்சி & சான்றிதழ் 🏆", labelEn: "Skill Academy 🏆" },
+            { id: "broadcast", label: "மாவட்ட அறிவிப்புகள் 📢", labelEn: "Live Broadcasts 📢" },
+            { id: "play_store_studio", label: "ப்ளே ஸ்டோர் ஸ்டுடியோ 📱", labelEn: "Play Store Studio 📱" },
+            { id: "grievance", label: "உறுப்பினர் குறைகள் 💬", labelEn: "Grievance Desk 💬" },
             ...(currentUser?.role === "super_admin" ? [{ id: "business_console", label: "வணிக மேலாண்மை 💼", labelEn: "Business Console 💼" }] : []),
             { id: "admin", label: "உறுப்பினர் & நிர்வாகம்", labelEn: "Portal Sign In" }
           ].map((tab) => (
@@ -684,16 +696,15 @@ export default function App() {
                   
                   {/* FLAG RENDERING */}
                   <div 
-                    className={`relative w-full max-w-xs sm:w-60 md:w-64 bg-black/20 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner ${isSuperAdmin ? "cursor-pointer group" : ""}`}
+                    className="relative w-full max-w-xs sm:w-60 md:w-64 bg-black/20 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner cursor-pointer group"
                     onClick={() => {
-                      if (isSuperAdmin) {
-                        flagInputRef.current?.click();
-                      }
+                      flagInputRef.current?.click();
                     }}
+                    title={lang === "ta" ? "கொடியைத் தொட்டு மொபைல் கேலரியில் இருந்து படத்தை தேர்வு செய்யவும்" : "Tap flag to select image from mobile gallery"}
                   >
                     <span className="text-[10px] text-amber-400/80 font-mono block text-center uppercase tracking-widest mb-2 sm:mb-3 flex items-center justify-center gap-1">
                       {lang === "ta" ? "சங்கத்தின் அதிகாரப்பூர்வக் கொடி" : "Official Association Flag"}
-                      {isSuperAdmin && <Camera className="w-3 h-3 text-amber-400 opacity-80 group-hover:opacity-100" />}
+                      <Camera className="w-3 h-3 text-amber-400 opacity-80 group-hover:opacity-100" />
                     </span>
                     
                     {/* 3D Waving Vector Flag Image */}
@@ -707,37 +718,33 @@ export default function App() {
                           (e.target as HTMLImageElement).src = flagSvg;
                         }}
                       />
-                      {isSuperAdmin && (
-                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold">
-                          <Camera className="w-6 h-6 text-amber-300 mb-1 animate-bounce" />
-                          <span>{lang === "ta" ? "கொடி புகைப்படத்தை மாற்று" : "Change Flag Photo"}</span>
-                        </div>
-                      )}
+                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold text-center px-2">
+                        <Camera className="w-6 h-6 text-amber-300 mb-1 animate-bounce" />
+                        <span>{lang === "ta" ? "மொபைல் கேலரியில் இருந்து கொடியை மாற்றுக" : "Change flag from mobile gallery"}</span>
+                      </div>
                     </div>
-                    {isSuperAdmin && (
-                      <input
-                        type="file"
-                        ref={flagInputRef}
-                        accept="image/jpeg,image/png,image/webp,image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            const file = e.target.files[0];
-                            if (file.size > 3 * 1024 * 1024) {
-                              alert(lang === "ta" ? "கோப்பின் அளவு 3MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 3MB)" : "File size exceeds 3MB limit.");
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              const base64 = reader.result as string;
-                              setCustomFlagUrl(base64);
-                              handleAddAuditLog("Updated Association Flag", "Official flag photo updated by Super Admin.");
-                            };
-                            reader.readAsDataURL(file);
+                    <input
+                      type="file"
+                      ref={flagInputRef}
+                      accept="image/jpeg,image/png,image/webp,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          if (file.size > 5 * 1024 * 1024) {
+                            alert(lang === "ta" ? "கோப்பின் அளவு 5MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 5MB)" : "File size exceeds 5MB limit.");
+                            return;
                           }
-                        }}
-                      />
-                    )}
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const base64 = reader.result as string;
+                            setCustomFlagUrl(base64);
+                            handleAddAuditLog("Updated Association Flag", "Official flag photo updated from mobile gallery.");
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
                   </div>
 
                   {/* LIVE MEETING BANNER */}
@@ -872,7 +879,7 @@ export default function App() {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 {leaders.map((leader, idx) => {
                   const isPresident = leader.roleEn.includes("President");
                   const isSecretary = leader.roleEn.includes("Secretary");
@@ -1014,10 +1021,10 @@ export default function App() {
                     level: "நிலை 1 / Level 1",
                     title: "மாநில தலைமை நிர்வாகிகள்",
                     titleEn: "State Office Bearers",
-                    count: "3 நிர்வாகிகள்",
-                    countEn: "3 Core Executives",
-                    desc: "மாநில தலைவர் (S. மைக்கேல் ஆல்வின்), பொதுச்செயலாளர் (ரா. சேவியர் பாபு), பொருளாளர் (ஆர். சக்திவேல்).",
-                    descEn: "State President (S. Michael Alvin), Gen. Secretary (R. Xavier Babu), Treasurer (R. Sakthivel)."
+                    count: "2 நிர்வாகிகள்",
+                    countEn: "2 Core Executives",
+                    desc: "மாநில தலைவர் (S. மைக்கேல் ஆல்வின்), பொதுச்செயலாளர் (ரா. சேவியர் பாபு).",
+                    descEn: "State President (S. Michael Alvin), Gen. Secretary (R. Xavier Babu)."
                   },
                   {
                     level: "நிலை 2 / Level 2",
@@ -1034,8 +1041,8 @@ export default function App() {
                     titleEn: "District Office Bearers",
                     count: "38 மாவட்டங்கள்",
                     countEn: "38 Districts",
-                    desc: "மாவட்ட தலைவர், மாவட்ட செயலாளர் மற்றும் பொருளாளர் கொண்ட தலைமைக்குழு.",
-                    descEn: "District President, Secretary, and Treasurer leadership panels across 38 districts."
+                    desc: "மாவட்ட தலைவர் மற்றும் செயலாளர் கொண்ட தலைமைக்குழு.",
+                    descEn: "District President and Secretary leadership panels across 38 districts."
                   },
                   {
                     level: "நிலை 4 / Level 4",
@@ -1858,6 +1865,75 @@ export default function App() {
                   setCurrentUser({ ...currentUser, role: newRole });
                 }
               }}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* OFFICE BEARER ANNOUNCEMENTS & APPLICATIONS PORTAL */}
+        {activeTab === "office_bearers" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <OfficeBearerPortal
+              lang={lang}
+              currentUser={currentUser}
+              isSuperAdmin={isSuperAdmin}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* PAINTER INSURANCE & ACCIDENT RELIEF PORTAL */}
+        {activeTab === "insurance" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <PainterInsurancePortal
+              lang={lang}
+              currentUser={currentUser}
+              isSuperAdmin={isSuperAdmin}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* PAINTER SKILL & SAFETY ACADEMY PORTAL */}
+        {activeTab === "academy" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <PainterSkillAcademy
+              lang={lang}
+              currentUser={currentUser}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* DISTRICT BROADCAST & WHATSAPP CIRCULAR PORTAL */}
+        {activeTab === "broadcast" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <DistrictBroadcastPortal
+              lang={lang}
+              currentUser={currentUser}
+              isSuperAdmin={isSuperAdmin}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* PLAY STORE 3D PROMO STUDIO */}
+        {activeTab === "play_store_studio" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <PlayStorePromoStudio
+              lang={lang}
+              currentUser={currentUser}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
+        {/* GRIEVANCE & SUPPORT DESK */}
+        {activeTab === "grievance" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <GrievanceSupportDesk
+              lang={lang}
+              currentUser={currentUser}
               onAddAuditLog={handleAddAuditLog}
             />
           </div>
