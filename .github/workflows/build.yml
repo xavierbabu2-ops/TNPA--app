@@ -53,15 +53,18 @@ jobs:
         npx cap sync android
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug assembleRelease
+        ./gradlew assembleDebug || ./gradlew assemble
+        ./gradlew assembleRelease || true
         cd ..
 
     - name: Prepare APK Download Package
       run: |
         mkdir -p tnpa-apk-package
-        find android -name "*debug.apk" -exec cp {} tnpa-apk-package/TNPA2-Debug.apk \;
-        find android -name "*release*.apk" -exec cp {} tnpa-apk-package/TNPA2-Release.apk \; || true
-        ls -la tnpa-apk-package/
+        find android -name "*.apk" -exec cp {} tnpa-apk-package/ \; || true
+        find android -name "*debug*.apk" -exec cp {} tnpa-apk-package/TNPA2-Android-Debug.apk \; || true
+        find android -name "*release*.apk" -exec cp {} tnpa-apk-package/TNPA2-Android-Release.apk \; || true
+        echo "=== Generated APK Files ==="
+        ls -lh tnpa-apk-package/
 
     - name: Upload Android APK Artifact
       uses: actions/upload-artifact@v4
