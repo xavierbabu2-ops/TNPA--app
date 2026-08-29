@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { MemberRegistration as RegType } from "../types";
 import { auth } from "../lib/firebase";
+import { saveMemberLocally, getOfflineMemberById } from "../utils/offlineMemberDatabase";
 
 interface MemberRegistrationProps {
   lang: "ta" | "en";
@@ -620,6 +621,11 @@ export default function MemberRegistration({
 
     onSubmitRegistration(finalReg);
     setTrackedApplication(finalReg);
+
+    // Save to local offline database & queue sync if offline
+    saveMemberLocally(finalReg, !editingId).catch((err) => {
+      console.warn("Offline DB save fallback:", err);
+    });
     
     // Set WhatsApp modal data and trigger consent modal
     setWhatsAppMemberData({
@@ -641,7 +647,7 @@ export default function MemberRegistration({
   };
 
   // Search application helper
-  const handleSearchApplication = (e: React.FormEvent) => {
+  const handleSearchApplication = async (e: React.FormEvent) => {
     e.preventDefault();
     setSearchAttempted(true);
     const query = searchPhoneOrId.trim().toLowerCase();
@@ -652,12 +658,22 @@ export default function MemberRegistration({
     }
 
     // Match by phone, application ID, or Membership Number
-    const matched = registrations.find(
+    let matched = registrations.find(
       (r) => 
         r.phone === query || 
         r.id === query || 
         (r.regNumber && r.regNumber.toLowerCase() === query)
     );
+
+    if (!matched) {
+      // Check offline IndexedDB storage
+      try {
+        const offlineMatch = await getOfflineMemberById(query);
+        if (offlineMatch) {
+          matched = offlineMatch as RegType;
+        }
+      } catch (err) {}
+    }
 
     if (matched) {
       setTrackedApplication(matched);

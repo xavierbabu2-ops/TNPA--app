@@ -1,17 +1,17 @@
 {
   "packageId": "com.tnpa.artists.app",
-  "host": "tnpa.app",
-  "name": "TNPA²",
+  "host": "ais-pre-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app",
+  "name": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் சங்கம்",
   "launcherName": "TNPA²",
   "display": "standalone",
-  "themeColor": "#d97706",
+  "themeColor": "#2563eb",
   "backgroundColor": "#0f172a",
   "startUrl": "/",
   "iconUrl": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=512",
   "splashScreenImageUrl": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=512",
   "shortcuts": [],
   "generatorApp": "Bubblewrap CLI",
-  "webManifestUrl": "https://tnpa.app/manifest.json",
+  "webManifestUrl": "https://ais-pre-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app/manifest.json",
   "signingKey": {
     "path": "android.keystore",
     "alias": "android"

@@ -42,3 +42,28 @@
 .animate-glowing-logo {
   animation: glow 3s ease-in-out infinite;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #tnpa-official-certificate, #tnpa-official-certificate * {
+    visibility: visible;
+  }
+  #tnpa-official-certificate {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    min-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    border-width: 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+}

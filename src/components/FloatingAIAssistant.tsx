@@ -19,6 +19,7 @@ import {
   Maximize2 
 } from "lucide-react";
 import { UserAccount, SystemSettings } from "../types";
+import { createSafeSpeechRecognition, safeSpeak, safeCancelSpeech, SafeSpeechRecognitionHandle } from "../utils/safeSpeech";
 
 interface Message {
   role: "user" | "model";
@@ -48,7 +49,7 @@ export default function FloatingAIAssistant({ lang, currentUser, systemData, sys
   const [isSpeakingEnabled, setIsSpeakingEnabled] = useState(true);
   const [avatarState, setAvatarState] = useState<"greeting" | "thinking" | "speaking" | "neutral" | "happy">("greeting");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SafeSpeechRecognitionHandle | null>(null);
 
   const isSuperAdmin = currentUser?.role === "super_admin";
 
@@ -102,76 +103,75 @@ export default function FloatingAIAssistant({ lang, currentUser, systemData, sys
     }
   }, [messages, isOpen]);
 
-  // Handle Speech Recognition (Microphone feature)
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const rec = new SpeechRecognition();
-      rec.continuous = false;
-      rec.interimResults = false;
-      rec.lang = lang === "ta" ? "ta-IN" : "en-IN";
-
-      rec.onstart = () => {
-        setIsListening(true);
-        setAvatarState("thinking");
-      };
-
-      rec.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          setInput(transcript);
-        }
-      };
-
-      rec.onerror = (e: any) => {
-        console.error("Speech recognition error:", e);
-        setIsListening(false);
-        setAvatarState("neutral");
-      };
-
-      rec.onend = () => {
-        setIsListening(false);
-        setAvatarState("neutral");
-      };
-
-      recognitionRef.current = rec;
-    }
-  }, [lang]);
-
+  // Safely trigger Speech Recognition only when user requests it
   const toggleListening = () => {
-    if (!recognitionRef.current) {
-      alert(lang === "ta" 
-        ? "உங்கள் உலாவியில் குரல் அறிதல் அம்சம் ஆதரிக்கப்படவில்லை. தயவுசெய்து Chrome உலாவியைப் பயன்படுத்தவும்." 
-        : "Speech recognition is not supported in this browser. Please use Chrome.");
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      setAvatarState("neutral");
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.error(e);
+    const safeRec = createSafeSpeechRecognition({
+      lang: lang === "ta" ? "ta-IN" : "en-IN",
+      continuous: false,
+      interimResults: false,
+      onStart: () => {
+        setIsListening(true);
+        setAvatarState("thinking");
+      },
+      onResult: (transcript) => {
+        if (transcript) {
+          setInput(transcript);
+        }
+      },
+      onError: (e) => {
+        console.warn("Speech recognition error:", e);
+        setIsListening(false);
+        setAvatarState("neutral");
+      },
+      onEnd: () => {
+        setIsListening(false);
+        setAvatarState("neutral");
       }
+    });
+
+    if (!safeRec) {
+      alert(lang === "ta" 
+        ? "உங்கள் உலாவியில் அல்லது மொபைலில் குரல் அறிதல் அம்சம் ஆதரிக்கப்படவில்லை." 
+        : "Voice speech recognition is not supported in this mobile browser or webview environment.");
+      setIsListening(false);
+      setAvatarState("neutral");
+      return;
+    }
+
+    recognitionRef.current = safeRec;
+    const started = safeRec.start();
+    if (!started) {
+      setIsListening(false);
+      setAvatarState("neutral");
     }
   };
 
   const handleSpeakText = (text: string) => {
     if (!isSpeakingEnabled) return;
-    const cleanText = text.replace(/\([^)]+\)/g, "").replace(/●/g, "");
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = lang === "ta" ? "ta-IN" : "en-IN";
-      utterance.rate = 1.05; // Perfect natural pacing
-      
-      setAvatarState("speaking");
-      window.speechSynthesis.speak(utterance);
-      
-      utterance.onend = () => {
+    
+    setAvatarState("speaking");
+    const success = safeSpeak(text, {
+      lang: lang === "ta" ? "ta-IN" : "en-IN",
+      rate: 1.05,
+      onEnd: () => {
         setAvatarState("neutral");
-      };
+      },
+      onError: () => {
+        setAvatarState("neutral");
+      }
+    });
+
+    if (!success) {
+      setAvatarState("neutral");
     }
   };
 
@@ -235,9 +235,7 @@ export default function FloatingAIAssistant({ lang, currentUser, systemData, sys
   };
 
   const handleReset = () => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    safeCancelSpeech();
     let greetingText = "";
     if (isSuperAdmin) {
       greetingText = lang === "ta"

@@ -756,6 +756,30 @@ export async function runFullSystemHealthCheck(): Promise<SelfHealingStatusSumma
 // EVENT SUBSCRIBERS & BACKGROUND RECOVERY DAEMON
 // ============================================================================
 
+export function resetAllCircuitBreakers(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.CIRCUIT_STATES);
+    sessionStorage.removeItem("tnpa_tripped_circuit");
+    console.log("[Self-Healing] All circuit breakers successfully reset to CLOSED state.");
+  } catch (err) {
+    console.warn("[Self-Healing] Could not reset circuit breakers:", err);
+  }
+}
+
+export function clearCircuitBreaker(fingerprint?: string): void {
+  try {
+    if (!fingerprint) {
+      resetAllCircuitBreakers();
+      return;
+    }
+    const states = getCircuitStates();
+    delete states[fingerprint];
+    localStorage.setItem(STORAGE_KEYS.CIRCUIT_STATES, JSON.stringify(states));
+  } catch (err) {
+    console.warn("[Self-Healing] Could not clear circuit breaker fingerprint:", err);
+  }
+}
+
 export function subscribeSystemHealth(callback: (summary: SelfHealingStatusSummary) => void): () => void {
   eventListeners.add(callback);
   return () => eventListeners.delete(callback);

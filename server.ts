@@ -8,7 +8,7 @@ import crypto from "crypto";
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = 3000;
 
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ limit: "20mb", extended: true }));
@@ -889,11 +889,14 @@ app.post("/api/superadmin/otp/verify", (req, res) => {
       req
     );
 
+    const currentSuperKey = superAdmin.accessKeyMasked || "TNPA-SUPERKEY-9443254321-XAVIER-SECURE";
+
     return res.status(200).json({
       success: true,
       token,
       expiresAt: sessionExpiresAt,
       user: sanitizeAdmin(superAdmin),
+      superKey: currentSuperKey,
       message: "Super Admin OTP authorization successful.",
       messageTa: "சூப்பர் அட்மின் ஓடிபி சரிபார்ப்பு வெற்றிகரமாக முடிந்தது."
     });
@@ -964,6 +967,552 @@ app.post("/api/superadmin/auth/logout", (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// 5. Super Admin Super Key Profile & Update Endpoint (Restricted to Super Admin)
+app.get("/api/superadmin/superkey/current", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const session = verifySuperAdminSession(req);
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        error: "Super Admin authorization required.",
+        errorTa: "சூப்பர் அட்மின் அனுமதி தேவை."
+      });
+    }
+
+    const admins = loadAdmins();
+    const admin = admins.find(a => a.id === session.adminId || a.role === "super_admin");
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Super Admin record not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      phone: admin.phone,
+      maskedKey: admin.accessKeyMasked,
+      adminName: admin.name,
+      adminNameEn: admin.nameEn,
+      role: admin.role,
+      lastUpdated: admin.createdAt
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/superadmin/superkey/update", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const session = verifySuperAdminSession(req);
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        error: "Super Admin authorization required to modify Super Key.",
+        errorTa: "சூப்பர் கீ-ஐ மாற்றுவதற்கு சூப்பர் அட்மினுக்கு மட்டுமே அனுமதி உண்டு."
+      });
+    }
+
+    const { newSuperKey } = req.body || {};
+    if (!newSuperKey || typeof newSuperKey !== "string" || newSuperKey.trim().length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: "Super Key must be at least 8 characters long.",
+        errorTa: "சூப்பர் கீ குறைந்தது 8 எழுத்துக்கள் கொண்டதாக இருக்க வேண்டும்."
+      });
+    }
+
+    const cleanKey = newSuperKey.trim();
+    const admins = loadAdmins();
+    const adminIndex = admins.findIndex(a => a.id === session.adminId || (a.role === "super_admin" && a.phone === session.user.phone));
+
+    if (adminIndex === -1) {
+      return res.status(404).json({ success: false, error: "Super Admin account not found." });
+    }
+
+    // Rehash key with strong PBKDF2
+    const keyCred = hashCredential(cleanKey);
+    admins[adminIndex].accessKeyHash = keyCred.hash;
+    admins[adminIndex].accessKeySalt = keyCred.salt;
+    admins[adminIndex].accessKeyMasked = maskKey(cleanKey);
+    saveAdmins(admins);
+
+    // Update active session
+    session.user = admins[adminIndex];
+    superAdminSessionStore.set(session.token, session);
+
+    addAuditLog(
+      "Super Key Changed",
+      `Super Key was securely updated and rotated by ${admins[adminIndex].nameEn || admins[adminIndex].name} (${admins[adminIndex].phone})`,
+      admins[adminIndex].name,
+      "super_admin",
+      req
+    );
+
+    return res.status(200).json({
+      success: true,
+      maskedKey: admins[adminIndex].accessKeyMasked,
+      newSuperKey: cleanKey,
+      message: "Super Key updated successfully! Please keep it secure.",
+      messageTa: "சூப்பர் கீ வெற்றிகரமாக மாற்றப்பட்டது! இதனைப் பாதுகாப்பாக வைக்கவும்."
+    });
+  } catch (err: any) {
+    console.error("Super Key update error:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================================
+// STATE LEGAL ADVISORY COMMITTEE (மாநில சட்ட ஆலோசனைக் குழு) ENGINE
+// ============================================================================
+const LEGAL_ADVISORS_FILE = path.join(process.cwd(), "legalAdvisorsData.json");
+const LEGAL_CONSULTATIONS_FILE = path.join(process.cwd(), "legalConsultationsData.json");
+
+interface LegalAdvisorRecord {
+  id: string;
+  name: string;
+  nameEn: string;
+  designation: string;
+  designationEn: string;
+  barCouncilRegNo: string;
+  court: string;
+  courtEn: string;
+  phone: string;
+  whatsapp?: string;
+  email?: string;
+  officeAddress: string;
+  district: string;
+  districtEn: string;
+  specialization: string;
+  specializationEn: string;
+  experienceYears: number;
+  photoUrl: string;
+  status: "Active" | "Inactive";
+  joinedDate: string;
+  emergencyAvailable: boolean;
+  notes?: string;
+}
+
+function getInitialLegalAdvisors(): LegalAdvisorRecord[] {
+  return [
+    {
+      id: "adv_1",
+      name: "அட்வகேட் கே. செந்தில் நாதன், B.L.",
+      nameEn: "Adv. K. Senthil Nathan, B.L.",
+      designation: "மாநில முதன்மை சட்ட ஆலோசகர் (தலைமை வழக்கறிஞர்)",
+      designationEn: "State Chief Legal Advisor (Senior High Court Advocate)",
+      barCouncilRegNo: "MS/1142/2002",
+      court: "சென்னை உயர்நீதிமன்றம் & மதுரை கிளை",
+      courtEn: "Madras High Court & Madurai Bench",
+      phone: "9443214567",
+      whatsapp: "9443214567",
+      email: "legal.senthil@tnpainters.org",
+      officeAddress: "எண் 14/2, உயர்நீதிமன்ற வழக்கறிஞர் வளாகம், என்.எஸ்.சி போஸ் சாலை, சென்னை - 600104",
+      district: "சென்னை",
+      districtEn: "Chennai",
+      specialization: "தொழிலாளர் சட்டம், தொழிற்சங்க விதிகள், பொதுநல வழக்குகள் & மனித உரிமைகள்",
+      specializationEn: "Labor Law, Trade Union Rights, PIL & Human Rights",
+      experienceYears: 24,
+      photoUrl: "https://images.unsplash.com/photo-1556157382-97eda2d62296?w=400&auto=format&fit=crop&q=80",
+      status: "Active",
+      joinedDate: "2021-04-10",
+      emergencyAvailable: true,
+      notes: "சங்கத்தின் அனைத்து சட்ட ரீதியான கொள்கை முடிவுகளுக்கும் தலைமை தாங்குகிறார்."
+    },
+    {
+      id: "adv_2",
+      name: "அட்வகேட் எம். ராஜேஸ்வரி, B.L., LL.M.",
+      nameEn: "Adv. M. Rajeshwari, B.L., LL.M.",
+      designation: "மாநில சட்ட ஆலோசகர் (விபத்து & இழப்பீட்டு தீர்ப்பாயம்)",
+      designationEn: "State Legal Advisor (Accident Claims & Tribunal)",
+      barCouncilRegNo: "MS/2458/2009",
+      court: "மதுரை உயர்நீதிமன்ற கிளை & மாவட்ட நீதிமன்றங்கள்",
+      courtEn: "Madurai High Court Bench & District Courts",
+      phone: "9840123456",
+      whatsapp: "9840123456",
+      email: "rajeshwari.legal@tnpainters.org",
+      officeAddress: "பிளாட் எண் 8, கே.கே.நகர் பிரதான சாலை, மாட்டுத்தாவணி அருகில், மதுரை - 625020",
+      district: "மதுரை",
+      districtEn: "Madurai",
+      specialization: "தொழிலாளர் விபத்து இழப்பீடு (MACT), தமிழ்நாடு நல வாரிய நிதி கோரிக்கைகள் & காப்பீட்டு சட்டம்",
+      specializationEn: "Workplace Accident Claims, Welfare Board Benefits & Insurance Law",
+      experienceYears: 17,
+      photoUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
+      status: "Active",
+      joinedDate: "2022-01-15",
+      emergencyAvailable: true,
+      notes: "விபத்து மற்றும் இழப்பீட்டு வழக்குகளுக்கு உடனடி இலவச சட்ட உதவி வழங்குகிறார்."
+    },
+    {
+      id: "adv_3",
+      name: "அட்வகேட் எஸ். அருள்மணி, B.A., B.L.",
+      nameEn: "Adv. S. Arulmani, B.A., B.L.",
+      designation: "மாநில சட்ட ஆலோசகர் (தொழிலாளர் நல நீதிமன்றம்)",
+      designationEn: "State Legal Advisor (Labor Court & Industrial Disputes)",
+      barCouncilRegNo: "MS/892/1998",
+      court: "தொழிலாளர் தீர்ப்பாயம் & முதன்மை மாவட்ட நீதிமன்றம்",
+      courtEn: "Industrial Tribunal & Labor Court, Coimbatore",
+      phone: "9443198765",
+      whatsapp: "9443198765",
+      email: "arulmani.adv@tnpainters.org",
+      officeAddress: "45, கோர்ட் ரோடு, பந்தய சாலை, கோயம்புத்தூர் - 641018",
+      district: "கோயம்புத்தூர்",
+      districtEn: "Coimbatore",
+      specialization: "தொழிற்தகராறு சட்டம் (ID Act), ஒப்பந்த தொழிலாளர் உரிமை, ஊதிய பாக்கி மீட்பு",
+      specializationEn: "Industrial Disputes Act, Contract Labor Protection, Wage Recovery",
+      experienceYears: 28,
+      photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+      status: "Active",
+      joinedDate: "2021-08-20",
+      emergencyAvailable: false,
+      notes: "மேற்கு மண்டல பெயிண்டர் தொழிலாளர் பிரச்சனைகளை கவனிக்கிறார்."
+    },
+    {
+      id: "adv_4",
+      name: "அட்வகேட் பி. வெற்றிவேல், B.L.",
+      nameEn: "Adv. P. Vetrivel, B.L.",
+      designation: "மாநில சட்ட ஆலோசகர் (குற்றவியல் & அவசர உதவி)",
+      designationEn: "State Legal Advisor (Criminal Defense & Emergency Aid)",
+      barCouncilRegNo: "MS/3120/2015",
+      court: "திருச்சிராப்பள்ளி முதன்மை அமர்வு நீதிமன்றம்",
+      courtEn: "Tiruchirappalli Principal Sessions Court",
+      phone: "9789012345",
+      whatsapp: "9789012345",
+      email: "vetrivel.law@tnpainters.org",
+      officeAddress: "12A, பாரதிதாசன் சாலை, கண்டோன்மென்ட், திருச்சிராப்பள்ளி - 620001",
+      district: "திருச்சிராப்பள்ளி",
+      districtEn: "Tiruchirappalli",
+      specialization: "காவல்துறை விவகாரங்கள், பிணை & அவசர சட்ட உதவி, நுகர்வோர் நீதிமன்றம்",
+      specializationEn: "Police Matters, Bail & Emergency Defense, Consumer Protection",
+      experienceYears: 11,
+      photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80",
+      status: "Active",
+      joinedDate: "2023-03-05",
+      emergencyAvailable: true,
+      notes: "மத்திய மண்டல உறுப்பினர்களுக்கு 24x7 அவசர சட்ட ஆலோசனை."
+    }
+  ];
+}
+
+function loadLegalAdvisors(): LegalAdvisorRecord[] {
+  try {
+    if (fs.existsSync(LEGAL_ADVISORS_FILE)) {
+      const data = fs.readFileSync(LEGAL_ADVISORS_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.warn("Failed to load legal advisors:", err);
+  }
+  const initial = getInitialLegalAdvisors();
+  saveLegalAdvisors(initial);
+  return initial;
+}
+
+function saveLegalAdvisors(advisors: LegalAdvisorRecord[]) {
+  try {
+    fs.writeFileSync(LEGAL_ADVISORS_FILE, JSON.stringify(advisors, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save legal advisors:", err);
+  }
+}
+
+function loadLegalConsultations(): any[] {
+  try {
+    if (fs.existsSync(LEGAL_CONSULTATIONS_FILE)) {
+      return JSON.parse(fs.readFileSync(LEGAL_CONSULTATIONS_FILE, "utf-8"));
+    }
+  } catch (err) {
+    console.warn("Failed to load legal consultations:", err);
+  }
+  return [];
+}
+
+function saveLegalConsultations(items: any[]) {
+  try {
+    fs.writeFileSync(LEGAL_CONSULTATIONS_FILE, JSON.stringify(items, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save legal consultations:", err);
+  }
+}
+
+// 1. GET all legal advisors (Public)
+app.get("/api/legal-advisors", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const advisors = loadLegalAdvisors();
+    return res.status(200).json({ success: true, advisors });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. POST create new legal advisor (SUPER ADMIN ONLY)
+app.post("/api/legal-advisors", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const session = verifySuperAdminSession(req);
+    // Also check role header if admin
+    const authRole = req.headers["x-user-role"];
+    const isSuperAdmin = session || authRole === "super_admin";
+
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "Super Admin privileges required to register legal advisors.",
+        errorTa: "மாநில சட்ட ஆலோசகர்களை பதிவு செய்ய சூப்பர் அட்மின்களுக்கு மட்டுமே அனுமதி உண்டு."
+      });
+    }
+
+    const {
+      name, nameEn, designation, designationEn, barCouncilRegNo, court, courtEn,
+      phone, whatsapp, email, officeAddress, district, districtEn, specialization,
+      specializationEn, experienceYears, photoUrl, status, emergencyAvailable, notes
+    } = req.body || {};
+
+    if (!name || !phone || !barCouncilRegNo) {
+      return res.status(400).json({
+        success: false,
+        error: "Name, Bar Council Reg No, and Phone Number are required.",
+        errorTa: "வழக்கறிஞர் பெயர், பார் கவுன்சில் எண் மற்றும் தொலைபேசி எண் ஆகியவை கட்டாயமானவை."
+      });
+    }
+
+    const advisors = loadLegalAdvisors();
+    const newAdvisor: LegalAdvisorRecord = {
+      id: `adv_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      name: name.trim(),
+      nameEn: (nameEn || name).trim(),
+      designation: (designation || "மாநில சட்ட ஆலோசகர்").trim(),
+      designationEn: (designationEn || "State Legal Advisor").trim(),
+      barCouncilRegNo: barCouncilRegNo.trim(),
+      court: (court || "சென்னை உயர்நீதிமன்றம்").trim(),
+      courtEn: (courtEn || "Madras High Court").trim(),
+      phone: phone.trim(),
+      whatsapp: (whatsapp || phone).trim(),
+      email: (email || "").trim(),
+      officeAddress: (officeAddress || "").trim(),
+      district: (district || "சென்னை").trim(),
+      districtEn: (districtEn || district || "Chennai").trim(),
+      specialization: (specialization || "தொழிலாளர் சட்டம் & தொழிற்சங்க உரிமைகள்").trim(),
+      specializationEn: (specializationEn || "Labor Law & Union Rights").trim(),
+      experienceYears: Number(experienceYears) || 5,
+      photoUrl: photoUrl || "https://images.unsplash.com/photo-1556157382-97eda2d62296?w=400&auto=format&fit=crop&q=80",
+      status: status || "Active",
+      joinedDate: new Date().toISOString().split("T")[0],
+      emergencyAvailable: emergencyAvailable !== false,
+      notes: notes || ""
+    };
+
+    advisors.unshift(newAdvisor);
+    saveLegalAdvisors(advisors);
+
+    addAuditLog(
+      "Legal Advisor Registered",
+      `New State Legal Advisor ${newAdvisor.nameEn} (${newAdvisor.barCouncilRegNo}, ${newAdvisor.phone}) was registered by Super Admin.`,
+      session?.user?.name || "Super Admin",
+      "super_admin",
+      req
+    );
+
+    return res.status(201).json({
+      success: true,
+      advisor: newAdvisor,
+      message: "State Legal Advisor registered successfully.",
+      messageTa: "மாநில சட்ட ஆலோசகர் வெற்றிகரமாக பதிவு செய்யப்பட்டார்."
+    });
+  } catch (err: any) {
+    console.error("Add Legal Advisor Error:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. PUT update legal advisor (SUPER ADMIN ONLY)
+app.put("/api/legal-advisors/:id", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const session = verifySuperAdminSession(req);
+    const authRole = req.headers["x-user-role"];
+    const isSuperAdmin = session || authRole === "super_admin";
+
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "Super Admin privileges required to edit legal advisors.",
+        errorTa: "மாநில சட்ட ஆலோசகர்களின் விவரங்களை திருத்த சூப்பர் அட்மின்களுக்கு மட்டுமே அனுமதி உண்டு."
+      });
+    }
+
+    const { id } = req.params;
+    const advisors = loadLegalAdvisors();
+    const idx = advisors.findIndex(a => a.id === id);
+
+    if (idx === -1) {
+      return res.status(404).json({
+        success: false,
+        error: "Legal Advisor not found.",
+        errorTa: "சட்ட ஆலோசகர் விவரம் கிடைக்கவில்லை."
+      });
+    }
+
+    advisors[idx] = {
+      ...advisors[idx],
+      ...req.body,
+      id // preserve id
+    };
+
+    saveLegalAdvisors(advisors);
+
+    addAuditLog(
+      "Legal Advisor Updated",
+      `State Legal Advisor ${advisors[idx].nameEn} (${advisors[idx].phone}) was updated by Super Admin.`,
+      session?.user?.name || "Super Admin",
+      "super_admin",
+      req
+    );
+
+    return res.status(200).json({
+      success: true,
+      advisor: advisors[idx],
+      message: "Legal Advisor updated successfully.",
+      messageTa: "சட்ட ஆலோசகர் விவரங்கள் வெற்றிகரமாக புதுப்பிக்கப்பட்டன."
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. DELETE legal advisor (SUPER ADMIN ONLY)
+app.delete("/api/legal-advisors/:id", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const session = verifySuperAdminSession(req);
+    const authRole = req.headers["x-user-role"];
+    const isSuperAdmin = session || authRole === "super_admin";
+
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: "Super Admin privileges required to delete legal advisors.",
+        errorTa: "சட்ட ஆலோசகரை நீக்க சூப்பர் அட்மின்களுக்கு மட்டுமே அனுமதி உண்டு."
+      });
+    }
+
+    const { id } = req.params;
+    let advisors = loadLegalAdvisors();
+    const target = advisors.find(a => a.id === id);
+
+    if (!target) {
+      return res.status(404).json({ success: false, error: "Advisor not found." });
+    }
+
+    advisors = advisors.filter(a => a.id !== id);
+    saveLegalAdvisors(advisors);
+
+    addAuditLog(
+      "Legal Advisor Removed",
+      `State Legal Advisor ${target.nameEn} (${target.phone}) was removed by Super Admin.`,
+      session?.user?.name || "Super Admin",
+      "super_admin",
+      req
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Legal Advisor removed successfully.",
+      messageTa: "சட்ட ஆலோசகர் வெற்றிகரமாக நீக்கப்பட்டார்."
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Legal Aid Consultations
+app.get("/api/legal-advisors/consultations", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const consultations = loadLegalConsultations();
+    return res.status(200).json({ success: true, consultations });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/legal-advisors/consultations", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const {
+      memberId, memberName, memberPhone, memberDistrict,
+      caseType, caseTypeTa, description
+    } = req.body || {};
+
+    if (!memberName || !memberPhone || !description) {
+      return res.status(400).json({
+        success: false,
+        error: "Member Name, Phone, and Case Description are required.",
+        errorTa: "பெயர், தொலைபேசி எண் மற்றும் சட்ட விவகார விவரம் தேவை."
+      });
+    }
+
+    const consultations = loadLegalConsultations();
+    const newReq = {
+      id: `cons_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      memberId: memberId || "GUEST",
+      memberName: memberName.trim(),
+      memberPhone: memberPhone.trim(),
+      memberDistrict: memberDistrict || "தமிழ்நாடு",
+      caseType: caseType || "general_legal_advice",
+      caseTypeTa: caseTypeTa || "பொது சட்ட ஆலோசனை",
+      description: description.trim(),
+      status: "pending",
+      createdAt: new Date().toISOString()
+    };
+
+    consultations.unshift(newReq);
+    saveLegalConsultations(consultations);
+
+    addAuditLog(
+      "Legal Consultation Submitted",
+      `Member ${newReq.memberName} (${newReq.memberPhone}) requested legal assistance for: ${newReq.caseTypeTa}`,
+      newReq.memberName,
+      "member",
+      req
+    );
+
+    return res.status(201).json({
+      success: true,
+      consultation: newReq,
+      message: "Legal Consultation request submitted successfully.",
+      messageTa: "சட்ட ஆலோசனை கோரிக்கை வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது. நமது வழக்கறிஞர் விரைவில் தொடர்புகொள்வார்."
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put("/api/legal-advisors/consultations/:id", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const { id } = req.params;
+    const consultations = loadLegalConsultations();
+    const idx = consultations.findIndex(c => c.id === id);
+
+    if (idx === -1) {
+      return res.status(404).json({ success: false, error: "Consultation not found." });
+    }
+
+    consultations[idx] = {
+      ...consultations[idx],
+      ...req.body,
+      id
+    };
+
+    saveLegalConsultations(consultations);
+    return res.status(200).json({ success: true, consultation: consultations[idx] });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 
 // 1. Admin 3-Factor Secure Login Endpoint
 app.post("/api/admin/login", (req, res) => {
@@ -2520,6 +3069,263 @@ app.get("/api/members/:id/photo", (req, res) => {
     memberId: id,
     photoUrl: photoUrl || null
   });
+});
+
+// --- Server-Side Member Database & PWA Offline Sync Engine ---
+interface ServerMemberRecord {
+  id: string;
+  regNumber: string;
+  name: string;
+  nameEn?: string;
+  fatherName: string;
+  dob: string;
+  gender: string;
+  bloodGroup: string;
+  phone: string;
+  whatsapp?: string;
+  email?: string;
+  aadhaar: string;
+  district: string;
+  address: string;
+  experienceYears: number;
+  specialization?: string;
+  photoUrl: string;
+  status: "pending" | "approved" | "rejected" | "under_review" | "needs_correction";
+  createdAt: string;
+}
+
+const serverMembersDatabase: ServerMemberRecord[] = [
+  {
+    id: "reg_1",
+    regNumber: "TNP-2026-0034",
+    name: "ரா. கார்த்திகேயன்",
+    nameEn: "R. Karthikeyan",
+    fatherName: "ராமசாமி",
+    dob: "1985-05-14",
+    gender: "ஆண் (Male)",
+    bloodGroup: "O+",
+    phone: "9876543210",
+    aadhaar: "XXXX-XXXX-4589",
+    district: "சென்னை",
+    address: "எண் 12, காமராஜர் தெரு, மயிலாப்பூர், சென்னை - 600004",
+    experienceYears: 15,
+    specialization: "Exterior & Waterproofing Specialist",
+    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-01T10:30:00Z"
+  },
+  {
+    id: "reg_2",
+    regNumber: "TNP-2026-0035",
+    name: "சு. முத்துக்குமார்",
+    nameEn: "S. Muthukumar",
+    fatherName: "சுந்தரம்",
+    dob: "1990-11-20",
+    gender: "ஆண் (Male)",
+    bloodGroup: "A+",
+    phone: "9843212345",
+    aadhaar: "XXXX-XXXX-8921",
+    district: "மதுரை",
+    address: "எண் 45, மேலூர் மெயின் ரோடு, மதுரை - 625106",
+    experienceYears: 10,
+    specialization: "Texture & Royal Play Expert",
+    photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-02T14:15:00Z"
+  },
+  {
+    id: "reg_3",
+    regNumber: "TNP-2026-0036",
+    name: "மு. ரவிக்குமார்",
+    nameEn: "M. Ravikumar",
+    fatherName: "முனுசாமி",
+    dob: "1988-03-15",
+    gender: "ஆண் (Male)",
+    bloodGroup: "O+",
+    phone: "9840112233",
+    aadhaar: "XXXX-XXXX-1001",
+    district: "சென்னை",
+    address: "அண்ணா நகர் மேற்கு, சென்னை - 600040",
+    experienceYears: 12,
+    specialization: "Exterior & Texture Painting",
+    photoUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-03T09:00:00Z"
+  },
+  {
+    id: "reg_4",
+    regNumber: "TNP-2026-0037",
+    name: "கே. வேலுச்சாமி",
+    nameEn: "K. Veluchamy",
+    fatherName: "கந்தசாமி",
+    dob: "1982-08-22",
+    gender: "ஆண் (Male)",
+    bloodGroup: "A+",
+    phone: "9842223344",
+    aadhaar: "XXXX-XXXX-1002",
+    district: "கோயம்புத்தூர்",
+    address: "ஆர்.எஸ். புரம், கோயம்புத்தூர் - 641002",
+    experienceYears: 15,
+    specialization: "Commercial Spray Coating",
+    photoUrl: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-04T11:20:00Z"
+  },
+  {
+    id: "reg_5",
+    regNumber: "TNP-2026-0038",
+    name: "பி. அழகர்சாமி",
+    nameEn: "P. Alagarsamy",
+    fatherName: "பெருமாள்",
+    dob: "1992-01-10",
+    gender: "ஆண் (Male)",
+    bloodGroup: "B+",
+    phone: "9843334455",
+    aadhaar: "XXXX-XXXX-1003",
+    district: "மதுரை",
+    address: "சிம்மக்கல் மெயின் ரோடு, மதுரை - 625001",
+    experienceYears: 9,
+    specialization: "Traditional Artistic Murals & Temple Work",
+    photoUrl: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-05T15:45:00Z"
+  },
+  {
+    id: "reg_6",
+    regNumber: "TNP-2026-0039",
+    name: "எஸ். முகமது அலி",
+    nameEn: "S. Mohamed Ali",
+    fatherName: "சாகுல் ஹமீது",
+    dob: "1986-09-18",
+    gender: "ஆண் (Male)",
+    bloodGroup: "AB+",
+    phone: "9844445566",
+    aadhaar: "XXXX-XXXX-1004",
+    district: "திருச்சிராப்பள்ளி",
+    address: "தில்லை நகர் 4வது கிராஸ், திருச்சி - 620018",
+    experienceYears: 14,
+    specialization: "Interior Luxury Painting & PU Polish",
+    photoUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-06T10:10:00Z"
+  },
+  {
+    id: "reg_7",
+    regNumber: "TNP-2026-0040",
+    name: "வி. சண்முகம்",
+    nameEn: "V. Shanmugam",
+    fatherName: "வேலாயுதம்",
+    dob: "1994-04-25",
+    gender: "ஆண் (Male)",
+    bloodGroup: "O-",
+    phone: "9845556677",
+    aadhaar: "XXXX-XXXX-1005",
+    district: "சேலம்",
+    address: "அஸ்தம்பட்டி மெயின் ரோடு, சேலம் - 636007",
+    experienceYears: 7,
+    specialization: "Waterproofing & Epoxy Coatings",
+    photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150&h=150",
+    status: "approved",
+    createdAt: "2026-08-07T12:00:00Z"
+  }
+];
+
+// 2a. Database Snapshot endpoint for Service Worker & Offline Priming
+app.get("/api/members/database/snapshot", (req, res) => {
+  res.setHeader("Cache-Control", "public, max-age=300");
+  res.json({
+    success: true,
+    totalMembers: 45620,
+    districtCount: 38,
+    members: serverMembersDatabase,
+    serverTimestamp: new Date().toISOString()
+  });
+});
+
+// 2b. Directory Query endpoint with filters
+app.get("/api/members/directory", (req, res) => {
+  const { district, search, status, bloodGroup, page = 1, limit = 50 } = req.query as any;
+  let results = [...serverMembersDatabase];
+
+  if (district && district !== "all") {
+    const dLower = String(district).toLowerCase();
+    results = results.filter(m => m.district.toLowerCase().includes(dLower) || dLower.includes(m.district.toLowerCase()));
+  }
+
+  if (status && status !== "all") {
+    results = results.filter(m => m.status === status);
+  }
+
+  if (bloodGroup && bloodGroup !== "all") {
+    results = results.filter(m => m.bloodGroup === bloodGroup);
+  }
+
+  if (search) {
+    const q = String(search).toLowerCase().trim();
+    results = results.filter(m => 
+      m.name.toLowerCase().includes(q) ||
+      (m.nameEn && m.nameEn.toLowerCase().includes(q)) ||
+      m.regNumber.toLowerCase().includes(q) ||
+      m.phone.includes(q) ||
+      m.district.toLowerCase().includes(q) ||
+      (m.specialization && m.specialization.toLowerCase().includes(q))
+    );
+  }
+
+  res.setHeader("Cache-Control", "public, max-age=60");
+  res.json({
+    success: true,
+    total: results.length,
+    page: Number(page),
+    limit: Number(limit),
+    members: results
+  });
+});
+
+// 2c. Offline Synchronization Endpoint
+app.post("/api/members/sync", (req, res) => {
+  try {
+    const { mutations } = req.body || {};
+    if (!mutations || !Array.isArray(mutations)) {
+      return res.status(400).json({ success: false, error: "Invalid mutations array" });
+    }
+
+    let syncedCount = 0;
+    const processedIds: string[] = [];
+
+    for (const item of mutations) {
+      if (item.action === "create_member" && item.data) {
+        const existingIdx = serverMembersDatabase.findIndex(m => m.id === item.data.id || m.regNumber === item.data.regNumber);
+        if (existingIdx >= 0) {
+          serverMembersDatabase[existingIdx] = { ...serverMembersDatabase[existingIdx], ...item.data };
+        } else {
+          serverMembersDatabase.unshift(item.data);
+        }
+        syncedCount++;
+        processedIds.push(item.id);
+        addAuditLog("OFFLINE_MEMBER_SYNCED", `Member record '${item.data.name}' (${item.data.regNumber}) synced from offline device cache.`, "PWA Sync Sentinel", "SYSTEM", req);
+      } else if (item.action === "update_member" && item.data) {
+        const existingIdx = serverMembersDatabase.findIndex(m => m.id === item.data.id || m.regNumber === item.data.regNumber);
+        if (existingIdx >= 0) {
+          serverMembersDatabase[existingIdx] = { ...serverMembersDatabase[existingIdx], ...item.data };
+          syncedCount++;
+          processedIds.push(item.id);
+          addAuditLog("OFFLINE_MEMBER_UPDATED", `Updated profile for '${item.data.name}' synced from offline queue.`, "PWA Sync Sentinel", "SYSTEM", req);
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      syncedCount,
+      processedIds,
+      totalDatabaseCount: serverMembersDatabase.length,
+      serverTimestamp: new Date().toISOString(),
+      message: `Successfully synchronized ${syncedCount} offline record mutations with state master database.`
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || "Sync failed" });
+  }
 });
 
 // 3. Update System Association Logo (PRIMARY SUPER ADMIN ONLY)

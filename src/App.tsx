@@ -42,7 +42,8 @@ import {
   Cpu,
   Tv,
   Crown,
-  Radio
+  Radio,
+  Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -92,13 +93,18 @@ import OfficeBearerPortal from "./components/OfficeBearerPortal";
 import PainterInsurancePortal from "./components/PainterInsurancePortal";
 import PainterSkillAcademy from "./components/PainterSkillAcademy";
 import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
-import PlayStorePromoStudio from "./components/PlayStorePromoStudio";
 import GrievanceSupportDesk from "./components/GrievanceSupportDesk";
+import StateLegalAdvisoryBoard from "./components/StateLegalAdvisoryBoard";
+import { AutoUpdatePrompt } from "./components/AutoUpdatePrompt";
+import RoleMobileAuthModal, { ROLE_AUTH_CONFIGS, RoleAuthConfig } from "./components/RoleMobileAuthModal";
+import MemberDirectoryOfflinePortal from "./components/MemberDirectoryOfflinePortal";
+import { safeSpeak, safeCancelSpeech } from "./utils/safeSpeech";
 
 export default function App() {
   console.log("App component initializing...");
   // Localization: 'ta' for Tamil, 'en' for English
   const [lang, setLang] = useState<"ta" | "en">("ta");
+  const [directorySubTab, setDirectorySubTab] = useState<"members" | "districts">("members");
 
   // Core App states (synced with admin panel)
   const [leaders, setLeaders] = useState<Leader[]>(initialLeaders);
@@ -113,6 +119,7 @@ export default function App() {
     const stored = getStoredSuperAdminSession();
     return !!(stored && stored.token);
   });
+  const [selectedRoleAuth, setSelectedRoleAuth] = useState<RoleAuthConfig | null>(null);
   const [customFlagUrl, setCustomFlagUrl] = useState<string | null>(null);
   const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
   const flagInputRef = React.useRef<HTMLInputElement>(null);
@@ -173,7 +180,7 @@ export default function App() {
   });
 
   // Active Main Navigation tab
-  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control" | "legal_advisory" | "office_bearers" | "insurance" | "academy" | "broadcast" | "grievance">("home");
 
   // Public QR Code verification modal state
   const [verifyCardToken, setVerifyCardToken] = useState<string | null>(null);
@@ -243,15 +250,13 @@ export default function App() {
       ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம். ஒன்று கூடுவோம் வென்று காட்டுவோம். எங்கள் சங்கம் ஓவியர்களின் உரிமைகளுக்காகவும் முன்னேற்றத்திற்காகவும் செயல்படுகிறது."
       : "Tamil Nadu Painters and Artists Progressive Association. Let us unite and win. Our association strives for the rights and upliftment of all professional painters.";
     
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.lang = lang === "ta" ? "ta-IN" : "en-US";
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    } else {
-      alert("TTS not supported in this environment.");
-    }
+    safeSpeak(textToSpeak, {
+      lang: lang === "ta" ? "ta-IN" : "en-US",
+      rate: 0.9,
+      onError: () => {
+        console.warn("TTS not supported or blocked in this environment.");
+      }
+    });
   };
 
   // Add or update registration from the component
@@ -383,12 +388,19 @@ export default function App() {
           <div className="flex items-center gap-3.5 sm:gap-4 text-left w-full lg:w-auto min-w-0">
             {/* Logo Badge */}
             <div 
-              className={`h-[55px] w-[55px] rounded-full bg-white flex items-center justify-center relative p-0.5 shadow-md shrink-0 border border-amber-400/50 overflow-hidden animate-glowing-logo ${isSuperAdmin ? "cursor-pointer group" : ""}`}
+              className={`h-[55px] w-[55px] rounded-full bg-white flex items-center justify-center relative p-0.5 shadow-md shrink-0 border border-amber-400/50 overflow-hidden animate-glowing-logo ${isSuperAdmin ? "cursor-pointer group hover:ring-2 hover:ring-amber-400" : ""}`}
               onClick={() => {
                 if (isSuperAdmin) {
                   logoInputRef.current?.click();
+                } else {
+                  alert(lang === "ta" 
+                    ? "🛡️ அனுமதி மறுக்கப்பட்டது: சூப்பர் அட்மினால் மட்டுமே சங்கத்தின் லோகோவை மாற்ற முடியும் (Super Admin Only)." 
+                    : "🛡️ Access Denied: Only the verified Super Admin can change the official association logo.");
                 }
               }}
+              title={isSuperAdmin 
+                ? (lang === "ta" ? "சூப்பர் அட்மின்: லோகோவை மாற்ற தொடவும்" : "Super Admin: Tap to change logo") 
+                : (lang === "ta" ? "சங்கத்தின் அதிகாரப்பூர்வ லோகோ" : "Official Association Logo")}
             >
               <img 
                 src={customLogoUrl || logoSvg} 
@@ -597,11 +609,11 @@ export default function App() {
             { id: "directory", label: "மாவட்ட தொடர்புகள்", labelEn: "Districts Directory" },
             { id: "gallery", label: "மீடியா அரங்கு", labelEn: "Photo Gallery" },
             { id: "role_control", label: "அதிகாரப் பிரிவுகள் & சூப்பர் கீ 🛡️", labelEn: "Role Tiers & Super Key 🛡️" },
+            { id: "legal_advisory", label: "மாநில சட்ட ஆலோசனைக் குழு ⚖️", labelEn: "State Legal Advisory Board ⚖️" },
             { id: "office_bearers", label: "பொறுப்பாளர் நியமனம் 🏅", labelEn: "Office Bearers 🏅" },
             { id: "insurance", label: "காப்பீடு & கோரிக்கை 🛡️", labelEn: "Insurance & Relief 🛡️" },
             { id: "academy", label: "பயிற்சி & சான்றிதழ் 🏆", labelEn: "Skill Academy 🏆" },
             { id: "broadcast", label: "மாவட்ட அறிவிப்புகள் 📢", labelEn: "Live Broadcasts 📢" },
-            { id: "play_store_studio", label: "ப்ளே ஸ்டோர் ஸ்டுடியோ 📱", labelEn: "Play Store Studio 📱" },
             { id: "grievance", label: "உறுப்பினர் குறைகள் 💬", labelEn: "Grievance Desk 💬" },
             ...(currentUser?.role === "super_admin" ? [{ id: "business_console", label: "வணிக மேலாண்மை 💼", labelEn: "Business Console 💼" }] : []),
             { id: "admin", label: "உறுப்பினர் & நிர்வாகம்", labelEn: "Portal Sign In" }
@@ -696,15 +708,29 @@ export default function App() {
                   
                   {/* FLAG RENDERING */}
                   <div 
-                    className="relative w-full max-w-xs sm:w-60 md:w-64 bg-black/20 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner cursor-pointer group"
+                    className={`relative w-full max-w-xs sm:w-60 md:w-64 bg-black/20 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner ${isSuperAdmin ? "cursor-pointer group hover:border-amber-400/40" : ""}`}
                     onClick={() => {
-                      flagInputRef.current?.click();
+                      if (isSuperAdmin) {
+                        flagInputRef.current?.click();
+                      } else {
+                        alert(lang === "ta" 
+                          ? "🛡️ அனுமதி மறுக்கப்பட்டது: சூப்பர் அட்மினால் மட்டுமே இந்த அப்ளிகேஷனில் உள்ள கொடி, லோகோ மற்றும் அதிகாரப்பூர்வ படங்களை மாற்ற முடியும் (Super Admin Only)." 
+                          : "🛡️ Access Denied: Only the verified Super Admin is authorized to change the official flag, logo, or pictures in this application.");
+                      }
                     }}
-                    title={lang === "ta" ? "கொடியைத் தொட்டு மொபைல் கேலரியில் இருந்து படத்தை தேர்வு செய்யவும்" : "Tap flag to select image from mobile gallery"}
+                    title={
+                      isSuperAdmin 
+                        ? (lang === "ta" ? "சூப்பர் அட்மின்: கொடியை மாற்ற தொடவும்" : "Super Admin: Tap flag to change image")
+                        : (lang === "ta" ? "சங்கத்தின் அதிகாரப்பூர்வக் கொடி (சூப்பர் அட்மினால் மட்டுமே மாற்ற முடியும்)" : "Official Association Flag (Super Admin Only)")
+                    }
                   >
                     <span className="text-[10px] text-amber-400/80 font-mono block text-center uppercase tracking-widest mb-2 sm:mb-3 flex items-center justify-center gap-1">
                       {lang === "ta" ? "சங்கத்தின் அதிகாரப்பூர்வக் கொடி" : "Official Association Flag"}
-                      <Camera className="w-3 h-3 text-amber-400 opacity-80 group-hover:opacity-100" />
+                      {isSuperAdmin ? (
+                        <Camera className="w-3 h-3 text-amber-400 opacity-80 group-hover:opacity-100" />
+                      ) : (
+                        <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full border border-amber-500/30">அதிகாரப்பூர்வம்</span>
+                      )}
                     </span>
                     
                     {/* 3D Waving Vector Flag Image */}
@@ -718,33 +744,37 @@ export default function App() {
                           (e.target as HTMLImageElement).src = flagSvg;
                         }}
                       />
-                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold text-center px-2">
-                        <Camera className="w-6 h-6 text-amber-300 mb-1 animate-bounce" />
-                        <span>{lang === "ta" ? "மொபைல் கேலரியில் இருந்து கொடியை மாற்றுக" : "Change flag from mobile gallery"}</span>
-                      </div>
+                      {isSuperAdmin && (
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold text-center px-2">
+                          <Camera className="w-6 h-6 text-amber-300 mb-1 animate-bounce" />
+                          <span>{lang === "ta" ? "சூப்பர் அட்மின்: கொடியை மாற்றுக" : "Super Admin: Change flag"}</span>
+                        </div>
+                      )}
                     </div>
-                    <input
-                      type="file"
-                      ref={flagInputRef}
-                      accept="image/jpeg,image/png,image/webp,image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          const file = e.target.files[0];
-                          if (file.size > 5 * 1024 * 1024) {
-                            alert(lang === "ta" ? "கோப்பின் அளவு 5MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 5MB)" : "File size exceeds 5MB limit.");
-                            return;
+                    {isSuperAdmin && (
+                      <input
+                        type="file"
+                        ref={flagInputRef}
+                        accept="image/jpeg,image/png,image/webp,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert(lang === "ta" ? "கோப்பின் அளவு 5MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 5MB)" : "File size exceeds 5MB limit.");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const base64 = reader.result as string;
+                              setCustomFlagUrl(base64);
+                              handleAddAuditLog("Updated Association Flag", "Official flag photo updated by Super Admin.");
+                            };
+                            reader.readAsDataURL(file);
                           }
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const base64 = reader.result as string;
-                            setCustomFlagUrl(base64);
-                            handleAddAuditLog("Updated Association Flag", "Official flag photo updated from mobile gallery.");
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
+                        }}
+                      />
+                    )}
                   </div>
 
                   {/* LIVE MEETING BANNER */}
@@ -803,66 +833,63 @@ export default function App() {
               ))}
             </div>
 
-            {/* QUICK ROLE SWITCHER & POWER HUD */}
+            {/* ROLE-BASED SECURE MOBILE AUTH & POWER ACCESS */}
             <section className="bg-stone-900 border border-amber-500/30 rounded-2xl p-5 text-white shadow-xl text-left">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-stone-800 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-400" />
+                    <ShieldCheck className="w-5 h-5 text-amber-400" />
                     <h4 className="font-black text-amber-300 text-sm tracking-wide uppercase">
-                      {lang === "ta" ? "அதிகாரங்கள் மாதிரி சோதனைக் கருவி & ரோல் சுவிட்சர்" : "Power Roles & Quick Demo Switcher HUD"}
+                      {lang === "ta" ? "பொறுப்புப் பாதுகாப்பு சரிபார்ப்பு & மொபைல் உள்நுழைவு" : "Role-Based Secure Mobile Authentication"}
                     </h4>
                   </div>
-                  <p className="text-stone-400 text-xs mt-0.5">
-                    {lang === "ta" ? "சூப்பர் அட்மின், மாநில தலைவர், மாவட்ட அட்மின் மற்றும் உறுப்பினர் அதிகாரங்களை 1-கிளிக்கில் பரிசோதிக்கவும்." : "Switch between Super Admin, State President, District Admin & Member powers with 1 click."}
+                  <p className="text-stone-300 text-xs mt-1">
+                    {lang === "ta" 
+                      ? "பாதுகாப்பு விதிமுறை: சோதனைப் பகுதியாக இருந்தாலும், அந்தந்த பொறுப்பிற்கு பதிவு செய்யப்பட்ட அதிகாரப்பூர்வ மொபைல் எண் மற்றும் 6-இலக்க OTP சரிபார்ப்பு மூலம் மட்டுமே உள்நுழைய முடியும்." 
+                      : "Security Policy: Even for testing, access is strictly restricted to entering the official registered mobile number and completing 6-digit OTP verification."}
                   </p>
                 </div>
                 {currentUser && (
-                  <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs font-bold text-amber-300">
-                    {lang === "ta" ? "தற்போதைய அதிகாரம்:" : "Active Power:"} <span className="uppercase">{currentUser.role.replace("_", " ")}</span>
+                  <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>{lang === "ta" ? "தற்போதைய அதிகாரம்:" : "Active Power:"} <span className="uppercase">{currentUser.role.replace("_", " ")}</span></span>
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { title: "சூப்பர் அட்மின்", titleEn: "Super Admin Power", role: "super_admin", user: defaultAccounts[0], icon: <ShieldCheck className="w-4 h-4 text-rose-400" />, badge: "முழு கட்டுப்பாடு" },
-                  { title: "மாநில தலைவர்", titleEn: "State Executive", role: "state_president", user: defaultAccounts[1], icon: <Award className="w-4 h-4 text-amber-400" />, badge: "மாநில அதிகாரம்" },
-                  { title: "மாவட்ட அட்மின்", titleEn: "District Admin Power", role: "district_admin", user: defaultAccounts[3], icon: <Building className="w-4 h-4 text-blue-400" />, badge: "மாவட்ட ஒப்புதல்" },
-                  { title: "உறுப்பினர்", titleEn: "Union Member", role: "member", user: defaultAccounts[4], icon: <User className="w-4 h-4 text-emerald-400" />, badge: "அடையாள அட்டை" }
-                ].map((item, idx) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Object.values(ROLE_AUTH_CONFIGS).map((item, idx) => (
                   <button
                     key={idx}
                     onClick={() => {
-                      if (item.user) {
-                        setCurrentUser(item.user);
-                        handleAddAuditLog("Quick Role Switch", `Session switched to ${item.user.nameEn || item.user.name} (${item.role}).`);
-                        setNotifications(prev => [
-                          { id: Date.now(), text: `அதிகாரம் மாற்றப்பட்டது: ${item.title}`, textEn: `Role switched to: ${item.titleEn}`, time: "Just now" },
-                          ...prev
-                        ]);
-                      }
+                      setSelectedRoleAuth(item);
                     }}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer group hover:scale-[1.02] ${
                       currentUser?.role === item.role
-                        ? "bg-amber-500/20 border-amber-400 text-white shadow-lg"
+                        ? "bg-amber-500/20 border-amber-400 text-white shadow-lg ring-1 ring-amber-400/40"
                         : "bg-stone-800/80 hover:bg-stone-800 border-stone-700 text-stone-200"
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         {item.icon}
-                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-black/40 text-amber-300 border border-white/10">
-                          {item.badge}
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${item.colorTheme.badgeBg}`}>
+                          {lang === "ta" ? item.badgeTa : item.badgeEn}
                         </span>
                       </div>
-                      <span className="font-extrabold text-xs block">{lang === "ta" ? item.title : item.titleEn}</span>
-                      <span className="text-[10px] text-stone-400 block truncate mt-0.5">{item.user?.name || ""}</span>
+                      <span className="font-extrabold text-xs block text-stone-100">{lang === "ta" ? item.titleTa : item.titleEn}</span>
+                      <span className="text-[11px] text-stone-300 block truncate mt-0.5 font-medium">{lang === "ta" ? item.officerNameTa : item.officerNameEn}</span>
+                      <span className="text-[10px] text-amber-300/80 block font-mono mt-1">
+                        {lang === "ta" ? "பதிவு எண்:" : "Reg Phone:"} {item.validPhones.map(p => `...${p.slice(-4)}`).join(" / ")}
+                      </span>
                     </div>
-                    <span className="text-[9px] text-amber-400 font-bold mt-2 flex items-center gap-1">
-                      <span>{lang === "ta" ? "இயக்குக" : "Switch Power"}</span>
-                      <ChevronRight className="w-3 h-3" />
-                    </span>
+                    <div className="text-[10px] text-amber-400 font-bold mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-amber-400" />
+                        <span>{lang === "ta" ? "மொபைல் எண் வழி சரிபார்க்க" : "Verify Mobile & Login"}</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </button>
                 ))}
               </div>
@@ -909,9 +936,9 @@ export default function App() {
                   return (
                     <div key={`app_ldr_${leader.id}_${idx}`} className="border border-stone-200 rounded-2xl overflow-hidden bg-stone-50 hover:shadow-md transition-all flex flex-col items-center p-4">
                       <div 
-                        className="relative mb-3 group cursor-pointer"
+                        className={`relative mb-3 ${isSuperAdmin ? "group cursor-pointer" : ""}`}
                         onClick={() => {
-                          if (currentUser?.role === "super_admin") {
+                          if (isSuperAdmin) {
                             const input = document.getElementById(`app_ldr_file_${leader.id}`) as HTMLInputElement;
                             input?.click();
                           }
@@ -926,13 +953,13 @@ export default function App() {
                             (e.target as HTMLImageElement).src = defaultPhoto;
                           }}
                         />
-                        {currentUser?.role === "super_admin" && (
+                        {isSuperAdmin && (
                           <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[10px] font-bold">
                             <Camera className="w-5 h-5 mb-0.5 text-amber-300" />
                             <span>{lang === "ta" ? "மாற்று" : "Change"}</span>
                           </div>
                         )}
-                        {currentUser?.role === "super_admin" && (
+                        {isSuperAdmin && (
                           <input
                             type="file"
                             id={`app_ldr_file_${leader.id}`}
@@ -1373,7 +1400,7 @@ export default function App() {
                   {lang === "ta" ? "சங்க புகைப்படக் கண்காட்சி" : "Media gallery & event highlights"}
                 </h4>
               </div>
-              <GallerySlider lang={lang} currentUser={currentUser} onAddAuditLog={handleAddAuditLog} />
+              <GallerySlider lang={lang} currentUser={currentUser} isSuperAdmin={isSuperAdmin} onAddAuditLog={handleAddAuditLog} />
             </section>
 
             {/* CONTACT & SUPPORT HUB */}
@@ -1640,44 +1667,84 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: DISTRICT DIRECTORY CONTACTS */}
+        {/* TAB 5: DISTRICT DIRECTORY CONTACTS & OFFLINE MEMBER DATABASE */}
         {activeTab === "directory" && (
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm animate-[fadeIn_0.5s_ease-out]">
-            <div className="text-center max-w-lg mx-auto mb-6">
-              <span className="text-[#b91c1c] font-black text-xs uppercase block">{lang === "ta" ? "மாவட்டக் கிளைகள் & பொறுப்பாளர்கள்" : "DISTRICT LEVEL CONTACT CENTER"}</span>
-              <h3 className="text-lg font-bold text-stone-900 mt-1">
-                {lang === "ta" ? "உங்கள் பகுதி சங்க செயலாளர்களை உடனடியாக தொடர்பு கொள்ளுங்கள்" : "Reach out to your local coordinators for immediate assistance"}
-              </h3>
+          <div className="space-y-6 animate-[fadeIn_0.5s_ease-out]">
+            {/* Top Sub-Tab Navigation Bar */}
+            <div className="flex items-center justify-center p-1.5 bg-stone-200/80 rounded-2xl max-w-xl mx-auto border border-stone-300 shadow-inner">
+              <button
+                onClick={() => setDirectorySubTab("members")}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+                  directorySubTab === "members"
+                    ? "bg-[#b91c1c] text-white shadow-md"
+                    : "text-stone-700 hover:text-stone-950 hover:bg-white/50"
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                {lang === "ta" ? "உறுப்பினர் டைரக்டரி (PWA ஆஃப்லைன்)" : "Member Directory (PWA Offline)"}
+              </button>
+              <button
+                onClick={() => setDirectorySubTab("districts")}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+                  directorySubTab === "districts"
+                    ? "bg-[#b91c1c] text-white shadow-md"
+                    : "text-stone-700 hover:text-stone-950 hover:bg-white/50"
+                }`}
+              >
+                <MapPin className="w-4 h-4" />
+                {lang === "ta" ? "மாவட்டப் பொறுப்பாளர்கள் (38)" : "District Leadership (38)"}
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {initialDistricts.map((dist, idx) => (
-                <div key={`app_dist_${dist.id}_${idx}`} className="p-4 border border-stone-200 bg-stone-50 rounded-2xl text-left space-y-3">
-                  <div className="border-b border-stone-200 pb-2 flex justify-between items-center">
-                    <span className="font-extrabold text-stone-950 text-sm">
-                      📍 {lang === "ta" ? dist.district : dist.districtEn}
-                    </span>
-                    <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                      {lang === "ta" ? "செயலில் உள்ளது" : "Active"}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-stone-700">
-                    <div>
-                      <span className="text-[10px] text-stone-400 block uppercase font-bold">President / தலைவர்:</span>
-                      <span className="font-bold text-stone-900">{dist.president}</span>
-                      <a href={`tel:${dist.presidentPhone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">{dist.presidentPhone}</a>
-                    </div>
-
-                    <div className="border-t border-stone-200/50 pt-1.5">
-                      <span className="text-[10px] text-stone-400 block uppercase font-bold">Secretary / செயலாளர்:</span>
-                      <span className="font-bold text-stone-900">{dist.secretary}</span>
-                      <a href={`tel:${dist.secretaryPhone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">{dist.secretaryPhone}</a>
-                    </div>
-                  </div>
+            {directorySubTab === "members" ? (
+              <MemberDirectoryOfflinePortal
+                lang={lang}
+                currentUser={currentUser}
+                onOpenIdCard={(m) => {
+                  setActiveTab("id_card_portal");
+                }}
+              />
+            ) : (
+              <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+                <div className="text-center max-w-lg mx-auto mb-6">
+                  <span className="text-[#b91c1c] font-black text-xs uppercase block">
+                    {lang === "ta" ? "மாவட்டக் கிளைகள் & பொறுப்பாளர்கள்" : "DISTRICT LEVEL CONTACT CENTER"}
+                  </span>
+                  <h3 className="text-lg font-bold text-stone-900 mt-1">
+                    {lang === "ta" ? "உங்கள் பகுதி சங்க செயலாளர்களை உடனடியாக தொடர்பு கொள்ளுங்கள்" : "Reach out to your local coordinators for immediate assistance"}
+                  </h3>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {initialDistricts.map((dist, idx) => (
+                    <div key={`app_dist_${dist.id}_${idx}`} className="p-4 border border-stone-200 bg-stone-50 rounded-2xl text-left space-y-3">
+                      <div className="border-b border-stone-200 pb-2 flex justify-between items-center">
+                        <span className="font-extrabold text-stone-950 text-sm">
+                          📍 {lang === "ta" ? dist.district : dist.districtEn}
+                        </span>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                          {lang === "ta" ? "செயலில் உள்ளது" : "Active"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs text-stone-700">
+                        <div>
+                          <span className="text-[10px] text-stone-400 block uppercase font-bold">President / தலைவர்:</span>
+                          <span className="font-bold text-stone-900">{dist.president}</span>
+                          <a href={`tel:${dist.presidentPhone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">{dist.presidentPhone}</a>
+                        </div>
+
+                        <div className="border-t border-stone-200/50 pt-1.5">
+                          <span className="text-[10px] text-stone-400 block uppercase font-bold">Secretary / செயலாளர்:</span>
+                          <span className="font-bold text-stone-900">{dist.secretary}</span>
+                          <a href={`tel:${dist.secretaryPhone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">{dist.secretaryPhone}</a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1870,6 +1937,17 @@ export default function App() {
           </div>
         )}
 
+        {/* STATE LEGAL ADVISORY BOARD (மாநில சட்ட ஆலோசனைக் குழு) */}
+        {activeTab === "legal_advisory" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <StateLegalAdvisoryBoard
+              lang={lang}
+              currentUser={currentUser}
+              onAddAuditLog={handleAddAuditLog}
+            />
+          </div>
+        )}
+
         {/* OFFICE BEARER ANNOUNCEMENTS & APPLICATIONS PORTAL */}
         {activeTab === "office_bearers" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
@@ -1912,17 +1990,6 @@ export default function App() {
               lang={lang}
               currentUser={currentUser}
               isSuperAdmin={isSuperAdmin}
-              onAddAuditLog={handleAddAuditLog}
-            />
-          </div>
-        )}
-
-        {/* PLAY STORE 3D PROMO STUDIO */}
-        {activeTab === "play_store_studio" && (
-          <div className="animate-[fadeIn_0.5s_ease-out]">
-            <PlayStorePromoStudio
-              lang={lang}
-              currentUser={currentUser}
               onAddAuditLog={handleAddAuditLog}
             />
           </div>
@@ -2049,6 +2116,39 @@ export default function App() {
           onClose={() => setShowDistrictDirectoryModal(false)} 
         />
       )}
+
+      {/* Role-Based Mobile Authentication & Verification Modal */}
+      {selectedRoleAuth && (
+        <RoleMobileAuthModal
+          lang={lang}
+          roleConfig={selectedRoleAuth}
+          onClose={() => setSelectedRoleAuth(null)}
+          onSuccess={(user, isSuperAdminVerified) => {
+            setCurrentUser(user);
+            if (isSuperAdminVerified) {
+              setIsSuperAdminOtpVerified(true);
+            }
+            setSelectedRoleAuth(null);
+            handleAddAuditLog(
+              "Role Authenticated",
+              `User authenticated and switched to ${user.nameEn || user.name} (${user.role}) via registered mobile + OTP.`
+            );
+            setNotifications(prev => [
+              {
+                id: Date.now(),
+                text: `அதிகாரப்பூர்வமாக உள்நுழைந்துள்ளீர்கள்: ${lang === "ta" ? selectedRoleAuth.titleTa : selectedRoleAuth.titleEn}`,
+                textEn: `Successfully authenticated as: ${selectedRoleAuth.titleEn}`,
+                time: "Just now"
+              },
+              ...prev
+            ]);
+          }}
+          onAddAuditLog={handleAddAuditLog}
+        />
+      )}
+
+      {/* Progressive Web App & APK Dynamic Auto-Update Prompt */}
+      <AutoUpdatePrompt lang={lang} />
 
       {/* 6. ENTERPRISE FOOTER */}
       <footer className="bg-stone-900 text-stone-100 py-10 px-6 border-t-4 border-amber-500 shrink-0 text-left">

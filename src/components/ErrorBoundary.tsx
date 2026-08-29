@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
-import { executeSelfHealing, addBreadcrumb } from "../utils/selfHealing";
+import { executeSelfHealing, addBreadcrumb, resetAllCircuitBreakers } from "../utils/selfHealing";
 import { ShieldCheck, RefreshCw, AlertTriangle, ArrowLeft, Activity } from "lucide-react";
 
 interface Props {
@@ -83,9 +83,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   private handleResetState = () => {
     try {
+      resetAllCircuitBreakers();
       // Clear only corrupted temp render keys, preserving user registration & form records
       sessionStorage.clear();
-      (this as any).setState({ hasError: false, error: null, errorInfo: null });
+      (this as any).setState({ hasError: false, error: null, errorInfo: null, isHealing: false });
     } catch {
       window.location.href = "/";
     }

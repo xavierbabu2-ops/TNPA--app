@@ -45,6 +45,7 @@ import {
 import { UserAccount, MemberRegistration } from "../types";
 import AdminLiveBroadcastControl from "./AdminLiveBroadcastControl";
 import TnpaVideoPlayer from "./TnpaVideoPlayer";
+import { safeSpeak, safeCancelSpeech } from "../utils/safeSpeech";
 
 interface TnpaTvChannelProps {
   lang: "ta" | "en";
@@ -549,14 +550,21 @@ export default function TnpaTvChannel({
   };
 
   const handleSpeakAiScript = () => {
-    setIsSpeakingScript(!isSpeakingScript);
-    if (!isSpeakingScript && 'speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(aiScript || "TNPA² AI News Update");
-      utterance.lang = lang === "ta" ? "ta-IN" : "en-US";
-      utterance.onend = () => setIsSpeakingScript(false);
-      window.speechSynthesis.speak(utterance);
-    } else if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (isSpeakingScript) {
+      safeCancelSpeech();
+      setIsSpeakingScript(false);
+      return;
+    }
+
+    setIsSpeakingScript(true);
+    const spoken = safeSpeak(aiScript || "TNPA² AI News Update", {
+      lang: lang === "ta" ? "ta-IN" : "en-US",
+      onEnd: () => setIsSpeakingScript(false),
+      onError: () => setIsSpeakingScript(false)
+    });
+
+    if (!spoken) {
+      setIsSpeakingScript(false);
     }
   };
 

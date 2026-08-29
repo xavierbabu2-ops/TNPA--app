@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   ShieldCheck,
-  ShieldAlert,
   Smartphone,
   Key,
   CheckCircle2,
@@ -14,8 +13,11 @@ import {
   Sparkles,
   Info,
   ChevronLeft,
-  Zap,
-  Check
+  Copy,
+  Check,
+  Edit3,
+  Save,
+  ShieldAlert
 } from "lucide-react";
 import { UserAccount } from "../types";
 
@@ -46,12 +48,40 @@ export function getStoredSuperAdminSession(): { token: string; user: UserAccount
   return null;
 }
 
+export function saveStoredSuperAdminSession(token: string, user: UserAccount) {
+  try {
+    sessionStorage.setItem(SUPER_ADMIN_SESSION_KEY, token);
+    sessionStorage.setItem(SUPER_ADMIN_USER_KEY, JSON.stringify(user));
+  } catch {
+    // ignore
+  }
+}
+
 export function clearStoredSuperAdminSession() {
   try {
     sessionStorage.removeItem(SUPER_ADMIN_SESSION_KEY);
     sessionStorage.removeItem(SUPER_ADMIN_USER_KEY);
   } catch {
     // ignore
+  }
+}
+
+// Safe JSON parser to handle HTML/empty responses gracefully
+async function parseSafeJson(resp: Response) {
+  const text = await resp.text();
+  if (!text || !text.trim()) {
+    return { success: resp.ok };
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (resp.status === 404) {
+      throw new Error("Server endpoint not found or initializing. Please retry.");
+    }
+    if (resp.status >= 500) {
+      throw new Error("Server temporary initialization state. Please retry in a few seconds.");
+    }
+    throw new Error(`Unexpected server response (HTTP ${resp.status}).`);
   }
 }
 
@@ -63,14 +93,27 @@ export default function SuperAdminOtpAuth({
   requiredForTitle = "Super Admin Exclusive Console",
   requiredForTitleTa = "சூப்பர் அட்மின் பிரத்யேக கட்டளை மையம்"
 }: SuperAdminOtpAuthProps) {
-  // Wizard step: 'phone' or 'otp'
-  const [step, setStep] = useState<"phone" | "otp">("phone");
-  const [phoneInput, setPhoneInput] = useState("9443254321"); // Pre-filled default for primary Super Admin
+  // Wizard step: 'phone' -> 'otp' -> 'superkey_display'
+  const [step, setStep] = useState<"phone" | "otp" | "superkey_display">("phone");
+  const [phoneInput, setPhoneInput] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
   const [debugOtpCode, setDebugOtpCode] = useState<string | null>(null);
+
+  // Authenticated State info
+  const [authenticatedUser, setAuthenticatedUser] = useState<UserAccount | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>("");
+  const [superKey, setSuperKey] = useState<string>("");
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Super Key Editing State (Super Admin Only)
+  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [newKeyInput, setNewKeyInput] = useState("");
+  const [keyUpdateLoading, setKeyUpdateLoading] = useState(false);
+  const [keyUpdateSuccess, setKeyUpdateSuccess] = useState(false);
+  const [keyUpdateError, setKeyUpdateError] = useState("");
   
   // Timers
   const [resendCountdown, setResendCountdown] = useState(0);
@@ -101,8 +144,8 @@ export default function SuperAdminOtpAuth({
           if (prev <= 1) {
             setErrorMsg(
               lang === "ta"
-                ? "ஓடிபி காலாவதியாகிவிட்டது! புதிய ஓடிபி-ஐ பெறவும்."
-                : "OTP code has expired! Please request a new one."
+                ? "ஓடிபி காலாவதியாகிவிட்டது! தயவுசெய்து புதிய ஓடிபி கோரவும்."
+                : "OTP has expired! Please request a new OTP."
             );
             return 0;
           }
@@ -113,32 +156,7 @@ export default function SuperAdminOtpAuth({
     return () => clearInterval(timer);
   }, [step, expiryCountdown, lang]);
 
-  // Check stored active session on mount
-  useEffect(() => {
-    const existing = getStoredSuperAdminSession();
-    if (existing?.token) {
-      // Verify token with backend
-      fetch("/api/superadmin/auth/status", {
-        headers: {
-          "Authorization": `Bearer ${existing.token}`,
-          "x-superadmin-token": existing.token
-        }
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.valid && data.user) {
-            onSuccess(data.user, existing.token);
-          } else {
-            clearStoredSuperAdminSession();
-          }
-        })
-        .catch(() => {
-          // If server fails or offline, keep local state or reset
-        });
-    }
-  }, [onSuccess]);
-
-  // Handle Phone Submit -> Send Super Admin OTP
+  // Handle Send OTP
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg("");
@@ -146,21 +164,13 @@ export default function SuperAdminOtpAuth({
     setDebugOtpCode(null);
 
     const cleanDigits = phoneInput.replace(/\D/g, "");
-    if (!cleanDigits || cleanDigits.length < 10) {
-      setErrorMsg(
-        lang === "ta"
-          ? "சரியான 10 இலக்க இந்திய கைபேசி எண்ணை உள்ளிடவும்!"
-          : "Please enter a valid 10-digit Indian mobile number!"
-      );
-      return;
-    }
+    const tenDigit = cleanDigits.length === 10 ? cleanDigits : cleanDigits.slice(-10);
 
-    let tenDigit = cleanDigits.length === 10 ? cleanDigits : cleanDigits.slice(-10);
-    if (!/^[6-9]\d{9}$/.test(tenDigit)) {
+    if (tenDigit.length !== 10) {
       setErrorMsg(
         lang === "ta"
-          ? "இந்திய கைபேசி எண் 6, 7, 8 அல்லது 9-ல் தொடங்க வேண்டும்!"
-          : "Indian mobile numbers must start with 6, 7, 8, or 9!"
+          ? "தயவுசெய்து சரியான 10 இலக்க சூப்பர் அட்மின் கைபேசி எண்ணை உள்ளிடவும்!"
+          : "Please enter a valid 10-digit Super Admin mobile number!"
       );
       return;
     }
@@ -174,7 +184,7 @@ export default function SuperAdminOtpAuth({
         body: JSON.stringify({ phone: `+91${tenDigit}` })
       });
 
-      const data = await resp.json();
+      const data = await parseSafeJson(resp);
       setIsLoading(false);
 
       if (!resp.ok || !data.success) {
@@ -186,12 +196,12 @@ export default function SuperAdminOtpAuth({
         );
       }
 
+      // Step to OTP input
       setStep("otp");
-      setResendCountdown(60);
-      setExpiryCountdown(300); // 5 mins
-      setAttemptsRemaining(5);
       setOtpDigits(["", "", "", "", "", ""]);
-      
+      setResendCountdown(data.resendCooldown || 60);
+      setExpiryCountdown(300);
+      setAttemptsRemaining(5);
       if (data.debugCode) {
         setDebugOtpCode(data.debugCode);
       }
@@ -291,7 +301,7 @@ export default function SuperAdminOtpAuth({
         })
       });
 
-      const data = await resp.json();
+      const data = await parseSafeJson(resp);
       setIsLoading(false);
 
       if (!resp.ok || !data.success) {
@@ -309,6 +319,7 @@ export default function SuperAdminOtpAuth({
       // Successful verification!
       const user = data.user as UserAccount;
       const token = data.token as string;
+      const key = data.superKey || `TNPA-SUPERKEY-${tenDigit}-SECURE`;
 
       // Store in session storage
       try {
@@ -318,12 +329,18 @@ export default function SuperAdminOtpAuth({
         // ignore
       }
 
+      setAuthenticatedUser(user);
+      setSessionToken(token);
+      setSuperKey(key);
+      setNewKeyInput(key);
+
       onAddAuditLog(
         "Super Admin OTP Verified",
         `Super Admin session authorization successful for ${user.nameEn || user.name} via verified phone +91${tenDigit}`
       );
 
-      onSuccess(user, token);
+      // Transition to Super Key Display screen
+      setStep("superkey_display");
 
     } catch (err: any) {
       setIsLoading(false);
@@ -331,6 +348,69 @@ export default function SuperAdminOtpAuth({
       setErrorMsg(
         err.message || (lang === "ta" ? "ஓடிபி சரிபார்ப்பில் பிழை ஏற்பட்டது." : "Verification failed.")
       );
+    }
+  };
+
+  // Copy Super Key to Clipboard
+  const handleCopyKey = () => {
+    if (!superKey) return;
+    navigator.clipboard.writeText(superKey);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
+  };
+
+  // Super Admin Super Key Update Handler
+  const handleUpdateSuperKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKeyInput.trim() || newKeyInput.trim().length < 8) {
+      setKeyUpdateError(
+        lang === "ta"
+          ? "புதிய சூப்பர் கீ குறைந்தது 8 எழுத்துக்கள் கொண்டதாக இருக்க வேண்டும்!"
+          : "Super Key must be at least 8 characters long!"
+      );
+      return;
+    }
+
+    setKeyUpdateLoading(true);
+    setKeyUpdateError("");
+    setKeyUpdateSuccess(false);
+
+    try {
+      const resp = await fetch("/api/superadmin/superkey/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ newSuperKey: newKeyInput.trim() })
+      });
+
+      const data = await parseSafeJson(resp);
+      setKeyUpdateLoading(false);
+
+      if (!resp.ok || !data.success) {
+        throw new Error(lang === "ta" ? (data.errorTa || data.error) : data.error);
+      }
+
+      setSuperKey(newKeyInput.trim());
+      setKeyUpdateSuccess(true);
+      setIsEditingKey(false);
+
+      onAddAuditLog(
+        "Super Key Updated",
+        `Super Admin ${authenticatedUser?.name || "Admin"} securely rotated the cryptographic Super Key.`
+      );
+
+    } catch (err: any) {
+      setKeyUpdateLoading(false);
+      setKeyUpdateError(err.message || "Failed to update Super Key.");
+    }
+  };
+
+  // Proceed to Application
+  const handleProceed = () => {
+    if (authenticatedUser && sessionToken) {
+      onSuccess(authenticatedUser, sessionToken);
     }
   };
 
@@ -394,41 +474,12 @@ export default function SuperAdminOtpAuth({
           </div>
         )}
 
-        {/* Free Local Push OTP Demo Badge */}
-        {debugOtpCode && step === "otp" && (
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-              <div>
-                <span className="text-[10px] uppercase font-extrabold text-amber-400 block tracking-wider">
-                  {lang === "ta" ? "இலவச நேரடி ஓடிபி அறிவிப்பு" : "INSTANT SECURE OTP NOTIFICATION"}
-                </span>
-                <span className="text-stone-300 text-[11px]">
-                  {lang === "ta" ? "சூப்பர் அட்மின் குறியீடு:" : "Super Admin Code:"}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                const digits = debugOtpCode.split("");
-                setOtpDigits(digits);
-              }}
-              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl font-mono text-sm tracking-widest transition-all cursor-pointer shadow flex items-center gap-1"
-              title="1-Click Fill OTP"
-            >
-              <span>{debugOtpCode}</span>
-              <Check className="w-3.5 h-3.5 text-stone-950 ml-1" />
-            </button>
-          </div>
-        )}
-
-        {/* STEP 1: PHONE NUMBER SELECTION */}
+        {/* STEP 1: PHONE NUMBER INPUT (No Bypass / No Shortcut Buttons) */}
         {step === "phone" && (
           <form onSubmit={handleSendOtp} className="space-y-4 text-left">
             <div>
               <label className="block text-[11px] font-extrabold uppercase text-amber-400 tracking-wider mb-1.5 flex items-center justify-between">
-                <span>{lang === "ta" ? "அங்கீகரிக்கப்பட்ட கைபேசி எண் *" : "Authorized Super Admin Mobile *"}</span>
+                <span>{lang === "ta" ? "பதிவு செய்யப்பட்ட கைபேசி எண் *" : "Registered Super Admin Mobile *"}</span>
                 <span className="text-[10px] text-stone-400 font-normal">
                   {lang === "ta" ? "10 இலக்க எண்" : "10 Digits"}
                 </span>
@@ -447,34 +498,14 @@ export default function SuperAdminOtpAuth({
                   disabled={isLoading || isLockedOut}
                   className="w-full pl-12 pr-4 py-3 bg-stone-950 border border-stone-700 focus:border-amber-500 rounded-2xl text-white font-mono text-sm tracking-wider focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
                   required
+                  autoFocus
                 />
               </div>
 
-              {/* Authorized list hint */}
-              <div className="mt-2.5 p-2.5 bg-stone-950/80 rounded-xl border border-stone-800 flex items-start gap-2 text-[11px] text-stone-400">
-                <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-semibold text-stone-300">
-                    {lang === "ta" ? "அங்கீகரிக்கப்பட்ட எண்கள்:" : "Authorized Super Admin Numbers:"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setPhoneInput("9443254321")}
-                      className="px-2 py-0.5 bg-stone-800 hover:bg-stone-700 text-amber-300 rounded text-[10px] font-mono cursor-pointer transition-colors"
-                    >
-                      94432 54321 (Xavier Babu)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPhoneInput("7010131915")}
-                      className="px-2 py-0.5 bg-stone-800 hover:bg-stone-700 text-amber-300 rounded text-[10px] font-mono cursor-pointer transition-colors"
-                    >
-                      70101 31915 (HQ Admin)
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <p className="text-[11px] text-stone-400 mt-2 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{lang === "ta" ? "சூப்பர் அட்மின் பதிவு செய்யப்பட்ட மொபைல் எண்ணை உள்ளிட்டு ஓடிபி பெறவும்." : "Enter your registered Super Admin mobile number to verify."}</span>
+              </p>
             </div>
 
             <button
@@ -489,7 +520,7 @@ export default function SuperAdminOtpAuth({
                 </>
               ) : (
                 <>
-                  <span>{lang === "ta" ? "பாதுகாப்பான ஓடிபி பெறுக" : "Generate Secure Super Admin OTP"}</span>
+                  <span>{lang === "ta" ? "பாதுகாப்பான ஓடிபி பெறுக" : "Generate Super Admin OTP"}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -586,15 +617,137 @@ export default function SuperAdminOtpAuth({
               ) : (
                 <>
                   <Unlock className="w-4 h-4" />
-                  <span>{lang === "ta" ? "சரிபார்த்து உள்நுழைக" : "Verify & Authorize Super Admin"}</span>
+                  <span>{lang === "ta" ? "சரிபார்த்து சூப்பர் கீ பெறுக" : "Verify & Generate Super Key"}</span>
                 </>
               )}
             </button>
           </form>
         )}
 
+        {/* STEP 3: EXCLUSIVE SUPER KEY DISPLAY & MANAGEMENT (Only for Super Admin) */}
+        {step === "superkey_display" && authenticatedUser && (
+          <div className="space-y-5 text-left animate-[fadeIn_0.4s_ease-out]">
+            {/* Authenticated Admin Header Card */}
+            <div className="p-4 bg-stone-950 rounded-2xl border border-amber-500/30 flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-lg">
+                👑
+              </div>
+              <div className="flex-grow">
+                <div className="flex items-center gap-1.5 text-xs text-amber-400 font-extrabold uppercase tracking-wider">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{lang === "ta" ? "உறுதிப்படுத்தப்பட்ட சூப்பர் அட்மின்" : "Verified Super Admin"}</span>
+                </div>
+                <h4 className="text-base font-black text-white">
+                  {authenticatedUser.nameEn || authenticatedUser.name}
+                </h4>
+                <p className="text-[11px] text-stone-400">
+                  {lang === "ta" ? "மாநில தலைமை பொதுச்செயலாளர்" : "State General Secretary & Head Admin"} (+91 {authenticatedUser.phone.slice(-10)})
+                </p>
+              </div>
+            </div>
+
+            {/* Super Key Box */}
+            <div className="p-5 bg-gradient-to-br from-stone-950 to-stone-900 rounded-2xl border-2 border-amber-500/50 shadow-xl space-y-3 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                  {lang === "ta" ? "உங்கள் பிரத்யேக சூப்பர் கீ (Super Key)" : "YOUR EXCLUSIVE SUPER KEY"}
+                </span>
+                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded text-[9px] font-mono font-bold">
+                  ACTIVE
+                </span>
+              </div>
+
+              {/* Display Key */}
+              <div className="p-3.5 bg-black rounded-xl border border-stone-800 font-mono text-xs sm:text-sm text-amber-300 font-bold tracking-wider break-all select-all flex items-center justify-between gap-2 shadow-inner">
+                <span>{superKey}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyKey}
+                  className="p-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                  title="Copy Super Key"
+                >
+                  {isCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {keyUpdateSuccess && (
+                <div className="p-2 bg-emerald-950/80 border border-emerald-500/40 rounded-xl text-emerald-300 text-[11px] font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{lang === "ta" ? "சூப்பர் கீ வெற்றிகரமாக புதுப்பிக்கப்பட்டது!" : "Super Key successfully updated!"}</span>
+                </div>
+              )}
+
+              {/* Super Admin Key Rotate Option */}
+              {!isEditingKey ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingKey(true);
+                    setKeyUpdateError("");
+                    setKeyUpdateSuccess(false);
+                  }}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1 font-bold cursor-pointer pt-1"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>{lang === "ta" ? "சூப்பர் கீ-ஐ மாற்ற விரும்புகிறீர்களா? (சூப்பர் அட்மின் மட்டுமே)" : "Change / Rotate Super Key (Super Admin Only)"}</span>
+                </button>
+              ) : (
+                <form onSubmit={handleUpdateSuperKey} className="space-y-3 pt-2 border-t border-stone-800">
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-stone-300 mb-1">
+                      {lang === "ta" ? "புதிய சூப்பர் கீ உள்ளிடவும் *" : "Enter New Custom Super Key *"}
+                    </label>
+                    <input
+                      type="text"
+                      value={newKeyInput}
+                      onChange={(e) => setNewKeyInput(e.target.value)}
+                      placeholder="TNPA-SUPERKEY-CUSTOM-2026"
+                      className="w-full p-2.5 bg-black border border-amber-500/40 rounded-xl text-white font-mono text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  {keyUpdateError && (
+                    <div className="text-[10px] text-rose-400 font-semibold">{keyUpdateError}</div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={keyUpdateLoading}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-lg text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      {keyUpdateLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      <span>{lang === "ta" ? "சூப்பர் கீ-ஐ மாற்று" : "Save New Key"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingKey(false)}
+                      className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs cursor-pointer"
+                    >
+                      {lang === "ta" ? "ரத்து" : "Cancel"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Proceed Action */}
+            <button
+              type="button"
+              onClick={handleProceed}
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-stone-950 font-black text-sm rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>{lang === "ta" ? "சூப்பர் அட்மின் தளத்திற்குள் நுழைக" : "Enter Super Admin Portal"}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Cancel / Return Button */}
-        {onCancel && (
+        {onCancel && step !== "superkey_display" && (
           <div className="pt-2 text-center">
             <button
               type="button"

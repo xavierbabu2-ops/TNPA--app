@@ -433,3 +433,82 @@ export interface SelfHealingStatusSummary {
   circuitBreakerStatus: "CLOSED" | "HALF_OPEN" | "OPEN";
 }
 
+export interface LegalAdvisor {
+  id: string;
+  name: string;
+  nameEn: string;
+  designation: string;
+  designationEn: string;
+  barCouncilRegNo: string;
+  court: string;
+  courtEn: string;
+  phone: string;
+  whatsapp?: string;
+  email?: string;
+  officeAddress: string;
+  district: string;
+  districtEn: string;
+  specialization: string;
+  specializationEn: string;
+  experienceYears: number;
+  photoUrl: string;
+  status: "Active" | "Inactive";
+  joinedDate: string;
+  emergencyAvailable: boolean;
+  notes?: string;
+}
+
+export interface LegalConsultationRequest {
+  id: string;
+  memberId: string;
+  memberName: string;
+  memberPhone: string;
+  memberDistrict: string;
+  caseType: "accident_compensation" | "labor_dispute" | "police_complaint" | "contract_dispute" | "general_legal_advice";
+  caseTypeTa: string;
+  description: string;
+  status: "pending" | "assigned" | "in_progress" | "resolved";
+  assignedAdvisorId?: string;
+  assignedAdvisorName?: string;
+  advisorRemarks?: string;
+  createdAt: string;
+}
+
+export interface SuperKeyProfile {
+  phone: string;
+  superKey: string;
+  maskedKey: string;
+  adminName: string;
+  role: string;
+  updatedAt: string;
+}
+
+export interface OfflineMutation {
+  id: string;
+  timestamp: string;
+  action: "create_member" | "update_member" | "update_status" | "approve_registration" | "pay_dues";
+  entityId: string;
+  data: any;
+  retryCount: number;
+  synced: boolean;
+  error?: string;
+}
+
+export interface OfflineDatabaseStats {
+  totalCachedMembers: number;
+  totalDistricts: number;
+  lastSyncedAt: string | null;
+  pendingMutationsCount: number;
+  isOnline: boolean;
+  storageType: "indexedDB" | "localStorage";
+  cacheSizeKb?: number;
+}
+
+export interface DirectoryFilterParams {
+  district?: string;
+  searchQuery?: string;
+  status?: string;
+  bloodGroup?: string;
+  profession?: string;
+}
+

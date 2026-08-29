@@ -6,6 +6,7 @@ import { UserAccount } from "../types";
 interface GallerySliderProps {
   lang: "ta" | "en";
   currentUser: UserAccount | null;
+  isSuperAdmin?: boolean;
   onAddAuditLog: (action: string, details: string) => void;
 }
 
@@ -26,7 +27,12 @@ interface VideoItem {
   videoUrl?: string;
 }
 
-export default function GallerySlider({ lang, currentUser, onAddAuditLog }: GallerySliderProps) {
+export default function GallerySlider({ 
+  lang, 
+  currentUser, 
+  isSuperAdmin: propIsSuperAdmin,
+  onAddAuditLog 
+}: GallerySliderProps) {
   const [activeMedia, setActiveMedia] = useState<"photo" | "video">("photo");
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [showSuperAdminEditor, setShowSuperAdminEditor] = useState(false);
@@ -83,13 +89,14 @@ export default function GallerySlider({ lang, currentUser, onAddAuditLog }: Gall
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [newPhotoCaption, setNewPhotoCaption] = useState("");
   const [newPhotoCaptionEn, setNewPhotoCaptionEn] = useState("");
-
   const [newVideoTitle, setNewVideoTitle] = useState("");
   const [newVideoTitleEn, setNewVideoTitleEn] = useState("");
   const [newVideoDesc, setNewVideoDesc] = useState("");
   const [newVideoDuration, setNewVideoDuration] = useState("10:00");
 
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = propIsSuperAdmin !== undefined 
+    ? propIsSuperAdmin 
+    : currentUser?.role === "super_admin";
 
   const handleNextPhoto = () => {
     if (photos.length === 0) return;

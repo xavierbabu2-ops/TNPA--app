@@ -19,6 +19,7 @@ import {
   Check
 } from "lucide-react";
 import { OfficeBearerAnnouncement, OfficeBearerApplication, UserAccount } from "../types";
+import OfficeBearerCertificateGenerator from "./OfficeBearerCertificateGenerator";
 
 interface OfficeBearerPortalProps {
   lang: "ta" | "en";
@@ -33,7 +34,7 @@ export default function OfficeBearerPortal({
   isSuperAdmin,
   onAddAuditLog
 }: OfficeBearerPortalProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"announcements" | "apply" | "manage_applications">("announcements");
+  const [activeSubTab, setActiveSubTab] = useState<"announcements" | "apply" | "certificate" | "manage_applications">("announcements");
 
   // Initial dummy announcements
   const [announcements, setAnnouncements] = useState<OfficeBearerAnnouncement[]>([
@@ -215,6 +216,15 @@ export default function OfficeBearerPortal({
             >
               <UserCheck className="w-4 h-4" />
               <span>{lang === "ta" ? "பொறுப்பாளர் விண்ணப்பம்" : "Apply for Post"}</span>
+            </button>
+            <button
+              onClick={() => setActiveSubTab("certificate")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
+                activeSubTab === "certificate" ? "bg-amber-400 text-stone-950 shadow-md ring-2 ring-amber-300" : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-400/40"
+              }`}
+            >
+              <Award className="w-4 h-4 text-amber-400" />
+              <span>{lang === "ta" ? "பொறுப்பாளர் சான்றிதழ் (45 நாள் விதி)" : "Executive Certificate (45-Day Rule)"}</span>
             </button>
             {isSuperAdmin && (
               <button
@@ -514,7 +524,16 @@ export default function OfficeBearerPortal({
         </div>
       )}
 
-      {/* TAB CONTENT 3: SUPER ADMIN MANAGEMENT */}
+      {/* TAB CONTENT 3: OFFICIAL CERTIFICATE GENERATOR (45-DAY RULE) */}
+      {activeSubTab === "certificate" && (
+        <OfficeBearerCertificateGenerator
+          lang={lang}
+          currentUser={currentUser}
+          onAddAuditLog={onAddAuditLog}
+        />
+      )}
+
+      {/* TAB CONTENT 4: SUPER ADMIN MANAGEMENT */}
       {activeSubTab === "manage_applications" && isSuperAdmin && (
         <div className="space-y-6">
           <div className="bg-white rounded-3xl p-6 shadow-md border border-stone-200">

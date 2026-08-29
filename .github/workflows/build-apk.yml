@@ -1,4 +1,4 @@
-name: Build Android APK (TWA / Bubblewrap)
+name: Build Android APK (Capacitor & TWA)
 
 on:
   push:
@@ -6,26 +6,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build-android-apk:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Set up Node.js
+    - name: Set up Node.js 22
       uses: actions/setup-node@v4
       with:
         node-version: 22
         cache: 'npm'
-
-    - name: Install Dependencies
-      run: npm install
-
-    - name: Build Web App
-      run: npm run build
-      env:
-        NODE_ENV: production
 
     - name: Set up Java Development Kit (JDK) 17
       uses: actions/setup-java@v4
@@ -36,30 +28,65 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Generate Keystore
+    - name: Install Android Build Tools
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+
+    - name: Install NPM Dependencies
+      run: npm install
+
+    - name: Build Web Application
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Generate Android Signing Keystore
       run: |
         keytool -genkey -v -keystore android.keystore -alias android -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=TNPA, OU=Developers, O=TNPA, L=Chennai, ST=Tamil Nadu, C=IN"
 
-    - name: Install Bubblewrap CLI
-      run: npm install -g @bubblewrap/cli
-
-    - name: Build Android Project with Bubblewrap
+    - name: Initialize and Build Android Native App
       run: |
-        bubblewrap update --manifest ./twa-manifest.json || true
-        bubblewrap build --manifest ./twa-manifest.json || echo "Bubblewrap build completed or skipped"
+        npx cap add android || true
+        npx cap sync android
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug assembleRelease
+        cd ..
 
-    - name: Find and Package APK
+    - name: Sign Release APK
       run: |
-        mkdir -p final-apk
-        find . -name "*.apk" -exec cp {} final-apk/ \;
-        if [ ! "$(ls -A final-apk)" ]; then
-          echo "APK not generated directly, packaging web assets as fallback"
-          cp -r dist/* final-apk/
-          echo "Please use PWABuilder.com with your published GitHub Pages URL to download the ready APK." > final-apk/INSTRUCTIONS.txt
+        for unsigned_apk in $(find android -name "*release-unsigned.apk"); do
+          echo "Signing $unsigned_apk..."
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore android.keystore -storepass password123 -keypass password123 "$unsigned_apk" android
+          cp "$unsigned_apk" android/app/build/outputs/apk/release/TNPA2-Release-Signed.apk
+        done
+
+    - name: Prepare APK Download Package
+      run: |
+        mkdir -p tnpa-apk-package
+        
+        # Copy Debug APK (Ready to install on any Android phone directly)
+        find android -name "*debug.apk" -exec cp {} tnpa-apk-package/TNPA2-Debug.apk \;
+        
+        # Copy Release APK
+        find android -name "*Signed.apk" -o -name "*release*.apk" -exec cp {} tnpa-apk-package/TNPA2-Release.apk \;
+        
+        # Copy any AAB (Android App Bundle) for Play Store if created
+        find android -name "*.aab" -exec cp {} tnpa-apk-package/TNPA2-PlayStore.aab \; || true
+        
+        echo "=== Package Contents ==="
+        ls -la tnpa-apk-package/
+        
+        # Verification: Check that APK file exists
+        if [ ! "$(find tnpa-apk-package -name '*.apk')" ]; then
+          echo "FATAL: No APK files were generated."
+          exit 1
         fi
 
-    - name: Upload APK Artifact
+    - name: Upload Real Android APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: TNPA-Android-APK
-        path: final-apk/
+        path: tnpa-apk-package/
+        retention-days: 30

@@ -138,7 +138,7 @@ export default function ImageEditorModal({
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas context unavailable");
 
-      const img = new Image();
+      const img = document.createElement("img");
       img.crossOrigin = "anonymous";
       
       await new Promise((resolve, reject) => {

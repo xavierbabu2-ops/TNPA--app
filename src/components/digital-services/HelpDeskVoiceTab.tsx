@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Sparkles, PhoneCall, Send, FileText, Calendar, AlertTriangle } from "lucide-react";
 import { UserAccount } from "../../types";
+import { createSafeSpeechRecognition, safeSpeak, safeCancelSpeech, SafeSpeechRecognitionHandle } from "../../utils/safeSpeech";
 
 interface HelpDeskVoiceTabProps {
   lang: "ta" | "en";
@@ -81,6 +82,7 @@ export default function HelpDeskVoiceTab({
   setCallConsent,
   onAddWorkflowTask
 }: HelpDeskVoiceTabProps) {
+  const recognitionRef = useRef<SafeSpeechRecognitionHandle | null>(null);
   return (
     <div className="space-y-8 animate-[fadeIn_0.4s_ease-out]" id="help-desk-voice-container">
       {/* Tab Header intro */}
@@ -470,6 +472,9 @@ export default function HelpDeskVoiceTab({
               <button
                 onClick={() => {
                   if (voiceInputActive) {
+                    if (recognitionRef.current) {
+                      recognitionRef.current.stop();
+                    }
                     setVoiceInputActive(false);
                     return;
                   }
@@ -477,12 +482,12 @@ export default function HelpDeskVoiceTab({
                   setVoiceInputActive(true);
                   setVoiceResponse(lang === "ta" ? "கேட்டுக் கொண்டிருக்கிறேன்... பேசவும்" : "Listening for voice commands...");
                   
-                  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-                  if (SpeechRecognition) {
-                    const recognition = new SpeechRecognition();
-                    recognition.lang = lang === "ta" ? "ta-IN" : "en-US";
-                    recognition.onresult = (event: any) => {
-                      const resultText = event.results[0][0].transcript;
+                  const safeRec = createSafeSpeechRecognition({
+                    lang: lang === "ta" ? "ta-IN" : "en-US",
+                    continuous: false,
+                    interimResults: false,
+                    onResult: (resultText) => {
+                      if (!resultText) return;
                       setVoiceResponse(lang === "ta" ? `நீங்கள் சொன்னது: "${resultText}"` : `You said: "${resultText}"`);
                       setVoiceInputActive(false);
 
@@ -495,7 +500,7 @@ export default function HelpDeskVoiceTab({
                       } else if (speechLower.includes("ஓய்வூதியம்") || speechLower.includes("pension") || speechLower.includes("scheme")) {
                         aiReply = lang === "ta"
                           ? "அரசு கட்டுமான நலவாரியத்தில் சேர 90 நாட்கள் பணிபுரிந்திருக்க வேண்டும். உங்களுக்கு 60 வயதான பின் மாதந்தோறும் ஆயிரம் ரூபாய் ஓய்வூதியம் கிடைக்கும்."
-                          : "Painters registered under Construction Welfare Board get 1,000 rupees monthly pension after reaching 60 years.";
+                          : "Painters registered under Construction Welfare Board get 1,00,000 rupees monthly pension after reaching 60 years.";
                       } else if (speechLower.includes("விபத்து") || speechLower.includes("accident") || speechLower.includes("காப்பீடு")) {
                         aiReply = lang === "ta"
                           ? "விபத்து ஏற்பட்டால் உடனடி உதவியாக ஒரு லட்சம் ரூபாய் வரை வழங்க நமது கூட்டு காப்பீட்டுத் திட்டம் வழிவகை செய்கிறது."
@@ -507,34 +512,39 @@ export default function HelpDeskVoiceTab({
                       }
 
                       setVoiceResponse(aiReply);
-                      
-                      if (window.speechSynthesis) {
-                        const synth = window.speechSynthesis;
-                        const utter = new SpeechSynthesisUtterance(aiReply);
-                        utter.lang = lang === "ta" ? "ta-IN" : "en-US";
-                        synth.speak(utter);
-                      }
-                    };
-                    recognition.onerror = () => {
+                      safeSpeak(aiReply, {
+                        lang: lang === "ta" ? "ta-IN" : "en-US"
+                      });
+                    },
+                    onError: (err) => {
+                      console.warn("Recognition error in HelpDeskVoiceTab:", err);
                       setVoiceInputActive(false);
                       setVoiceResponse(lang === "ta" ? "குரல் சரியாகக் கேட்கவில்லை. மீண்டும் முயற்சிக்கவும்!" : "Audio input failed. Please try speaking again.");
-                    };
-                    recognition.start();
-                  } else {
+                    },
+                    onEnd: () => {
+                      setVoiceInputActive(false);
+                    }
+                  });
+
+                  if (!safeRec) {
+                    // Fallback to simulated audio response if Web Speech recognition is unavailable
                     setTimeout(() => {
                       const sampleReply = lang === "ta"
                         ? "வணக்கம்! விபத்து நிதி உதவி மற்றும் நலவாரிய ஓய்வூதியம் பற்றி அறிய 'விபத்து' அல்லது 'ஓய்வூதியம்' என்று சொல்லவும்."
                         : "Hello! Say 'pension' or 'safety' to listen to guidelines.";
                       setVoiceResponse(sampleReply);
                       setVoiceInputActive(false);
+                      safeSpeak(sampleReply, {
+                        lang: lang === "ta" ? "ta-IN" : "en-US"
+                      });
+                    }, 1500);
+                    return;
+                  }
 
-                      if (window.speechSynthesis) {
-                        const synth = window.speechSynthesis;
-                        const utter = new SpeechSynthesisUtterance(sampleReply);
-                        utter.lang = lang === "ta" ? "ta-IN" : "en-US";
-                        synth.speak(utter);
-                      }
-                    }, 2500);
+                  recognitionRef.current = safeRec;
+                  const started = safeRec.start();
+                  if (!started) {
+                    setVoiceInputActive(false);
                   }
                 }}
                 className={`relative p-5 rounded-full text-white cursor-pointer transition-all ${
@@ -572,12 +582,9 @@ export default function HelpDeskVoiceTab({
                     const txtEn = "Welfare pension transfers 1,00,000 rupees monthly pension to builders aged over 60 fully registered with the state construction welfare board.";
                     const utterTxt = lang === "ta" ? txtTa : txtEn;
                     setVoiceResponse(utterTxt);
-                    if (window.speechSynthesis) {
-                      const synth = window.speechSynthesis;
-                      const utter = new SpeechSynthesisUtterance(utterTxt);
-                      utter.lang = lang === "ta" ? "ta-IN" : "en-US";
-                      synth.speak(utter);
-                    }
+                    safeSpeak(utterTxt, {
+                      lang: lang === "ta" ? "ta-IN" : "en-US"
+                    });
                   }}
                   className="p-2 bg-white hover:bg-indigo-50/50 rounded-xl border border-stone-200 text-[10px] font-bold text-stone-850 text-left cursor-pointer"
                 >
@@ -589,12 +596,9 @@ export default function HelpDeskVoiceTab({
                     const txtEn = "Under accident support, members receive up to 1,00,000 rupees instant relief for site injuries, along with permanent disability pensions.";
                     const utterTxt = lang === "ta" ? txtTa : txtEn;
                     setVoiceResponse(utterTxt);
-                    if (window.speechSynthesis) {
-                      const synth = window.speechSynthesis;
-                      const utter = new SpeechSynthesisUtterance(utterTxt);
-                      utter.lang = lang === "ta" ? "ta-IN" : "en-US";
-                      synth.speak(utter);
-                    }
+                    safeSpeak(utterTxt, {
+                      lang: lang === "ta" ? "ta-IN" : "en-US"
+                    });
                   }}
                   className="p-2 bg-white hover:bg-indigo-50/50 rounded-xl border border-stone-200 text-[10px] font-bold text-stone-850 text-left cursor-pointer"
                 >

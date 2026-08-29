@@ -1,5 +1,50 @@
 [
   {
+    "id": "log_1788022610857_991",
+    "timestamp": "2026-08-29T16:56:50.857Z",
+    "action": "OFFLINE_MEMBER_SYNCED",
+    "details": "Member record 'செந்தில்நாதன்' (TNP-2026-9999) synced from offline device cache.",
+    "performedBy": "PWA Sync Sentinel",
+    "role": "SYSTEM",
+    "ipAddress": "127.0.0.1"
+  },
+  {
+    "id": "log_1788022202864_205",
+    "timestamp": "2026-08-29T16:50:02.864Z",
+    "action": "Super Admin OTP Session Authorized",
+    "details": "Super Admin authorization granted for R. Xavier Babu via verified phone +917010131915",
+    "performedBy": "ரா. சேவியர் பாபு",
+    "role": "super_admin",
+    "ipAddress": "2409:40f4:2015:805:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1788022194240_557",
+    "timestamp": "2026-08-29T16:49:54.240Z",
+    "action": "Super Admin OTP Dispatched",
+    "details": "Super Admin verification OTP dispatched to authorized number: +917010131915",
+    "performedBy": "System OTP Engine",
+    "role": "super_admin",
+    "ipAddress": "2409:40f4:2015:805:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1788015995439_265",
+    "timestamp": "2026-08-29T15:06:35.439Z",
+    "action": "Super Admin OTP Dispatched",
+    "details": "Super Admin verification OTP dispatched to authorized number: +917010131915",
+    "performedBy": "System OTP Engine",
+    "role": "super_admin",
+    "ipAddress": "2409:40f4:2015:805:8000::, 169.254.169.126"
+  },
+  {
+    "id": "log_1788015980303_965",
+    "timestamp": "2026-08-29T15:06:20.303Z",
+    "action": "Unauthorized Super Admin OTP Attempt",
+    "details": "Access denied: Unauthorized phone number +917010131916 tried to request Super Admin OTP.",
+    "performedBy": "Unknown Visitor",
+    "role": "guest",
+    "ipAddress": "2409:40f4:2015:805:8000::, 169.254.169.126"
+  },
+  {
     "id": "log_1786866834185_949",
     "timestamp": "2026-08-16T07:53:54.185Z",
     "action": "WHATSAPP_GROUP_CONFIG_UPDATED",

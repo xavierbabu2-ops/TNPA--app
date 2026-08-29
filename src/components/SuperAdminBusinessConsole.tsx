@@ -219,9 +219,19 @@ export default function SuperAdminBusinessConsole({
 
   const saveTvMediaToStorage = (updatedList: any[]) => {
     setTvMediaItems(updatedList);
-    localStorage.setItem("tnpa2_tv_custom_media", JSON.stringify(updatedList));
-    window.dispatchEvent(new Event("storage"));
-    window.dispatchEvent(new CustomEvent("tnpa_tv_media_updated", { detail: updatedList }));
+    try {
+      localStorage.setItem("tnpa2_tv_custom_media", JSON.stringify(updatedList));
+      if (typeof window !== "undefined" && window.dispatchEvent) {
+        if (typeof CustomEvent !== "undefined") {
+          window.dispatchEvent(new CustomEvent("tnpa_tv_media_updated", { detail: updatedList }));
+        }
+        if (typeof Event !== "undefined") {
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+    } catch (e) {
+      console.warn("Storage sync error:", e);
+    }
   };
 
   const handleSaveTvMedia = (e: React.FormEvent) => {

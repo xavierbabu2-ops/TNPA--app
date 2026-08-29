@@ -1452,9 +1452,9 @@ export default function PaymentModule({
                   </div>
 
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
                       setPayType("donation");
-                      handlePaySubmit(new Event('submit') as any);
+                      handlePaySubmit({ preventDefault: () => {} } as any);
                     }}
                     className="w-full py-3 bg-[#b91c1c] hover:bg-red-800 text-white font-black text-xs rounded-xl uppercase transition-all shadow cursor-pointer text-center"
                   >

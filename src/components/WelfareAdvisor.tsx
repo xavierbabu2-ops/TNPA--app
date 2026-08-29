@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Sparkles, Send, User, Bot, HelpCircle, Loader, MessageSquare, Volume2, RefreshCw, ShieldAlert, Award } from "lucide-react";
 import { UserAccount, SystemSettings } from "../types";
+import { safeSpeak, safeCancelSpeech } from "../utils/safeSpeech";
 
 interface Message {
   role: "user" | "model";
@@ -132,6 +133,7 @@ export default function WelfareAdvisor({ lang, currentUser, systemData, systemSe
   };
 
   const handleResetChat = () => {
+    safeCancelSpeech();
     let greetingText = "";
     if (isSuperAdmin) {
       greetingText = lang === "ta"
@@ -148,17 +150,18 @@ export default function WelfareAdvisor({ lang, currentUser, systemData, systemSe
 
   // Speaks aloud (Synthesizer representation / text-to-speech option)
   const handleSpeakText = (text: string) => {
-    // Filter out emoji parentheticals
-    const cleanText = text.replace(/\([^)]+\)/g, "").replace(/●/g, "");
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = lang === "ta" ? "ta-IN" : "en-IN";
-      window.speechSynthesis.speak(utterance);
-      setAvatarState("speaking");
-      utterance.onend = () => setAvatarState("neutral");
-    } else {
-      alert(lang === "ta" ? "உங்கள் உலாவி பேச்சு தொகுப்பை ஆதரிக்கவில்லை!" : "Your browser does not support text-to-speech.");
+    setAvatarState("speaking");
+    const spoken = safeSpeak(text, {
+      lang: lang === "ta" ? "ta-IN" : "en-IN",
+      onEnd: () => setAvatarState("neutral"),
+      onError: () => {
+        setAvatarState("neutral");
+        alert(lang === "ta" ? "குரல் வெளியீட்டில் சிக்கல் ஏற்பட்டது அல்லது உங்கள் உலாவி பேச்சு தொகுப்பை ஆதரிக்கவில்லை." : "Voice synthesis is not supported or blocked in this browser environment.");
+      }
+    });
+
+    if (!spoken) {
+      setAvatarState("neutral");
     }
   };
 
