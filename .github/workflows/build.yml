@@ -22,11 +22,11 @@ jobs:
         node-version: 22
         cache: 'npm'
 
-    - name: Set up Java JDK 17
+    - name: Set up Java JDK 21
       uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: '21'
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
@@ -34,10 +34,10 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install Android Build Tools
+    - name: Install Android Platforms & Build Tools
       run: |
         yes | sdkmanager --licenses || true
-        sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+        sdkmanager "platforms;android-35" "platforms;android-34" "build-tools;35.0.0" "build-tools;34.0.0" || true
 
     - name: Install NPM Dependencies
       run: npm install
@@ -47,23 +47,27 @@ jobs:
       env:
         NODE_ENV: production
 
-    - name: Initialize and Build Android Native App
+    - name: Initialize and Sync Capacitor Android
       run: |
         npx cap add android || true
         npx cap sync android
+
+    - name: Build Android Native APK
+      run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug || ./gradlew assemble
-        ./gradlew assembleRelease || true
+        ./gradlew assembleDebug --no-daemon --stacktrace
+        ./gradlew assembleRelease --no-daemon || true
         cd ..
 
     - name: Prepare APK Download Package
       run: |
         mkdir -p tnpa-apk-package
+        find android -name "*debug*.apk" -exec cp {} tnpa-apk-package/TNPA2-Debug.apk \; || true
+        find android -name "*release*.apk" -exec cp {} tnpa-apk-package/TNPA2-Release.apk \; || true
         find android -name "*.apk" -exec cp {} tnpa-apk-package/ \; || true
-        find android -name "*debug*.apk" -exec cp {} tnpa-apk-package/TNPA2-Android-Debug.apk \; || true
-        find android -name "*release*.apk" -exec cp {} tnpa-apk-package/TNPA2-Android-Release.apk \; || true
-        echo "=== Generated APK Files ==="
+        find android -name "*.aab" -exec cp {} tnpa-apk-package/ \; || true
+        echo "=== Generated Files in tnpa-apk-package ==="
         ls -lh tnpa-apk-package/
 
     - name: Upload Android APK Artifact
