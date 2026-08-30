@@ -32,3 +32,98 @@ jobs:
       run: npm run build
       env:
         NODE_ENV: production
+
+  build-android-apk:
+    name: Build Android APK
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+
+    - name: Set up Java JDK 21
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Android Platforms & Build Tools
+      run: |
+        yes | sdkmanager --licenses || true
+        sdkmanager "platforms;android-35" "platforms;android-34" "build-tools;35.0.0" "build-tools;34.0.0" || true
+
+    - name: Install NPM Dependencies
+      run: npm install
+
+    - name: Build Web Application
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Initialize and Sync Capacitor Android
+      run: |
+        npx cap add android || true
+        npx cap sync android
+
+    - name: Build Android Native APK
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+        ./gradlew assembleRelease --no-daemon || true
+        cd ..
+
+    - name: Sign Release APK & Prepare Download Package
+      run: |
+        mkdir -p tnpa-apk-package
+        
+        # Generate release keystore for signing
+        keytool -genkey -v -keystore tnpa.keystore -alias tnpa-key -keyalg RSA -keysize 2048 -validity 10000 -storepass tnpa123456 -keypass tnpa123456 -dname "CN=TNPA, OU=Developers, O=TNPA, L=Chennai, ST=Tamil Nadu, C=IN"
+        
+        # Locate Android SDK build tools apksigner & zipalign
+        BUILD_TOOLS_DIR=$(find /usr/local/lib/android/sdk/build-tools -maxdepth 1 -type d | sort -V | tail -n 1)
+        if [ -z "$BUILD_TOOLS_DIR" ]; then
+          BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -type d | sort -V | tail -n 1)
+        fi
+        echo "Using Android Build Tools from: $BUILD_TOOLS_DIR"
+        
+        # Copy Debug APK (Already signed and ready to install)
+        find android -name "*debug.apk" -exec cp {} tnpa-apk-package/TNPA2-Debug.apk \;
+        
+        # Find release unsigned APK, zipalign, and sign with apksigner
+        RELEASE_RAW=$(find android -name "*release*.apk" | head -n 1)
+        if [ -n "$RELEASE_RAW" ]; then
+          echo "Found release APK: $RELEASE_RAW"
+          "$BUILD_TOOLS_DIR/zipalign" -v -p 4 "$RELEASE_RAW" tnpa-apk-package/TNPA2-Aligned.apk || cp "$RELEASE_RAW" tnpa-apk-package/TNPA2-Aligned.apk
+          "$BUILD_TOOLS_DIR/apksigner" sign --ks tnpa.keystore --ks-key-alias tnpa-key --ks-pass pass:tnpa123456 --key-pass pass:tnpa123456 --out tnpa-apk-package/TNPA2-App.apk tnpa-apk-package/TNPA2-Aligned.apk
+          rm -f tnpa-apk-package/TNPA2-Aligned.apk
+        fi
+        
+        # If release sign wasn't created, make TNPA2-App.apk from Debug APK so there is always a guaranteed working direct install APK
+        if [ ! -f "tnpa-apk-package/TNPA2-App.apk" ]; then
+          cp tnpa-apk-package/TNPA2-Debug.apk tnpa-apk-package/TNPA2-App.apk
+        fi
+        
+        echo "=== Ready-to-Install APK Package ==="
+        ls -lh tnpa-apk-package/
+
+    - name: Upload Android APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TNPA-Android-APK
+        path: tnpa-apk-package/
+        retention-days: 30
+

@@ -56,18 +56,42 @@ jobs:
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon --stacktrace
+        ./gradlew assembleDebug --no-daemon
         ./gradlew assembleRelease --no-daemon || true
         cd ..
 
-    - name: Prepare APK Download Package
+    - name: Sign Release APK & Prepare Download Package
       run: |
         mkdir -p tnpa-apk-package
-        find android -name "*debug*.apk" -exec cp {} tnpa-apk-package/TNPA2-Debug.apk \; || true
-        find android -name "*release*.apk" -exec cp {} tnpa-apk-package/TNPA2-Release.apk \; || true
-        find android -name "*.apk" -exec cp {} tnpa-apk-package/ \; || true
-        find android -name "*.aab" -exec cp {} tnpa-apk-package/ \; || true
-        echo "=== Generated Files in tnpa-apk-package ==="
+        
+        # Generate release keystore for signing
+        keytool -genkey -v -keystore tnpa.keystore -alias tnpa-key -keyalg RSA -keysize 2048 -validity 10000 -storepass tnpa123456 -keypass tnpa123456 -dname "CN=TNPA, OU=Developers, O=TNPA, L=Chennai, ST=Tamil Nadu, C=IN"
+        
+        # Locate Android SDK build tools apksigner & zipalign
+        BUILD_TOOLS_DIR=$(find /usr/local/lib/android/sdk/build-tools -maxdepth 1 -type d | sort -V | tail -n 1)
+        if [ -z "$BUILD_TOOLS_DIR" ]; then
+          BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -type d | sort -V | tail -n 1)
+        fi
+        echo "Using Android Build Tools from: $BUILD_TOOLS_DIR"
+        
+        # Copy Debug APK (Already signed and ready to install)
+        find android -name "*debug.apk" -exec cp {} tnpa-apk-package/TNPA2-Debug.apk \;
+        
+        # Find release unsigned APK, zipalign, and sign with apksigner
+        RELEASE_RAW=$(find android -name "*release*.apk" | head -n 1)
+        if [ -n "$RELEASE_RAW" ]; then
+          echo "Found release APK: $RELEASE_RAW"
+          "$BUILD_TOOLS_DIR/zipalign" -v -p 4 "$RELEASE_RAW" tnpa-apk-package/TNPA2-Aligned.apk || cp "$RELEASE_RAW" tnpa-apk-package/TNPA2-Aligned.apk
+          "$BUILD_TOOLS_DIR/apksigner" sign --ks tnpa.keystore --ks-key-alias tnpa-key --ks-pass pass:tnpa123456 --key-pass pass:tnpa123456 --out tnpa-apk-package/TNPA2-App.apk tnpa-apk-package/TNPA2-Aligned.apk
+          rm -f tnpa-apk-package/TNPA2-Aligned.apk
+        fi
+        
+        # If release sign wasn't created, make TNPA2-App.apk from Debug APK so there is always a guaranteed working direct install APK
+        if [ ! -f "tnpa-apk-package/TNPA2-App.apk" ]; then
+          cp tnpa-apk-package/TNPA2-Debug.apk tnpa-apk-package/TNPA2-App.apk
+        fi
+        
+        echo "=== Ready-to-Install APK Package ==="
         ls -lh tnpa-apk-package/
 
     - name: Upload Android APK Artifact
