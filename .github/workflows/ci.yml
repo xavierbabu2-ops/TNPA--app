@@ -11,8 +11,6 @@ jobs:
   build-and-test:
     name: Test & Web Build
     runs-on: ubuntu-latest
-    env:
-      NODE_ENV: production
 
     steps:
     - name: Checkout Repository
@@ -25,20 +23,20 @@ jobs:
         cache: 'npm'
 
     - name: Install Dependencies
-      run: npm install
+      run: npm install --include=dev
 
     - name: Run Type Check & Linter
       run: npm run lint
 
     - name: Build Web Application
       run: npm run build
+      env:
+        NODE_ENV: production
 
   build-android-apk:
     name: Build Android APK
     needs: build-and-test
     runs-on: ubuntu-latest
-    env:
-      NODE_ENV: production
 
     steps:
     - name: Checkout Repository

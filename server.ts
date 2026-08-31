@@ -28,7 +28,7 @@ try {
 
 // Serve uploaded videos and photos directly with byte-range streaming support
 app.use("/uploads", express.static(UPLOADS_DIR, {
-  setHeaders: (res, filePath) => {
+  setHeaders: (res: any, filePath: string) => {
     if (filePath.endsWith(".mp4")) {
       res.setHeader("Content-Type", "video/mp4");
       res.setHeader("Accept-Ranges", "bytes");
@@ -40,7 +40,7 @@ app.use("/uploads", express.static(UPLOADS_DIR, {
 }));
 
 // Direct file upload API for Video and Photo files (Supports high-speed local and cloud hosting)
-app.post("/api/media/upload-file", (req, res) => {
+app.post("/api/media/upload-file", (req: any, res: any) => {
   res.setHeader("Content-Type", "application/json");
   try {
     const { dataBase64, fileName, mediaType } = req.body || {};
@@ -102,7 +102,7 @@ app.post("/api/media/upload-file", (req, res) => {
 });
 
 // Health check endpoint for Cloud Run
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (req: any, res: any) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
@@ -110,7 +110,7 @@ app.get("/api/health", (req, res) => {
 const serverStartTime = Date.now();
 const serverIncidentLog: any[] = [];
 
-app.get("/api/health/diagnostics", (req, res) => {
+app.get("/api/health/diagnostics", (req: any, res: any) => {
   const memory = process.memoryUsage();
   const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
   
@@ -137,7 +137,7 @@ app.get("/api/health/diagnostics", (req, res) => {
   });
 });
 
-app.post("/api/health/incidents", (req, res) => {
+app.post("/api/health/incidents", (req: any, res: any) => {
   try {
     const incident = req.body;
     if (incident) {
