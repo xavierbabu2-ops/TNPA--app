@@ -8,8 +8,8 @@
  * - Automatic Connectivity Recovery Syncing
  */
 
-const STATIC_CACHE_NAME = 'tnpa-pwa-static-v2.4';
-const MEMBERS_CACHE_NAME = 'tnpa-members-database-v2.4';
+const STATIC_CACHE_NAME = 'tnpa-pwa-static-v2.5';
+const MEMBERS_CACHE_NAME = 'tnpa-members-database-v2.5';
 
 const STATIC_URLS_TO_CACHE = [
   '/',
@@ -159,7 +159,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Static Assets & Standard Requests (Stale While Revalidate / Cache First)
+  // 4. API Requests (Pass-through directly to network with clean fallback)
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(request).catch(() => {
+        return new Response(
+          JSON.stringify({ success: false, isOffline: true, error: "Network offline" }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
+    return;
+  }
+
+  // 5. Static Assets & Standard Requests (Stale While Revalidate / Cache First)
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {

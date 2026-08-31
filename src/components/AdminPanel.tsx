@@ -122,6 +122,10 @@ export default function AdminPanel({
   const [newNewsContent, setNewNewsContent] = useState("");
   const [newNewsContentEn, setNewNewsContentEn] = useState("");
   const [newNewsCat, setNewNewsCat] = useState<"news" | "circular" | "event">("news");
+  const [newNewsImageBase64, setNewNewsImageBase64] = useState("");
+  const [newNewsImageFileName, setNewNewsImageFileName] = useState("");
+  const [newNewsImageUrl, setNewNewsImageUrl] = useState("");
+  const [newNewsImageSource, setNewNewsImageSource] = useState<"file" | "url">("file");
 
   // AI Drafting companion states
   const [draftPrompt, setDraftPrompt] = useState("");
@@ -398,6 +402,8 @@ export default function AdminPanel({
     e.preventDefault();
     if (!newNewsTitle.trim() || !newNewsContent.trim()) return;
 
+    const finalImg = newNewsImageSource === "file" ? newNewsImageBase64 : newNewsImageUrl.trim();
+
     const added: NewsItem = {
       id: `news_${Date.now()}`,
       title: newNewsTitle,
@@ -406,15 +412,19 @@ export default function AdminPanel({
       contentEn: newNewsContentEn || newNewsContent,
       date: new Date().toISOString().split("T")[0],
       category: newNewsCat,
-      categoryTa: newNewsCat === "news" ? "செய்தி" : newNewsCat === "circular" ? "சுற்றறிக்கை" : "நிகழ்வு"
+      categoryTa: newNewsCat === "news" ? "செய்தி" : newNewsCat === "circular" ? "சுற்றறிக்கை" : "நிகழ்வு",
+      imageUrl: finalImg || undefined
     };
 
     onUpdateNews([added, ...news]);
-    onAddAuditLog("Published News / Bulletin", `News titled "${added.titleEn}" published.`);
+    onAddAuditLog("Published News / Bulletin", `News titled "${added.titleEn}" published with image.`);
     setNewNewsTitle("");
     setNewNewsTitleEn("");
     setNewNewsContent("");
     setNewNewsContentEn("");
+    setNewNewsImageBase64("");
+    setNewNewsImageFileName("");
+    setNewNewsImageUrl("");
   };
 
   const handleDeleteNews = (id: string) => {
@@ -1537,7 +1547,12 @@ export default function AdminPanel({
         {/* TAB: MEMBER CARD PAYMENT VERIFICATION & CONFIGURATION */}
         {adminTab === "member_card_payments" && (
           <div className="space-y-6 text-left animate-[fadeIn_0.5s_ease-out]">
-            <AdminMemberCardVerification currentAdminName={currentUser.name || 'Admin'} />
+            <AdminMemberCardVerification 
+              currentAdminName={currentUser.name || 'Admin'} 
+              currentUser={currentUser}
+              isSuperAdmin={currentUser.role === "super_admin" || currentUser.isPrimarySuperAdmin === true}
+              lang={lang}
+            />
           </div>
         )}
 
@@ -1685,6 +1700,82 @@ export default function AdminPanel({
                     placeholder="Detailed description in English..."
                     className="w-full p-3 border rounded-xl bg-white resize-none"
                   />
+                </div>
+
+                {/* News Image attachment from Mobile Gallery */}
+                <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-extrabold text-stone-800 text-[11px]">
+                      {lang === "ta" ? "📱 செய்தி புகைப்படம் / பேனர் (Mobile Gallery Image - விருப்பத்தேர்வு)" : "📱 Attach Image / Banner (Optional)"}
+                    </label>
+                    <div className="flex gap-1 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setNewNewsImageSource("file")}
+                        className={`px-2 py-0.5 rounded cursor-pointer ${newNewsImageSource === "file" ? "bg-[#b91c1c] text-white" : "bg-stone-200 text-stone-700"}`}
+                      >
+                        {lang === "ta" ? "📱 கேலரி" : "📱 Gallery"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewNewsImageSource("url")}
+                        className={`px-2 py-0.5 rounded cursor-pointer ${newNewsImageSource === "url" ? "bg-[#b91c1c] text-white" : "bg-stone-200 text-stone-700"}`}
+                      >
+                        {lang === "ta" ? "🌐 URL" : "🌐 URL"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {newNewsImageSource === "file" ? (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert(lang === "ta" ? "படத்தின் அளவு 5MB-ஐ விட அதிகமாக இருக்கக்கூடாது" : "Image size exceeds 5MB limit.");
+                              return;
+                            }
+                            setNewNewsImageFileName(file.name);
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setNewNewsImageBase64(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-200 file:text-amber-950 hover:file:bg-amber-300 cursor-pointer border rounded-xl bg-white p-1"
+                      />
+                      {newNewsImageBase64 && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <img src={newNewsImageBase64} alt="Preview" className="h-16 w-24 object-cover rounded-lg border shadow-xs" />
+                          <div className="text-[10px]">
+                            <span className="font-bold text-stone-700 block truncate max-w-xs">{newNewsImageFileName}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewNewsImageBase64("");
+                                setNewNewsImageFileName("");
+                              }}
+                              className="text-red-600 font-bold hover:underline cursor-pointer"
+                            >
+                              {lang === "ta" ? "படத்தை நீக்கு" : "Remove"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="url"
+                      placeholder="https://example.com/banner.jpg"
+                      value={newNewsImageUrl}
+                      onChange={(e) => setNewNewsImageUrl(e.target.value)}
+                      className="w-full px-3 py-1.5 border rounded-xl bg-white text-xs"
+                    />
+                  )}
                 </div>
               </div>
 

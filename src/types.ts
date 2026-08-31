@@ -119,6 +119,25 @@ export interface NewsItem {
   imageUrl?: string;
 }
 
+export interface GalleryPhoto {
+  id: string;
+  url: string;
+  caption: string;
+  captionEn: string;
+  uploadedAt?: string;
+}
+
+export interface GalleryVideo {
+  id: string;
+  title: string;
+  titleEn: string;
+  desc: string;
+  descEn: string;
+  duration: string;
+  videoUrl?: string;
+  uploadedAt?: string;
+}
+
 export interface WelfareScheme {
   id: string;
   title: string;

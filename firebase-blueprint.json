@@ -27,6 +27,8 @@
         "experienceYears": { "type": "number" },
         "specialization": { "type": "string" },
         "photoUrl": { "type": "string" },
+        "cardFrontUrl": { "type": "string" },
+        "cardBackUrl": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected", "under_review", "needs_correction"] },
         "correctionRemarks": { "type": "string" },
         "createdAt": { "type": "string" }
@@ -43,7 +45,7 @@
         "memberName": { "type": "string" },
         "amount": { "type": "number" },
         "paymentDate": { "type": "string" },
-        "paymentType": { "type": "string", "enum": ["membership", "donation", "welfare_fund"] },
+        "paymentType": { "type": "string", "enum": ["membership", "donation", "welfare_fund", "renewal", "event", "training", "other"] },
         "paymentTypeTa": { "type": "string" },
         "transactionId": { "type": "string" },
         "status": { "type": "string", "enum": ["success", "pending", "failed"] }
@@ -64,11 +66,63 @@
         "schemeTitleEn": { "type": "string" },
         "amount": { "type": "string" },
         "appliedAt": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "under_review", "needs_correction"] },
         "district": { "type": "string" },
         "remarks": { "type": "string" }
       },
       "required": ["id", "memberId", "memberName", "memberPhone", "schemeId", "schemeTitleEn", "amount", "appliedAt", "status", "district"]
+    },
+    "UnionConfig": {
+      "title": "UnionConfig",
+      "description": "Global union configuration, custom ID card templates, logo, seals, and live broadcasts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customLogoUrl": { "type": "string" },
+        "customEmblemUrl": { "type": "string" },
+        "customFlagUrl": { "type": "string" },
+        "presidentName": { "type": "string" },
+        "secretaryName": { "type": "string" },
+        "treasurerName": { "type": "string" },
+        "emergencyAlert": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id"]
+    },
+    "Leader": {
+      "title": "Leader",
+      "description": "State and District Office Bearers directory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "role": { "type": "string" },
+        "roleEn": { "type": "string" },
+        "phone": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "district": { "type": "string" },
+        "districtEn": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "phone", "district"]
+    },
+    "NewsItem": {
+      "title": "NewsItem",
+      "description": "Official union announcements, circulars, and events.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "content": { "type": "string" },
+        "contentEn": { "type": "string" },
+        "date": { "type": "string" },
+        "category": { "type": "string" },
+        "categoryTa": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "date", "category"]
     }
   },
   "firestore": {
@@ -83,6 +137,18 @@
     "/welfare_applications/{welfareId}": {
       "schema": { "$ref": "#/entities/WelfareApplication" },
       "description": "Member applications for various government and union welfare schemes."
+    },
+    "/union_config/{configId}": {
+      "schema": { "$ref": "#/entities/UnionConfig" },
+      "description": "Global ID card configuration, logos, state seals, and emergency alert messages."
+    },
+    "/leaders/{leaderId}": {
+      "schema": { "$ref": "#/entities/Leader" },
+      "description": "Directory of state and district office bearers and leaders."
+    },
+    "/news/{newsId}": {
+      "schema": { "$ref": "#/entities/NewsItem" },
+      "description": "Broadcast news and official union circulars visible to all app users."
     }
   }
 }

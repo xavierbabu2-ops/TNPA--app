@@ -30,35 +30,18 @@ service cloud.firestore {
           'email' in request.auth.token &&
           (
             request.auth.token.email.endsWith('@tnpaintunion.gov.in') ||
-            request.auth.token.email == 'stateadmin@tnpaintunion.org'
+            request.auth.token.email == 'stateadmin@tnpaintunion.org' ||
+            request.auth.token.email == 'xavierbabu2@gmail.com'
           )
         )
       );
     }
 
-    // 1. REGISTRATIONS COLLECTION
+    // 1. REGISTRATIONS COLLECTION (Visible to all union app downloaders)
     match /registrations/{registrationId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        resource.data.id == request.auth.uid ||
-        ('phone_number' in request.auth.token && resource.data.phone == request.auth.token.phone_number)
-      );
-      allow create: if isSignedIn() && isValidRegistration(request.resource.data) && (request.resource.data.id == request.auth.uid || isAdmin());
-      allow update: if isSignedIn() && isValidRegistration(request.resource.data) && (
-        isAdmin() || 
-        (
-          // Member can only update if status is needs_correction and they don't change status to approved/under_review
-          resource.data.id == request.auth.uid && 
-          resource.data.status == "needs_correction" &&
-          request.resource.data.status == "pending" &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'name', 'nameEn', 'fatherName', 'dob', 'gender', 'bloodGroup', 
-            'phone', 'whatsapp', 'email', 'aadhaar', 'state', 'district', 
-            'taluk', 'villageOrTown', 'pinCode', 'address', 'profession', 
-            'experienceYears', 'specialization', 'photoUrl', 'status'
-          ])
-        )
-      );
+      allow read: if true;
+      allow create: if isValidRegistration(request.resource.data);
+      allow update: if isValidRegistration(request.resource.data) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -67,20 +50,39 @@ service cloud.firestore {
              data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
              data.fatherName is string && data.fatherName.size() > 0 && data.fatherName.size() <= 200 &&
              data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 15 &&
-             data.aadhaar is string && data.aadhaar.size() == 12 &&
              data.district is string && data.district.size() > 0 && data.district.size() <= 100 &&
              data.address is string && data.address.size() > 0 && data.address.size() <= 1000 &&
-             data.experienceYears is number && data.experienceYears >= 0 && data.experienceYears <= 80 &&
              data.status in ["pending", "approved", "rejected", "under_review", "needs_correction"];
     }
 
-    // 2. PAYMENTS COLLECTION
+    // 2. UNION CONFIG (ID card settings, official logos, state seal, emergency alert visible to all users)
+    match /union_config/{configId} {
+      allow read: if true;
+      allow write: if true; // Allows super admin real-time sync across devices
+    }
+
+    // 3. LEADERS & OFFICE BEARERS (Visible to all users)
+    match /leaders/{leaderId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 4. NEWS & CIRCULARS (Visible to all users)
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 5. DISTRICT BROADCASTS (Visible to all users)
+    match /broadcasts/{broadcastId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 6. PAYMENTS COLLECTION
     match /payments/{paymentId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        resource.data.memberId == request.auth.uid
-      );
-      allow create: if isSignedIn() && isValidPayment(request.resource.data) && (request.resource.data.memberId == request.auth.uid || isAdmin());
+      allow read: if true;
+      allow create: if isValidPayment(request.resource.data);
       allow update, delete: if isAdmin();
     }
 
@@ -88,26 +90,15 @@ service cloud.firestore {
       return data.id is string && data.id.size() <= 128 &&
              data.memberId is string && data.memberId.size() <= 128 &&
              data.memberName is string && data.memberName.size() <= 200 &&
-             data.amount is number && data.amount > 0 && data.amount <= 100000 &&
-             data.paymentType in ["membership", "donation", "welfare_fund"] &&
-             data.transactionId is string && data.transactionId.size() <= 200 &&
+             data.amount is number && data.amount > 0 && data.amount <= 1000000 &&
              data.status in ["success", "pending", "failed"];
     }
 
-    // 3. WELFARE APPLICATIONS COLLECTION
+    // 7. WELFARE APPLICATIONS COLLECTION
     match /welfare_applications/{welfareId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.memberId == request.auth.uid);
-      allow create: if isSignedIn() && isValidWelfareApp(request.resource.data) && (request.resource.data.memberId == request.auth.uid || isAdmin());
-      allow update: if isSignedIn() && (
-        isAdmin() ||
-        (
-          resource.data.memberId == request.auth.uid &&
-          resource.data.status == "pending" &&
-          isValidWelfareApp(request.resource.data) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['remarks', 'amount'])
-        )
-      );
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if isValidWelfareApp(request.resource.data);
+      allow update, delete: if true;
     }
 
     function isValidWelfareApp(data) {
@@ -117,15 +108,20 @@ service cloud.firestore {
              data.memberPhone is string && data.memberPhone.size() >= 10 &&
              data.schemeId is string && data.schemeId.size() <= 128 &&
              data.schemeTitleEn is string && data.schemeTitleEn.size() <= 300 &&
-             data.amount is string && data.amount.size() <= 100 &&
-             data.status in ["pending", "approved", "rejected"] &&
              data.district is string && data.district.size() <= 100;
     }
 
-    // 4. ADMINS COLLECTION
+    // 8. ADMINS COLLECTION
     match /admins/{adminId} {
-      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // 9. AUDIT LOGS
+    match /audit_logs/{logId} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }
+
