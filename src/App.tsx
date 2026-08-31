@@ -104,7 +104,11 @@ import {
   subscribeToUnionConfig, 
   subscribeToLeaders, 
   subscribeToNews, 
-  subscribeToBroadcasts, 
+  subscribeToBroadcasts,
+  subscribeToWelfareApplications,
+  saveWelfareApplicationToFirestore,
+  subscribeToPayments,
+  savePaymentToFirestore,
   saveRegistrationToFirestore, 
   saveUnionConfigToFirestore, 
   saveLeaderToFirestore, 
@@ -179,11 +183,29 @@ export default function App() {
       }
     });
 
+    // 6. Real-time Welfare Applications listener
+    const unsubWelfare = subscribeToWelfareApplications((remoteApps) => {
+      if (remoteApps && remoteApps.length > 0) {
+        setWelfareApplications(remoteApps);
+        setIsCloudSyncActive(true);
+      }
+    });
+
+    // 7. Real-time Payments listener
+    const unsubPayments = subscribeToPayments((remotePayments) => {
+      if (remotePayments && remotePayments.length > 0) {
+        setPayments(remotePayments);
+        setIsCloudSyncActive(true);
+      }
+    });
+
     return () => {
       unsubRegs();
       unsubConfig();
       unsubLeaders();
       unsubNews();
+      unsubWelfare();
+      unsubPayments();
     };
   }, []);
 
@@ -388,6 +410,7 @@ export default function App() {
   // Add payment
   const handleNewPayment = (newPay: PaymentRecord) => {
     setPayments((prev) => [newPay, ...prev]);
+    savePaymentToFirestore(newPay).catch(() => {});
     setStats((prev) => ({ 
       ...prev, 
       totalFundsRaised: prev.totalFundsRaised + newPay.amount,
@@ -489,36 +512,41 @@ export default function App() {
           
           {/* Logo & Slogans Side-by-Side Flex Layout */}
           <div className="flex items-center gap-3.5 sm:gap-4 text-left w-full lg:w-auto min-w-0">
-            {/* Logo Badge */}
-            <div 
-              className={`h-[55px] w-[55px] rounded-full bg-white flex items-center justify-center relative p-0.5 shadow-md shrink-0 border border-amber-400/50 overflow-hidden animate-glowing-logo ${isSuperAdmin ? "cursor-pointer group hover:ring-2 hover:ring-amber-400" : ""}`}
-              onClick={() => {
-                if (isSuperAdmin) {
-                  logoInputRef.current?.click();
-                } else {
-                  alert(lang === "ta" 
-                    ? "🛡️ அனுமதி மறுக்கப்பட்டது: சூப்பர் அட்மினால் மட்டுமே சங்கத்தின் லோகோவை மாற்ற முடியும் (Super Admin Only)." 
-                    : "🛡️ Access Denied: Only the verified Super Admin can change the official association logo.");
-                }
-              }}
-              title={isSuperAdmin 
-                ? (lang === "ta" ? "சூப்பர் அட்மின்: லோகோவை மாற்ற தொடவும்" : "Super Admin: Tap to change logo") 
-                : (lang === "ta" ? "சங்கத்தின் அதிகாரப்பூர்வ லோகோ" : "Official Association Logo")}
-            >
-              <img 
-                src={customLogoUrl || logoSvg} 
-                alt={lang === "ta" ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்" : "TN Painters and Artists Progressive Association"} 
-                className="h-full w-full object-contain rounded-full" 
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = logoSvg;
+            {/* Logo Badge with TNPA² overlay */}
+            <div className="relative shrink-0">
+              <div 
+                className={`h-[58px] w-[58px] sm:h-[64px] sm:w-[64px] rounded-full bg-white flex items-center justify-center relative p-0.5 shadow-lg border-2 border-amber-400 overflow-hidden animate-glowing-logo ${isSuperAdmin ? "cursor-pointer group hover:ring-2 hover:ring-amber-300" : ""}`}
+                onClick={() => {
+                  if (isSuperAdmin) {
+                    logoInputRef.current?.click();
+                  } else {
+                    alert(lang === "ta" 
+                      ? "🛡️ அனுமதி மறுக்கப்பட்டது: சூப்பர் அட்மினால் மட்டுமே சங்கத்தின் லோகோவை மாற்ற முடியும் (Super Admin Only)." 
+                      : "🛡️ Access Denied: Only the verified Super Admin can change the official association logo.");
+                  }
                 }}
-              />
-              {isSuperAdmin && (
-                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
-                  <Camera className="w-4 h-4 text-amber-300" />
-                </div>
-              )}
+                title={isSuperAdmin 
+                  ? (lang === "ta" ? "சூப்பர் அட்மின்: லோகோவை மாற்ற தொடவும்" : "Super Admin: Tap to change logo") 
+                  : (lang === "ta" ? "சங்கத்தின் அதிகாரப்பூர்வ லோகோ - TNPA²" : "Official Association Logo - TNPA²")}
+              >
+                <img 
+                  src={customLogoUrl || logoSvg} 
+                  alt={lang === "ta" ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²" : "TN Painters and Artists Progressive Association - TNPA²"} 
+                  className="h-full w-full object-contain rounded-full" 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = logoSvg;
+                  }}
+                />
+                {isSuperAdmin && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                    <Camera className="w-4 h-4 text-amber-300" />
+                  </div>
+                )}
+              </div>
+              <span className="absolute -bottom-1 -right-1 bg-gradient-to-r from-amber-400 to-yellow-300 text-stone-950 font-black text-[9px] px-1.5 py-0.2 rounded-md shadow-md border border-stone-900 leading-tight">
+                TNPA²
+              </span>
             </div>
             {isSuperAdmin && (
               <input
@@ -548,14 +576,20 @@ export default function App() {
 
             {/* Association Info Column */}
             <div className="flex flex-col justify-center space-y-0.5 min-w-0 flex-1" spellCheck={false}>
-              <span className="text-amber-400 font-extrabold text-[13px] sm:text-[14px] tracking-wide block uppercase leading-tight">
-                “ {lang === "ta" ? "ஒன்று கூடுவோம், வென்று காட்டுவோம்" : "Let us Unite, Let us Conquer"} ”
-              </span>
-              <h1 className="text-[15px] sm:text-[16px] md:text-lg font-black text-white tracking-normal leading-snug block drop-shadow-sm">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-amber-400 font-extrabold text-[12px] sm:text-[13px] tracking-wide block uppercase leading-tight">
+                  “ {lang === "ta" ? "ஒன்று கூடுவோம், வென்று காட்டுவோம்" : "Let us Unite, Let us Conquer"} ”
+                </span>
+                <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-stone-950 font-black text-[11px] sm:text-xs px-2 py-0.5 rounded-lg shadow-sm border border-amber-200 uppercase tracking-wider inline-flex items-center">
+                  TNPA²
+                </span>
+              </div>
+              <h1 className="text-[15px] sm:text-[17px] md:text-lg font-black text-white tracking-normal leading-snug block drop-shadow-sm">
                 {lang === "ta" ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்" : "TN Painters and Artists Progressive Association"}
+                <span className="text-amber-300 font-black ml-1.5">(TNPA²)</span>
               </h1>
               <span className="text-stone-300 text-[10px] sm:text-[11px] block font-mono leading-tight mt-0.5 opacity-90">
-                {lang === "ta" ? "தமிழக அரசின் பதிவு எண்: TNMDUJCLMDUTU-50-26-00044" : "Government of Tamil Nadu Reg No: TNMDUJCLMDUTU-50-26-00044"}
+                {lang === "ta" ? "தமிழக அரசின் பதிவு எண்: TNMDUJCLMDUTU-50-26-00044 | அதிகாரப்பூர்வ தளம்" : "Govt Reg No: TNMDUJCLMDUTU-50-26-00044 | Official Portal"}
               </span>
             </div>
           </div>
@@ -724,7 +758,7 @@ export default function App() {
             { id: "id_card_portal", label: "அடையாள அட்டை & விண்ணப்பம்", labelEn: "ID Card & Application" },
             { id: "live_comm", label: "நேரடித் தொடர்பு 🔴", labelEn: "Live Meetings 🔴" },
             { id: "advisor", label: "AI ஆலோசகர்", labelEn: "AI Welfare Advisor" },
-            { id: "payment", label: "சந்தா செலுத்த", labelEn: "Pay Subscription" },
+            { id: "payment", label: "சந்தா & வளர்ச்சி நிதி 💳", labelEn: "Subscriptions & Funds 💳" },
             { id: "directory", label: "மாவட்ட தொடர்புகள்", labelEn: "Districts Directory" },
             { id: "gallery", label: "மீடியா அரங்கு", labelEn: "Photo Gallery" },
             { id: "role_control", label: "அதிகாரப் பிரிவுகள் & சூப்பர் கீ 🛡️", labelEn: "Role Tiers & Super Key 🛡️" },
@@ -822,8 +856,8 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Right Side: Animated Logo & Animated flag container */}
-                <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-center justify-center gap-4 sm:gap-6 w-full">
+                {/* Right Side: Animated flag container */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-center gap-4 sm:gap-6 w-full">
                   
                   {/* FLAG RENDERING */}
                   <div 
@@ -1021,7 +1055,7 @@ export default function App() {
                   {lang === "ta" ? "நமது மாநில தலைமை நிர்வாகிகள்" : "STATE UNION EXECUTIVE LEADERS"}
                 </span>
                 <h3 className="text-lg md:text-xl font-extrabold text-stone-900 mt-1">
-                  {lang === "ta" ? "ஒன்றிணைந்து ஓவியர்களின் உரிமை காப்போம்" : "Leading with Integrity and Painting Craft Excellence"}
+                  {lang === "ta" ? "பெயிண்டர்கள் மற்றும் ஓவியர்களின் உரிமையை மீட்டு காப்போம்" : "Reclaiming and Protecting the Rights of Painters and Artists"}
                 </h3>
               </div>
 
@@ -1786,7 +1820,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: SUBSCRIPTION PAYMENT MOD */}
+        {/* TAB 4: SUBSCRIPTION & UNION DEVELOPMENT FUND PAYMENT MODULE */}
         {activeTab === "payment" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
             <PaymentModule 
@@ -1797,6 +1831,8 @@ export default function App() {
               currentUser={currentUser}
               registrations={registrations}
               onAddAuditLog={handleAddAuditLog}
+              customLogoUrl={customLogoUrl}
+              customFlagUrl={customFlagUrl}
             />
           </div>
         )}
@@ -1885,7 +1921,12 @@ export default function App() {
         {/* TAB 6: PHOTO & VIDEO GALLERY */}
         {activeTab === "gallery" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
-            <GallerySlider lang={lang} currentUser={currentUser} onAddAuditLog={handleAddAuditLog} />
+            <GallerySlider 
+              lang={lang} 
+              currentUser={currentUser} 
+              isSuperAdmin={isSuperAdmin}
+              onAddAuditLog={handleAddAuditLog} 
+            />
           </div>
         )}
 
@@ -1897,9 +1938,13 @@ export default function App() {
               currentUser={currentUser}
               registrations={registrations}
               welfareApps={welfareApplications}
-              onAddWelfareApp={(newApp) => setWelfareApplications((prev) => [newApp, ...prev])}
+              onAddWelfareApp={(newApp) => {
+                setWelfareApplications((prev) => [newApp, ...prev.filter(a => a.id !== newApp.id)]);
+                saveWelfareApplicationToFirestore(newApp).catch(() => {});
+              }}
               onUpdateWelfareApp={(updatedApp) => {
                 setWelfareApplications((prev) => prev.map(a => a.id === updatedApp.id ? updatedApp : a));
+                saveWelfareApplicationToFirestore(updatedApp).catch(() => {});
               }}
               onAddAuditLog={handleAddAuditLog}
             />
@@ -2036,7 +2081,7 @@ export default function App() {
                     setCurrentUser(verifiedUser);
                     handleAddAuditLog(
                       "Super Admin Gateway Unlocked",
-                      `Business Console access granted after verified OTP login for ${verifiedUser.nameEn || verifiedUser.name}`
+                      `Business Console access granted via official Super Key for ${verifiedUser.nameEn || verifiedUser.name}`
                     );
                   }}
                   onCancel={() => setActiveTab("home")}
@@ -2292,13 +2337,31 @@ export default function App() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           
           <div className="space-y-3">
-            <span className="text-amber-400 font-extrabold text-xs block uppercase">
-              தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white p-0.5 border border-amber-400 shrink-0 overflow-hidden">
+                <img 
+                  src={customLogoUrl || logoSvg} 
+                  alt="TNPA² Logo" 
+                  className="w-full h-full object-contain rounded-full"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = logoSvg;
+                  }}
+                />
+              </div>
+              <div>
+                <span className="text-amber-400 font-extrabold text-xs block uppercase">
+                  தமிழ்நாடு பெயிண்டர்கள் சங்கம்
+                </span>
+                <span className="bg-amber-400 text-stone-950 font-black text-[10px] px-1.5 py-0.2 rounded font-mono">
+                  TNPA²
+                </span>
+              </div>
+            </div>
             <p className="text-stone-400 text-xs leading-relaxed">
               {lang === "ta"
-                ? "எங்கள் சங்கம் தமிழகத்தில் உள்ள பல்லாயிரக்கணக்கான வீடு மற்றும் கட்டிட வர்ணம் பூசும் தொழிலாளர்களின் வாழ்வாதாரத்தை மேம்படுத்தவும், அவர்களுக்கு விபத்துக் காப்பீடு மற்றும் ஓய்வூதியங்கள் கிடைக்கச் செய்யவும் அர்ப்பணிப்புடன் செயல்படுகிறது."
-                : "We strive to improve the livelihood of thousands of painting contractors, house painters, and artists across Tamil Nadu by delivering educational, pension, and insurance rights."}
+                ? "எங்கள் சங்கம் (TNPA²) தமிழகத்தில் உள்ள பல்லாயிரக்கணக்கான வீடு மற்றும் கட்டிட வர்ணம் பூசும் தொழிலாளர்களின் வாழ்வாதாரத்தை மேம்படுத்தவும், அவர்களுக்கு விபத்துக் காப்பீடு மற்றும் ஓய்வூதியங்கள் கிடைக்கச் செய்யவும் அர்ப்பணிப்புடன் செயல்படுகிறது."
+                : "TNPA² strives to improve the livelihood of thousands of painting contractors, house painters, and artists across Tamil Nadu by delivering educational, pension, and insurance rights."}
             </p>
           </div>
 

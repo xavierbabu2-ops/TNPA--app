@@ -1,24 +1,18 @@
 {
-  "name": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் சங்கம்",
+  "name": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²",
   "short_name": "TNPA²",
-  "description": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தின் அதிகாரப்பூர்வ செயலி. டிஜிட்டல் உறுப்பினர் அடையாள அட்டை மற்றும் நலவாரிய உதவிகள்.",
+  "description": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தின் (TNPA²) அதிகாரப்பூர்வ செயலி. டிஜிட்டல் உறுப்பினர் அடையாள அட்டை மற்றும் நலவாரிய உதவிகள்.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#d97706",
+  "background_color": "#7f1d1d",
+  "theme_color": "#b91c1c",
   "orientation": "portrait-primary",
   "categories": ["productivity", "utilities", "social"],
   "icons": [
     {
-      "src": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=192",
-      "sizes": "192x192",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=512",
-      "sizes": "512x512",
-      "type": "image/jpeg",
+      "src": "/tnpa_logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

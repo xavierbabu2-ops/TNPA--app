@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   MessageSquare, 
   Send, 
@@ -16,6 +16,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { UserAccount } from "../types";
+import { subscribeToGrievances, saveGrievanceToFirestore } from "../lib/syncService";
 
 interface GrievanceItem {
   id: string;
@@ -37,6 +38,35 @@ interface GrievanceSupportDeskProps {
   onAddAuditLog: (action: string, details: string) => void;
 }
 
+const defaultGrievanceTickets: GrievanceItem[] = [
+  {
+    id: "g_1",
+    ticketNo: "TNPA-GRV-2026-0104",
+    category: "insurance",
+    subject: "விபத்து காப்பீட்டு தொகை தாமதம்",
+    description: "கடந்த மாதம் சமர்ப்பிக்கப்பட்ட விபத்து நிவாரண கோரிக்கை இன்னும் சரிபார்க்கப்படவில்லை.",
+    district: "சென்னை",
+    memberName: "ஆர். முருகன்",
+    memberPhone: "9840012345",
+    status: "in_review",
+    createdAt: "2026-08-20",
+    response: "மாவட்ட செயலாளர் மூலம் மருத்துவ சான்றிதழ் சரிபார்க்கப்பட்டு வருகிறது."
+  },
+  {
+    id: "g_2",
+    ticketNo: "TNPA-GRV-2026-0089",
+    category: "membership",
+    subject: "அடையாள அட்டை டிஜிட்டல் மாற்றம்",
+    description: "புதிய அடையாள அட்டையில் மாவட்டம் தவறாக உள்ளது.",
+    district: "கோயம்புத்தூர்",
+    memberName: "கார்த்திகேயன்",
+    memberPhone: "9790011223",
+    status: "resolved",
+    createdAt: "2026-08-15",
+    response: "தவறு திருத்தப்பட்டு புதிய டிஜிட்டல் அட்டை வழங்கப்பட்டது."
+  }
+];
+
 export default function GrievanceSupportDesk({
   lang,
   currentUser,
@@ -46,61 +76,48 @@ export default function GrievanceSupportDesk({
   const [subject, setSubject] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [district, setDistrict] = useState<string>(currentUser?.district || "சென்னை");
-  const [submittedTickets, setSubmittedTickets] = useState<GrievanceItem[]>([
-    {
-      id: "g_1",
-      ticketNo: "TNPA-GRV-2026-0104",
-      category: "insurance",
-      subject: lang === "ta" ? "விபத்து காப்பீட்டு தொகை தாமதம்" : "Accident Insurance Claim Delay",
-      description: lang === "ta" ? "கடந்த மாதம் சமர்ப்பிக்கப்பட்ட விபத்து நிவாரண கோரிக்கை இன்னும் சரிபார்க்கப்படவில்லை." : "Submitted claim last month is pending verification.",
-      district: "சென்னை",
-      memberName: currentUser?.name || "ஆர். முருகன்",
-      memberPhone: currentUser?.phone || "9840012345",
-      status: "in_review",
-      createdAt: "2026-08-20",
-      response: lang === "ta" ? "மாவட்ட செயலாளர் மூலம் மருத்துவ சான்றிதழ் சரிபார்க்கப்பட்டு வருகிறது." : "Medical certificate under verification by District Secretary."
-    },
-    {
-      id: "g_2",
-      ticketNo: "TNPA-GRV-2026-0089",
-      category: "membership",
-      subject: lang === "ta" ? "அடையாள அட்டை டிஜிட்டல் மாற்றம்" : "Digital ID Card Update Issue",
-      description: lang === "ta" ? "புதிய அடையாள அட்டையில் மாவட்டம் தவறாக உள்ளது." : "District name in new ID card is incorrect.",
-      district: "கோயம்புத்தூர்",
-      memberName: "கார்த்திகேயன்",
-      memberPhone: "9790011223",
-      status: "resolved",
-      createdAt: "2026-08-15",
-      response: lang === "ta" ? "தவறு திருத்தப்பட்டு புதிய டிஜிட்டல் அட்டை வழங்கப்பட்டது." : "Corrected and new digital ID issued."
-    }
-  ]);
+  const [submittedTickets, setSubmittedTickets] = useState<GrievanceItem[]>(defaultGrievanceTickets);
   const [successMsg, setSuccessMsg] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmitGrievance = (e: React.FormEvent) => {
+  // Subscribe to real-time grievances in Firestore
+  useEffect(() => {
+    const unsub = subscribeToGrievances((remoteList) => {
+      if (remoteList && remoteList.length > 0) {
+        setSubmittedTickets(remoteList);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSubmitGrievance = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject || !description) {
+    if (!subject.trim() || !description.trim()) {
       alert(lang === "ta" ? "அனைத்து விவரங்களையும் நிரப்பவும்!" : "Please fill all details!");
       return;
     }
 
+    setIsSubmitting(true);
     const newTicket: GrievanceItem = {
       id: `g_${Date.now()}`,
       ticketNo: `TNPA-GRV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
       category,
-      subject,
-      description,
+      subject: subject.trim(),
+      description: description.trim(),
       district,
-      memberName: currentUser?.name || "உறுப்பினர்",
+      memberName: currentUser?.name || (currentUser?.nameEn ? currentUser.nameEn : "உறுப்பினர்"),
       memberPhone: currentUser?.phone || "9840000000",
       status: "pending",
       createdAt: new Date().toISOString().split("T")[0]
     };
 
-    setSubmittedTickets([newTicket, ...submittedTickets]);
+    await saveGrievanceToFirestore(newTicket);
+    setSubmittedTickets(prev => [newTicket, ...prev.filter(t => t.id !== newTicket.id)]);
     onAddAuditLog("Grievance Submitted", `Ticket ${newTicket.ticketNo} submitted for ${category}`);
     setSuccessMsg(lang === "ta" ? `✓ உங்கள் புகார் வெற்றிகரமாகப் பதிவு செய்யப்பட்டது! புகார் எண்: ${newTicket.ticketNo}` : `✓ Grievance submitted successfully! Ticket No: ${newTicket.ticketNo}`);
     setSubject("");
     setDescription("");
+    setIsSubmitting(false);
   };
 
   return (

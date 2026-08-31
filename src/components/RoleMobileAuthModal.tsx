@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { UserAccount, UserRole } from "../types";
 import { defaultAccounts } from "./AuthSystem";
-import { saveStoredSuperAdminSession } from "./SuperAdminOtpAuth";
+import SuperAdminOtpAuth, { saveStoredSuperAdminSession } from "./SuperAdminOtpAuth";
 
 export interface RoleAuthConfig {
   role: UserRole;
@@ -49,14 +49,14 @@ export const ROLE_AUTH_CONFIGS: Record<string, RoleAuthConfig> = {
     badgeEn: "Full Master Access",
     officerNameTa: "ரா. சேவியர் பாபு (மாநில பொதுச்செயலாளர்)",
     officerNameEn: "R. Xavier Babu (State General Secretary)",
-    validPhones: ["9443254321", "7010131915"],
+    validPhones: [],
     account: defaultAccounts[0],
-    icon: <ShieldCheck className="w-5 h-5 text-rose-400" />,
+    icon: <ShieldCheck className="w-5 h-5 text-amber-400" />,
     colorTheme: {
-      bg: "bg-rose-950/40",
-      border: "border-rose-500/50",
-      text: "text-rose-400",
-      badgeBg: "bg-rose-500/20 text-rose-300 border-rose-500/30"
+      bg: "bg-stone-950",
+      border: "border-amber-500/50",
+      text: "text-amber-400",
+      badgeBg: "bg-amber-500/20 text-amber-300 border-amber-500/30"
     }
   },
   state_president: {
@@ -342,6 +342,25 @@ export default function RoleMobileAuthModal({
       setErrorMsg(err.message || "OTP verification failed");
     }
   };
+
+  if (roleConfig.role === "super_admin") {
+    return (
+      <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="relative w-full max-w-lg">
+          <SuperAdminOtpAuth
+            lang={lang}
+            onSuccess={(user) => {
+              onSuccess(user, true);
+            }}
+            onCancel={onClose}
+            onAddAuditLog={onAddAuditLog}
+            requiredForTitle="Super Admin Master Access"
+            requiredForTitleTa="சூப்பர் அட்மின் பிரத்யேக அணுகல்"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">

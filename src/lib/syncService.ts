@@ -23,6 +23,29 @@ import {
   GalleryVideo 
 } from "../types";
 
+/**
+ * Strips all undefined fields recursively from an object
+ * to prevent Firestore "Unsupported field value: undefined" errors.
+ */
+export function cleanForFirestore<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return null as any;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanForFirestore(item)) as any;
+  }
+  if (typeof obj === "object") {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanForFirestore(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export interface GlobalUnionConfig {
   id?: string;
   customLogoUrl?: string;
@@ -63,9 +86,7 @@ export function subscribeToRegistrations(
           const data = docSnap.data() as MemberRegistration;
           list.push({ ...data, id: docSnap.id });
         });
-        if (list.length > 0) {
-          onUpdate(list);
-        }
+        onUpdate(list);
       },
       (error) => {
         console.warn("Firestore registrations subscription error:", error);
@@ -81,7 +102,8 @@ export function subscribeToRegistrations(
 export async function saveRegistrationToFirestore(member: MemberRegistration): Promise<boolean> {
   try {
     const docRef = doc(db, "registrations", member.id);
-    await setDoc(docRef, { ...member, updatedAt: new Date().toISOString() }, { merge: true });
+    const cleaned = cleanForFirestore({ ...member, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving registration to Firestore:", error);
@@ -117,11 +139,12 @@ export function subscribeToUnionConfig(
 export async function saveUnionConfigToFirestore(config: Partial<GlobalUnionConfig>): Promise<boolean> {
   try {
     const docRef = doc(db, "union_config", "general");
-    await setDoc(docRef, { 
+    const cleaned = cleanForFirestore({ 
       ...config, 
       id: "general",
       updatedAt: new Date().toISOString() 
-    }, { merge: true });
+    });
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving union config to Firestore:", error);
@@ -143,9 +166,7 @@ export function subscribeToLeaders(
         snapshot.forEach((docSnap) => {
           list.push({ ...(docSnap.data() as Leader), id: docSnap.id });
         });
-        if (list.length > 0) {
-          onUpdate(list);
-        }
+        onUpdate(list);
       },
       (error) => {
         console.warn("Firestore leaders subscription error:", error);
@@ -161,7 +182,8 @@ export function subscribeToLeaders(
 export async function saveLeaderToFirestore(leader: Leader): Promise<boolean> {
   try {
     const docRef = doc(db, "leaders", leader.id);
-    await setDoc(docRef, leader, { merge: true });
+    const cleaned = cleanForFirestore(leader);
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving leader to Firestore:", error);
@@ -183,9 +205,13 @@ export function subscribeToNews(
         snapshot.forEach((docSnap) => {
           list.push({ ...(docSnap.data() as NewsItem), id: docSnap.id });
         });
-        if (list.length > 0) {
-          onUpdate(list);
-        }
+        // Sort newest first if date exists
+        list.sort((a, b) => {
+          const dateA = a.date || "";
+          const dateB = b.date || "";
+          return dateB.localeCompare(dateA);
+        });
+        onUpdate(list);
       },
       (error) => {
         console.warn("Firestore news subscription error:", error);
@@ -201,10 +227,25 @@ export function subscribeToNews(
 export async function saveNewsToFirestore(item: NewsItem): Promise<boolean> {
   try {
     const docRef = doc(db, "news", item.id);
-    await setDoc(docRef, item, { merge: true });
+    const cleaned = cleanForFirestore({
+      ...item,
+      imageUrl: item.imageUrl || "",
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving news to Firestore:", error);
+    return false;
+  }
+}
+
+export async function deleteNewsFromFirestore(newsId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, "news", newsId));
+    return true;
+  } catch (error) {
+    console.warn("Error deleting news from Firestore:", error);
     return false;
   }
 }
@@ -223,9 +264,8 @@ export function subscribeToBroadcasts(
         snapshot.forEach((docSnap) => {
           list.push({ ...docSnap.data(), id: docSnap.id });
         });
-        if (list.length > 0) {
-          onUpdate(list);
-        }
+        list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+        onUpdate(list);
       },
       (error) => {
         console.warn("Firestore broadcasts subscription error:", error);
@@ -241,10 +281,24 @@ export function subscribeToBroadcasts(
 export async function saveBroadcastToFirestore(broadcast: any): Promise<boolean> {
   try {
     const docRef = doc(db, "broadcasts", broadcast.id || `bc_${Date.now()}`);
-    await setDoc(docRef, { ...broadcast, createdAt: new Date().toISOString() }, { merge: true });
+    const cleaned = cleanForFirestore({ 
+      ...broadcast, 
+      createdAt: broadcast.createdAt || new Date().toISOString() 
+    });
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving broadcast to Firestore:", error);
+    return false;
+  }
+}
+
+export async function deleteBroadcastFromFirestore(broadcastId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, "broadcasts", broadcastId));
+    return true;
+  } catch (error) {
+    console.warn("Error deleting broadcast from Firestore:", error);
     return false;
   }
 }
@@ -263,9 +317,9 @@ export function subscribeToGalleryPhotos(
         snapshot.forEach((docSnap) => {
           list.push({ ...docSnap.data(), id: docSnap.id } as GalleryPhoto);
         });
-        if (list.length > 0) {
-          onUpdate(list);
-        }
+        list.sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
+        // Always broadcast update to state (even when empty or after deletions)
+        onUpdate(list);
       },
       (error) => {
         console.warn("Firestore gallery photos subscription error:", error);
@@ -281,7 +335,13 @@ export function subscribeToGalleryPhotos(
 export async function saveGalleryPhotoToFirestore(photo: GalleryPhoto): Promise<boolean> {
   try {
     const docRef = doc(db, "gallery_photos", photo.id);
-    await setDoc(docRef, { ...photo, updatedAt: new Date().toISOString() }, { merge: true });
+    const cleaned = cleanForFirestore({ 
+      ...photo, 
+      captionEn: photo.captionEn || photo.caption,
+      uploadedAt: photo.uploadedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString() 
+    });
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving photo to Firestore:", error);
@@ -299,6 +359,20 @@ export async function deleteGalleryPhotoFromFirestore(photoId: string): Promise<
   }
 }
 
+export async function clearAllGalleryPhotosFromFirestore(): Promise<boolean> {
+  try {
+    const colRef = collection(db, "gallery_photos");
+    const snap = await getDocs(colRef);
+    for (const docSnap of snap.docs) {
+      await deleteDoc(docSnap.ref);
+    }
+    return true;
+  } catch (err) {
+    console.warn("Error clearing gallery photos:", err);
+    return false;
+  }
+}
+
 export function subscribeToGalleryVideos(
   onUpdate: (videos: GalleryVideo[]) => void,
   onError?: (err: any) => void
@@ -312,9 +386,9 @@ export function subscribeToGalleryVideos(
         snapshot.forEach((docSnap) => {
           list.push({ ...docSnap.data(), id: docSnap.id } as GalleryVideo);
         });
-        if (list.length > 0) {
-          onUpdate(list);
-        }
+        list.sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
+        // Always broadcast update to state (even when empty or after deletions)
+        onUpdate(list);
       },
       (error) => {
         console.warn("Firestore gallery videos subscription error:", error);
@@ -330,7 +404,16 @@ export function subscribeToGalleryVideos(
 export async function saveGalleryVideoToFirestore(video: GalleryVideo): Promise<boolean> {
   try {
     const docRef = doc(db, "gallery_videos", video.id);
-    await setDoc(docRef, { ...video, updatedAt: new Date().toISOString() }, { merge: true });
+    const cleaned = cleanForFirestore({ 
+      ...video, 
+      titleEn: video.titleEn || video.title,
+      desc: video.desc || "",
+      descEn: video.descEn || video.desc || "",
+      duration: video.duration || "05:00",
+      uploadedAt: video.uploadedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString() 
+    });
+    await setDoc(docRef, cleaned, { merge: true });
     return true;
   } catch (error) {
     console.warn("Error saving video to Firestore:", error);
@@ -348,7 +431,161 @@ export async function deleteGalleryVideoFromFirestore(videoId: string): Promise<
   }
 }
 
-// 7. INITIAL SEEDING HELPER (Only if cloud database is empty)
+export async function clearAllGalleryVideosFromFirestore(): Promise<boolean> {
+  try {
+    const colRef = collection(db, "gallery_videos");
+    const snap = await getDocs(colRef);
+    for (const docSnap of snap.docs) {
+      await deleteDoc(docSnap.ref);
+    }
+    return true;
+  } catch (err) {
+    console.warn("Error clearing gallery videos:", err);
+    return false;
+  }
+}
+
+// 7. WELFARE APPLICATIONS REALTIME SYNC
+export function subscribeToWelfareApplications(
+  onUpdate: (apps: WelfareApplication[]) => void,
+  onError?: (err: any) => void
+) {
+  try {
+    const colRef = collection(db, "welfare_applications");
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: WelfareApplication[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...(docSnap.data() as WelfareApplication), id: docSnap.id });
+        });
+        list.sort((a, b) => (b.appliedAt || "").localeCompare(a.appliedAt || ""));
+        onUpdate(list);
+      },
+      (error) => {
+        console.warn("Firestore welfare_applications subscription error:", error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn("Failed to attach welfare_applications listener:", err);
+    return () => {};
+  }
+}
+
+export async function saveWelfareApplicationToFirestore(app: WelfareApplication): Promise<boolean> {
+  try {
+    const docRef = doc(db, "welfare_applications", app.id);
+    const cleaned = cleanForFirestore({
+      ...app,
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, cleaned, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn("Error saving welfare application to Firestore:", error);
+    return false;
+  }
+}
+
+export async function deleteWelfareApplicationFromFirestore(appId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, "welfare_applications", appId));
+    return true;
+  } catch (error) {
+    console.warn("Error deleting welfare application from Firestore:", error);
+    return false;
+  }
+}
+
+// 8. PAYMENTS & SUBSCRIPTIONS REALTIME SYNC
+export function subscribeToPayments(
+  onUpdate: (payments: PaymentRecord[]) => void,
+  onError?: (err: any) => void
+) {
+  try {
+    const colRef = collection(db, "payments");
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: PaymentRecord[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...(docSnap.data() as PaymentRecord), id: docSnap.id });
+        });
+        list.sort((a, b) => (b.paymentDate || "").localeCompare(a.paymentDate || ""));
+        onUpdate(list);
+      },
+      (error) => {
+        console.warn("Firestore payments subscription error:", error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn("Failed to attach payments listener:", err);
+    return () => {};
+  }
+}
+
+export async function savePaymentToFirestore(payment: PaymentRecord): Promise<boolean> {
+  try {
+    const docRef = doc(db, "payments", payment.id);
+    const cleaned = cleanForFirestore({
+      ...payment,
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, cleaned, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn("Error saving payment to Firestore:", error);
+    return false;
+  }
+}
+
+// 9. GRIEVANCES & SUPPORT PETITIONS REALTIME SYNC
+export function subscribeToGrievances(
+  onUpdate: (grievances: any[]) => void,
+  onError?: (err: any) => void
+) {
+  try {
+    const colRef = collection(db, "grievances");
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...docSnap.data(), id: docSnap.id });
+        });
+        list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+        onUpdate(list);
+      },
+      (error) => {
+        console.warn("Firestore grievances subscription error:", error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn("Failed to attach grievances listener:", err);
+    return () => {};
+  }
+}
+
+export async function saveGrievanceToFirestore(grievance: any): Promise<boolean> {
+  try {
+    const docRef = doc(db, "grievances", grievance.id || `grv_${Date.now()}`);
+    const cleaned = cleanForFirestore({
+      ...grievance,
+      createdAt: grievance.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, cleaned, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn("Error saving grievance to Firestore:", error);
+    return false;
+  }
+}
+
+// 10. INITIAL SEEDING HELPER (Only if cloud database is empty)
 export async function seedInitialFirestoreData(
   initialRegs: MemberRegistration[],
   initialLeadersList: Leader[],

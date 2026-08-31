@@ -11,6 +11,8 @@ jobs:
   build-and-test:
     name: Test & Web Build
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
 
     steps:
     - name: Checkout Repository
@@ -30,13 +32,13 @@ jobs:
 
     - name: Build Web Application
       run: npm run build
-      env:
-        NODE_ENV: production
 
   build-android-apk:
     name: Build Android APK
     needs: build-and-test
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
 
     steps:
     - name: Checkout Repository
@@ -70,8 +72,6 @@ jobs:
 
     - name: Build Web Application
       run: npm run build
-      env:
-        NODE_ENV: production
 
     - name: Initialize and Sync Capacitor Android
       run: |
@@ -126,4 +126,5 @@ jobs:
         name: TNPA-Android-APK
         path: tnpa-apk-package/
         retention-days: 30
+
 

@@ -227,6 +227,15 @@ export interface PaymentRecord {
   approverName?: string;
   approvedAt?: string;
   dueDate?: string;
+  // Subscription tier & details
+  subscriptionTier?: "state_leader" | "district_leader" | "other_executive" | "general_member" | "development_fund" | "donation";
+  subscriptionTierTa?: string;
+  subscriptionPeriod?: "1_month" | "3_months" | "6_months" | "12_months" | "custom";
+  subscriptionMonthsCount?: number;
+  monthlyRate?: number;
+  designation?: string;
+  phone?: string;
+  payerRole?: string;
 }
 
 export interface ExpenseRecord {

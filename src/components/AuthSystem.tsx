@@ -40,11 +40,11 @@ export const defaultAccounts: UserAccount[] = [
     name: "ரா. சேவியர் பாபு",
     nameEn: "R. Xavier Babu",
     phone: "9443254321",
-    email: "admin@tnpainters.org",
+    email: "xavierbabu017@gmail.com",
     district: "மதுரை",
     districtEn: "Madurai",
     status: "approved",
-    regNumber: "TNP-ADMIN-001",
+    regNumber: "TNP-SUPERKEY-2026",
     photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200",
     password: "admin",
     joinedAt: "2020-01-01T10:00:00Z"
@@ -683,7 +683,7 @@ export default function AuthSystem({
                 }`}
               >
                 <Lock className="w-3 h-3" />
-                <span>{lang === "ta" ? "சூப்பர் OTP" : "Super OTP"}</span>
+                <span>{lang === "ta" ? "சூப்பர் கீ" : "Super Key"}</span>
               </button>
 
               <button

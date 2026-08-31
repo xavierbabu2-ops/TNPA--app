@@ -46,6 +46,7 @@ import { UserAccount, MemberRegistration } from "../types";
 import AdminLiveBroadcastControl from "./AdminLiveBroadcastControl";
 import TnpaVideoPlayer from "./TnpaVideoPlayer";
 import { safeSpeak, safeCancelSpeech } from "../utils/safeSpeech";
+import { subscribeToGalleryVideos } from "../lib/syncService";
 
 interface TnpaTvChannelProps {
   lang: "ta" | "en";
@@ -298,12 +299,34 @@ export default function TnpaTvChannel({
   });
 
   useEffect(() => {
+    // Realtime subscription to cloud gallery videos
+    const unsub = subscribeToGalleryVideos((cloudVideos) => {
+      if (cloudVideos && cloudVideos.length > 0) {
+        const mapped: TvVideoItem[] = cloudVideos.map((cv) => ({
+          id: cv.id,
+          title: cv.title,
+          titleEn: cv.titleEn || cv.title,
+          duration: cv.duration || "05:00",
+          views: "நேரலை",
+          date: cv.uploadedAt ? new Date(cv.uploadedAt).toLocaleDateString("ta-IN") : "சமீபத்தியது",
+          category: "சங்க காணொளி",
+          thumbnailColor: "from-[#b91c1c] to-stone-900",
+          videoUrl: cv.videoUrl,
+          speaker: "TNPA² மாநில நிர்வாகம்",
+          headline: cv.title,
+          summary: cv.desc,
+          tickerText: `🔴 ${cv.title}`
+        }));
+        setVideoArchive(mapped);
+      }
+    });
+
     const handleStorageChange = () => {
       try {
         const saved = localStorage.getItem("tnpa2_tv_custom_media");
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setVideoArchive(parsed);
           }
         }
@@ -314,6 +337,7 @@ export default function TnpaTvChannel({
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("tnpa_tv_media_updated", handleStorageChange as EventListener);
     return () => {
+      unsub();
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("tnpa_tv_media_updated", handleStorageChange as EventListener);
     };

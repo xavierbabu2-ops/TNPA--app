@@ -120,6 +120,59 @@ export function AssociationEmblemLogo({
 }
 
 // ============================================================================
+// OFFICIAL ASSOCIATION WAVING FLAG COMPONENT
+// Red and Black with paintbrush emblem
+// ============================================================================
+export function AssociationWavingFlag({
+  customUrl,
+  className = "",
+  onClick
+}: {
+  customUrl?: string;
+  className?: string;
+  onClick?: () => void;
+}) {
+  if (customUrl) {
+    return (
+      <div onClick={onClick} className={`overflow-hidden rounded flex items-center justify-center ${className}`}>
+        <img src={customUrl} alt="Association Flag" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+
+  return (
+    <div onClick={onClick} className={`relative overflow-hidden rounded shadow-sm select-none ${className}`} title="தமிழ்நாடு பெயிண்டர்கள் சங்கக் கொடி">
+      <svg viewBox="0 0 160 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="flagWaveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#991b1b" />
+            <stop offset="50%" stopColor="#dc2626" />
+            <stop offset="100%" stopColor="#7f1d1d" />
+          </linearGradient>
+        </defs>
+        {/* Top Half: Vibrant Union Red */}
+        <rect x="0" y="0" width="160" height="50" fill="url(#flagWaveGrad)" />
+        {/* Bottom Half: Deep Labor Black */}
+        <rect x="0" y="50" width="160" height="50" fill="#18181b" />
+
+        {/* Center Disc & Brush Emblem */}
+        <circle cx="80" cy="50" r="22" fill="#ffffff" stroke="#eab308" strokeWidth="2" />
+        <g transform="translate(80, 50) scale(0.65) translate(-50, -50)">
+          <path d="M 28 42 C 34 30, 66 30, 72 42" stroke="#b91c1c" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <rect x="42" y="24" width="16" height="7" rx="1.5" fill="#18181b" stroke="#b91c1c" strokeWidth="1" />
+          <path d="M 50 24 L 58 24 L 59 31 L 49 31 Z" fill="#b91c1c" />
+          <circle cx="50" cy="54" r="8" fill="#18181b" stroke="#ffffff" strokeWidth="1" />
+          <rect x="45" y="60" width="10" height="15" fill="#18181b" rx="1" />
+        </g>
+        
+        {/* Flag Pole Sleeve Line */}
+        <rect x="0" y="0" width="4" height="100" fill="#facc15" />
+      </svg>
+    </div>
+  );
+}
+
+// ============================================================================
 // OFFICIAL TAMIL NADU GOVT STAMP / EMBLEM COMPONENT
 // ============================================================================
 export function TamilNaduGovtEmblemStamp({

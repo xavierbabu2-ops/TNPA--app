@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Megaphone, 
   Send, 
@@ -9,9 +9,16 @@ import {
   Plus, 
   Share2,
   Smartphone,
-  ShieldCheck
+  ShieldCheck,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { UserAccount } from "../types";
+import { 
+  subscribeToBroadcasts, 
+  saveBroadcastToFirestore, 
+  deleteBroadcastFromFirestore 
+} from "../lib/syncService";
 
 interface BroadcastMessage {
   id: string;
@@ -23,6 +30,7 @@ interface BroadcastMessage {
   senderRole: string;
   date: string;
   priority: "normal" | "urgent" | "emergency";
+  createdAt?: string;
 }
 
 interface DistrictBroadcastPortalProps {
@@ -32,70 +40,103 @@ interface DistrictBroadcastPortalProps {
   onAddAuditLog: (action: string, details: string) => void;
 }
 
+const defaultBroadcasts: BroadcastMessage[] = [
+  {
+    id: "br_1",
+    title: "மாநில செயற்குழுக் கூட்டம் குறித்த அவசர அறிவிப்பு",
+    titleEn: "Urgent State Executive Meeting Notice",
+    district: "அனைத்து மாவட்டங்கள் (All Districts)",
+    message: "சென்னை தலைமை அலுவலகத்தில் மாநில பெயிண்டர்கள் சங்க செயற்குழுக் கூட்டம் நடைபெறுகிறது. மாவட்ட தலைவர்கள் மற்றும் செயலாளர்கள் தவறாமல் கலந்துகொள்ளவும்.",
+    senderName: "ஆர். சேவியர் பாபு (மாநில பொதுச்செயலாளர்)",
+    senderRole: "State General Secretary",
+    date: "2026-08-28",
+    priority: "urgent"
+  },
+  {
+    id: "br_2",
+    title: "நலவாரிய ஸ்மார்ட் கார்டு புதுப்பித்தல் முகாம்",
+    titleEn: "Welfare Board Smart Card Renewal Camp",
+    district: "கோயம்புத்தூர் & மதுரை",
+    message: "மாவட்ட அலுவலகத்தில் நலவாரிய ஸ்மார்ட் கார்டு புதுப்பித்தல் மற்றும் புதிய பதிவு முகாம் நடைபெறுகிறது.",
+    senderName: "எஸ். மைக்கேல் ஆல்வின் (மாநில தலைவர்)",
+    senderRole: "State President",
+    date: "2026-08-26",
+    priority: "normal"
+  }
+];
+
 export default function DistrictBroadcastPortal({
   lang,
   currentUser,
   isSuperAdmin,
   onAddAuditLog
 }: DistrictBroadcastPortalProps) {
-  const [broadcasts, setBroadcasts] = useState<BroadcastMessage[]>([
-    {
-      id: "br_1",
-      title: "மாநில செயற்குழுக் கூட்டம் குறித்த அவசர அறிவிப்பு",
-      titleEn: "Urgent State Executive Meeting Notice",
-      district: "அனைத்து மாவட்டங்கள் (All Districts)",
-      message: "வரும் செப்டம்பர் 10 ஆம் தேதி சென்னை தலைமை அலுவலகத்தில் மாநில பெயிண்டர்கள் சங்க செயற்குழுக் கூட்டம் நடைபெறுகிறது. மாவட்ட தலைவர்கள் மற்றும் செயலாளர்கள் தவறாமல் கலந்துகொள்ளவும்.",
-      senderName: "ஆர். சேகர் (மாநில தலைவர்)",
-      senderRole: "State President",
-      date: "2026-08-24",
-      priority: "urgent"
-    },
-    {
-      id: "br_2",
-      title: "நலவாரிய ஸ்மார்ட் கார்டு புதுப்பித்தல் முகாம்",
-      titleEn: "Welfare Board Smart Card Renewal Camp",
-      district: "கோயம்புத்தூர்",
-      message: "கோயம்புத்தூர் மாவட்ட அலுவலகத்தில் நாளை முதல் மூன்று நாட்களுக்கு நலவாரிய ஸ்மார்ட் கார்டு புதுப்பித்தல் மற்றும் புதிய பதிவு முகாம் நடைபெறுகிறது.",
-      senderName: "எஸ். ரமேஷ் (மாவட்ட தலைவர்)",
-      senderRole: "District President",
-      date: "2026-08-22",
-      priority: "normal"
-    }
-  ]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastMessage[]>(defaultBroadcasts);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Subscribe to real-time cloud broadcasts
+  useEffect(() => {
+    setIsSyncing(true);
+    const unsub = subscribeToBroadcasts((cloudList) => {
+      if (cloudList && cloudList.length > 0) {
+        setBroadcasts(cloudList);
+      }
+      setIsSyncing(false);
+    });
+    return () => unsub();
+  }, []);
 
   // New broadcast form state (for Admins / Super Admin)
   const [title, setTitle] = useState("");
   const [district, setDistrict] = useState("அனைத்து மாவட்டங்கள் (All Districts)");
   const [message, setMessage] = useState("");
   const [priority, setPriority] = useState<BroadcastMessage["priority"]>("normal");
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSendBroadcast = (e: React.FormEvent) => {
+  const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !message) {
+    if (!title.trim() || !message.trim()) {
       alert(lang === "ta" ? "தலைப்பு மற்றும் செய்தியை உள்ளிடவும்!" : "Please enter title and message!");
       return;
     }
 
+    setIsSending(true);
     const newBroadcast: BroadcastMessage = {
       id: `br_${Date.now()}`,
-      title,
-      titleEn: title,
+      title: title.trim(),
+      titleEn: title.trim(),
       district,
-      message,
-      senderName: currentUser ? currentUser.name : "Super Admin",
+      message: message.trim(),
+      senderName: currentUser ? currentUser.name : (isSuperAdmin ? "மாநில தலைமை (Super Admin)" : "மாவட்ட நிர்வாகி"),
       senderRole: currentUser ? currentUser.role : "super_admin",
       date: new Date().toISOString().split("T")[0],
-      priority
+      priority,
+      createdAt: new Date().toISOString()
     };
 
-    setBroadcasts([newBroadcast, ...broadcasts]);
+    await saveBroadcastToFirestore(newBroadcast);
+    setBroadcasts(prev => [newBroadcast, ...prev.filter(b => b.id !== newBroadcast.id)]);
     onAddAuditLog("District Broadcast Sent", `New broadcast sent to ${district}: ${title}`);
+    setIsSending(false);
+
     alert(lang === "ta" 
-      ? "✓ நேரலை பிராட்காஸ்ட் அறிவிப்பு அனைத்து உறுப்பினர்களின் மொபைல்களுக்கும் வெற்றிகரமாக அனுப்பப்பட்டது!" 
-      : "✓ Live broadcast notification dispatched successfully to all member devices!");
+      ? "✓ நேரலை பிராட்காஸ்ட் அறிவிப்பு அனைத்து உறுப்பினர்களின் மொபைல்களுக்கும் வெற்றிகரமாக வெளியிடப்பட்டது!" 
+      : "✓ Live broadcast notification dispatched successfully to all member devices worldwide!");
 
     setTitle("");
     setMessage("");
+  };
+
+  const handleDeleteBroadcast = async (id: string) => {
+    if (!isSuperAdmin && currentUser?.role !== "super_admin") {
+      alert(lang === "ta" ? "சூப்பர் அட்மின் மட்டுமே அறிவிப்பை நீக்க முடியும்." : "Super admin access required.");
+      return;
+    }
+    if (window.confirm(lang === "ta" ? "இந்த அறிவிப்பை நீக்க விரும்புகிறீர்களா?" : "Delete this broadcast?")) {
+      await deleteBroadcastFromFirestore(id);
+      setBroadcasts(prev => prev.filter(b => b.id !== id));
+      onAddAuditLog("Broadcast Deleted", `Deleted broadcast ID: ${id}`);
+    }
   };
 
   return (

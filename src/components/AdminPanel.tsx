@@ -49,6 +49,7 @@ import { AdminMemberCardVerification } from "./AdminMemberCardVerification";
 import SelfHealingConsole from "./SelfHealingConsole";
 import SuperAdminIdCardEditor from "./SuperAdminIdCardEditor";
 import UnionConferenceStudio from "./UnionConferenceStudio";
+import { saveNewsToFirestore, deleteNewsFromFirestore } from "../lib/syncService";
 
 interface AdminPanelProps {
   lang: "ta" | "en";
@@ -398,26 +399,52 @@ export default function AdminPanel({
   };
 
   // Post News & Circulars
-  const handleAddNews = (e: React.FormEvent) => {
+  const handleAddNews = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNewsTitle.trim() || !newNewsContent.trim()) return;
 
-    const finalImg = newNewsImageSource === "file" ? newNewsImageBase64 : newNewsImageUrl.trim();
+    let finalImg = newNewsImageSource === "file" ? newNewsImageBase64 : newNewsImageUrl.trim();
+
+    // If base64 file image, attempt to upload to server for high-performance static URL
+    if (newNewsImageSource === "file" && newNewsImageBase64) {
+      try {
+        const resp = await fetch("/api/media/upload-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dataBase64: newNewsImageBase64,
+            fileName: newNewsImageFileName || `news_${Date.now()}.jpg`,
+            mediaType: "photo"
+          })
+        });
+        if (resp.ok) {
+          const resJson = await resp.json();
+          if (resJson.success && resJson.url) {
+            finalImg = resJson.url;
+          }
+        }
+      } catch (err) {
+        console.warn("News image upload to server fallback notice:", err);
+      }
+    }
 
     const added: NewsItem = {
       id: `news_${Date.now()}`,
-      title: newNewsTitle,
-      titleEn: newNewsTitleEn || newNewsTitle,
-      content: newNewsContent,
-      contentEn: newNewsContentEn || newNewsContent,
+      title: newNewsTitle.trim(),
+      titleEn: newNewsTitleEn.trim() || newNewsTitle.trim(),
+      content: newNewsContent.trim(),
+      contentEn: newNewsContentEn.trim() || newNewsContent.trim(),
       date: new Date().toISOString().split("T")[0],
       category: newNewsCat,
       categoryTa: newNewsCat === "news" ? "செய்தி" : newNewsCat === "circular" ? "சுற்றறிக்கை" : "நிகழ்வு",
-      imageUrl: finalImg || undefined
+      imageUrl: finalImg || ""
     };
 
-    onUpdateNews([added, ...news]);
-    onAddAuditLog("Published News / Bulletin", `News titled "${added.titleEn}" published with image.`);
+    // Save directly to Firestore for realtime sync to all users
+    await saveNewsToFirestore(added);
+    onUpdateNews([added, ...news.filter(n => n.id !== added.id)]);
+    onAddAuditLog("Published News / Bulletin", `News titled "${added.titleEn}" published and broadcasted to all users.`);
+    
     setNewNewsTitle("");
     setNewNewsTitleEn("");
     setNewNewsContent("");
@@ -425,13 +452,16 @@ export default function AdminPanel({
     setNewNewsImageBase64("");
     setNewNewsImageFileName("");
     setNewNewsImageUrl("");
+
+    alert(lang === "ta" ? "✓ செய்தி வெற்றிகரமாக பப்ளிஷ் செய்யப்பட்டது! அனைத்து பயனர்களுக்கும் உடனடியாகப் பிரதிபலிக்கிறது." : "✓ News item published successfully! Synced live to all users.");
   };
 
-  const handleDeleteNews = (id: string) => {
+  const handleDeleteNews = async (id: string) => {
     const newsToDelete = news.find((n) => n.id === id);
+    await deleteNewsFromFirestore(id);
     onUpdateNews(news.filter((n) => n.id !== id));
     if (newsToDelete) {
-      onAddAuditLog("Deleted News Bulletin", `Bulletin ID ${id} deleted.`);
+      onAddAuditLog("Deleted News Bulletin", `Bulletin ID ${id} deleted from live database.`);
     }
   };
 

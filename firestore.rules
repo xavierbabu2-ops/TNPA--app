@@ -122,6 +122,17 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // 10. GALLERY PHOTOS & VIDEOS
+    match /gallery_photos/{photoId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /gallery_videos/{videoId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }
 
