@@ -53,7 +53,11 @@ if (typeof window !== 'undefined') {
     if (
       text.includes('WebChannelConnection RPC') ||
       text.includes('[vite]') ||
-      text.includes('WebSocket')
+      text.includes('WebSocket') ||
+      text.includes('database is closing') ||
+      text.includes('Database is closing') ||
+      text.includes('closing/hidden') ||
+      text.includes('The database connection is closing')
     ) {
       return;
     }

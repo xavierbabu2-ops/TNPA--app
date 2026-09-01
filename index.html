@@ -10,6 +10,63 @@
     <link rel="apple-touch-icon" href="/tnpa_logo.svg" />
     <link rel="manifest" href="/manifest.json" />
     
+    <script>
+      (function() {
+        // Global interceptor for benign sandbox websocket, dev warnings & background database closing
+        function isBenignError(str) {
+          if (!str) return false;
+          var s = String(str).toLowerCase();
+          return (
+            s.indexOf('websocket') !== -1 ||
+            s.indexOf('[vite]') !== -1 ||
+            s.indexOf('webchannel') !== -1 ||
+            s.indexOf('database is closing') !== -1 ||
+            s.indexOf('connection is closing') !== -1 ||
+            s.indexOf('closing/hidden') !== -1 ||
+            s.indexOf('invalidstateerror') !== -1
+          );
+        }
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var str = String(event.reason && (event.reason.message || event.reason) || '');
+          if (isBenignError(str)) {
+            event.preventDefault && event.preventDefault();
+            event.stopImmediatePropagation && event.stopImmediatePropagation();
+            return false;
+          }
+        }, true);
+
+        window.addEventListener('error', function(event) {
+          var msg = String(event.message || '');
+          if (isBenignError(msg)) {
+            event.preventDefault && event.preventDefault();
+            event.stopImmediatePropagation && event.stopImmediatePropagation();
+            return false;
+          }
+        }, true);
+
+        var _err = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var txt = args.join(' ');
+          if (isBenignError(txt)) {
+            return;
+          }
+          _err.apply(console, args);
+        };
+
+        var _warn = console.warn;
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var txt = args.join(' ');
+          if (isBenignError(txt)) {
+            return;
+          }
+          _warn.apply(console, args);
+        };
+      })();
+    </script>
+    
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²" />

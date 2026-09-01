@@ -98,44 +98,114 @@ function generateSeedMembers(): MemberRegistration[] {
   return seed;
 }
 
-// Open or create IndexedDB Database with upgrade support
-function openIndexedDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined" || !window.indexedDB) {
-      return reject(new Error("IndexedDB is not supported in this environment"));
+let activeIDB: IDBDatabase | null = null;
+let activeIDBPromise: Promise<IDBDatabase> | null = null;
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      // Clean up reference if browser puts page in background
+      if (activeIDB) {
+        try {
+          activeIDB.close();
+        } catch {}
+        activeIDB = null;
+        activeIDBPromise = null;
+      }
     }
-
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
-      const db = request.result;
-
-      // 1. Members Store
-      if (!db.objectStoreNames.contains(STORE_MEMBERS)) {
-        const memberStore = db.createObjectStore(STORE_MEMBERS, { keyPath: "id" });
-        memberStore.createIndex("regNumber", "regNumber", { unique: false });
-        memberStore.createIndex("district", "district", { unique: false });
-        memberStore.createIndex("status", "status", { unique: false });
-        memberStore.createIndex("phone", "phone", { unique: false });
-        memberStore.createIndex("name", "name", { unique: false });
-      }
-
-      // 2. Mutations Queue Store
-      if (!db.objectStoreNames.contains(STORE_MUTATIONS)) {
-        const mutationStore = db.createObjectStore(STORE_MUTATIONS, { keyPath: "id" });
-        mutationStore.createIndex("synced", "synced", { unique: false });
-        mutationStore.createIndex("timestamp", "timestamp", { unique: false });
-      }
-
-      // 3. Metadata Store
-      if (!db.objectStoreNames.contains(STORE_META)) {
-        db.createObjectStore(STORE_META, { keyPath: "key" });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error("Failed to open IndexedDB"));
   });
+}
+
+// Open or create IndexedDB Database with upgrade & resilient connection lifecycle support
+function openIndexedDB(): Promise<IDBDatabase> {
+  if (typeof window === "undefined" || !window.indexedDB) {
+    return Promise.reject(new Error("IndexedDB is not supported in this environment"));
+  }
+
+  // If we already have a valid, non-closing database connection, reuse it
+  if (activeIDB) {
+    return Promise.resolve(activeIDB);
+  }
+
+  if (activeIDBPromise) {
+    return activeIDBPromise;
+  }
+
+  activeIDBPromise = new Promise((resolve, reject) => {
+    try {
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+        const db = request.result;
+
+        // 1. Members Store
+        if (!db.objectStoreNames.contains(STORE_MEMBERS)) {
+          const memberStore = db.createObjectStore(STORE_MEMBERS, { keyPath: "id" });
+          memberStore.createIndex("regNumber", "regNumber", { unique: false });
+          memberStore.createIndex("district", "district", { unique: false });
+          memberStore.createIndex("status", "status", { unique: false });
+          memberStore.createIndex("phone", "phone", { unique: false });
+          memberStore.createIndex("name", "name", { unique: false });
+        }
+
+        // 2. Mutations Queue Store
+        if (!db.objectStoreNames.contains(STORE_MUTATIONS)) {
+          const mutationStore = db.createObjectStore(STORE_MUTATIONS, { keyPath: "id" });
+          mutationStore.createIndex("synced", "synced", { unique: false });
+          mutationStore.createIndex("timestamp", "timestamp", { unique: false });
+        }
+
+        // 3. Metadata Store
+        if (!db.objectStoreNames.contains(STORE_META)) {
+          db.createObjectStore(STORE_META, { keyPath: "key" });
+        }
+      };
+
+      request.onsuccess = () => {
+        const db = request.result;
+        activeIDB = db;
+        activeIDBPromise = null;
+
+        db.onversionchange = () => {
+          try {
+            db.close();
+          } catch {}
+          activeIDB = null;
+          activeIDBPromise = null;
+        };
+
+        db.onclose = () => {
+          activeIDB = null;
+          activeIDBPromise = null;
+        };
+
+        db.onerror = () => {
+          activeIDB = null;
+          activeIDBPromise = null;
+        };
+
+        resolve(db);
+      };
+
+      request.onerror = () => {
+        activeIDB = null;
+        activeIDBPromise = null;
+        reject(request.error || new Error("Failed to open IndexedDB"));
+      };
+
+      request.onblocked = () => {
+        activeIDB = null;
+        activeIDBPromise = null;
+        reject(new Error("IndexedDB opening was blocked by other tab"));
+      };
+    } catch (openErr) {
+      activeIDB = null;
+      activeIDBPromise = null;
+      reject(openErr);
+    }
+  });
+
+  return activeIDBPromise;
 }
 
 /**
