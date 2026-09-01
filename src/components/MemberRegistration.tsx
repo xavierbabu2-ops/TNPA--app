@@ -37,6 +37,7 @@ import {
 import { MemberRegistration as RegType } from "../types";
 import { auth } from "../lib/firebase";
 import { saveMemberLocally, getOfflineMemberById } from "../utils/offlineMemberDatabase";
+import { dispatchSmsOtp, verifySmsOtp } from "../utils/apiClient";
 
 interface MemberRegistrationProps {
   lang: "ta" | "en";
@@ -233,7 +234,7 @@ export default function MemberRegistration({
     return data;
   };
 
-  // Server-side SMS OTP Dispatching (No reCAPTCHA, 100% Free)
+  // Server-side SMS OTP Dispatching (No reCAPTCHA, 100% Free, Offline Resilient)
   const handleSendOTP = async () => {
     setOtpError("");
     setOtpInfo("");
@@ -269,11 +270,7 @@ export default function MemberRegistration({
     setShowOtpModal(true);
 
     try {
-      const data = await safeFetchJson("/api/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formattedPhone })
-      });
+      const data = await dispatchSmsOtp(formattedPhone, lang);
 
       setOtpSent(true);
       setOtpTimer(60);
@@ -302,7 +299,7 @@ export default function MemberRegistration({
     }
   };
 
-  // Server-side SMS OTP Verification (No reCAPTCHA, 100% Free)
+  // Server-side SMS OTP Verification (No reCAPTCHA, 100% Free, Offline Resilient)
   const handleVerifyOTP = async (customCode?: string) => {
     const codeToVerify = (typeof customCode === "string" ? customCode : otpInput).trim();
     if (!codeToVerify) {
@@ -330,11 +327,7 @@ export default function MemberRegistration({
     setOtpInfo("");
 
     try {
-      const data = await safeFetchJson("/api/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formattedPhone, code: codeToVerify })
-      });
+      await verifySmsOtp(formattedPhone, codeToVerify, lang);
 
       setIsPhoneVerified(true);
       setOtpSent(false);

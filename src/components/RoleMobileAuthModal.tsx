@@ -20,6 +20,7 @@ import {
 import { UserAccount, UserRole } from "../types";
 import { defaultAccounts } from "./AuthSystem";
 import SuperAdminOtpAuth, { saveStoredSuperAdminSession } from "./SuperAdminOtpAuth";
+import { safeApiFetch } from "../utils/apiClient";
 
 export interface RoleAuthConfig {
   role: UserRole;
@@ -193,12 +194,10 @@ export default function RoleMobileAuthModal({
 
       // Trigger server endpoint in the background without blocking UI
       if (roleConfig.role === "super_admin") {
-        fetch("/api/superadmin/otp/send", {
+        safeApiFetch<{ debugCode?: string }>("/api/superadmin/otp/send", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone: `+91${tenDigit}` })
         })
-          .then((res) => res.json())
           .then((data) => {
             if (data && data.debugCode) {
               setDebugOtpCode(data.debugCode);
@@ -206,12 +205,10 @@ export default function RoleMobileAuthModal({
           })
           .catch(() => {});
       } else {
-        fetch("/api/otp/send", {
+        safeApiFetch<{ debugCode?: string }>("/api/otp/send", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone: `+91${tenDigit}` })
         })
-          .then((res) => res.json())
           .then((data) => {
             if (data && data.debugCode) {
               setDebugOtpCode(data.debugCode);

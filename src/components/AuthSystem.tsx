@@ -23,6 +23,7 @@ import {
 import { UserAccount, UserRole } from "../types";
 import { auth } from "../lib/firebase";
 import SuperAdminOtpAuth from "./SuperAdminOtpAuth";
+import { dispatchSmsOtp, verifySmsOtp } from "../utils/apiClient";
 
 interface AuthSystemProps {
   lang: "ta" | "en";
@@ -253,7 +254,7 @@ export default function AuthSystem({
     return data;
   };
 
-  // Server SMS OTP Dispatch (No reCAPTCHA)
+  // Server SMS OTP Dispatch (No reCAPTCHA, Offline Resilient)
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -300,11 +301,7 @@ export default function AuthSystem({
     setIsSendingOtp(true);
 
     try {
-      const data = await safeFetchJson("/api/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formattedPhone })
-      });
+      const data = await dispatchSmsOtp(formattedPhone, lang);
 
       setOtpSent(true);
       setOtpTimer(60);
@@ -330,7 +327,7 @@ export default function AuthSystem({
     }
   };
 
-  // Server SMS OTP Verification (No reCAPTCHA)
+  // Server SMS OTP Verification (No reCAPTCHA, Offline Resilient)
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -347,11 +344,7 @@ export default function AuthSystem({
     setIsVerifyingOtp(true);
 
     try {
-      const data = await safeFetchJson("/api/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formattedPhone, code: otpCode.trim() })
-      });
+      await verifySmsOtp(formattedPhone, otpCode.trim(), lang);
 
       setIsVerifyingOtp(false);
 
