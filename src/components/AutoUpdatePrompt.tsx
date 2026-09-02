@@ -5,6 +5,31 @@ interface AutoUpdatePromptProps {
   lang: "ta" | "en";
 }
 
+export async function forcePurgeCacheAndReload() {
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const reg of regs) {
+        await reg.update().catch(() => {});
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Cache purge notice:", e);
+  } finally {
+    // Bust browser HTTP cache and reload
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set("_v", Date.now().toString());
+    window.location.href = currentUrl.toString();
+  }
+}
+
 export function AutoUpdatePrompt({ lang }: AutoUpdatePromptProps) {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -31,12 +56,23 @@ export function AutoUpdatePrompt({ lang }: AutoUpdatePromptProps) {
         });
       });
 
-      // Periodically check for updates (every 10 minutes)
+      // Periodically check for updates (every 5 minutes)
       const interval = setInterval(() => {
         if (registration) {
           registration.update().catch(() => {});
         }
-      }, 10 * 60 * 1000);
+      }, 5 * 60 * 1000);
+
+      // Check for updates whenever user returns to the APK / app window
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.update().catch(() => {});
+          });
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("online", handleVisibilityChange);
 
       // Listen for controller change (reload when updated)
       let refreshing = false;
@@ -47,7 +83,11 @@ export function AutoUpdatePrompt({ lang }: AutoUpdatePromptProps) {
         }
       });
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("online", handleVisibilityChange);
+      };
     }
   }, [registration]);
 

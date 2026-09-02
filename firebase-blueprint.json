@@ -123,6 +123,30 @@
         "imageUrl": { "type": "string" }
       },
       "required": ["id", "title", "content", "date", "category"]
+    },
+    "ExecutiveMember": {
+      "title": "ExecutiveMember",
+      "description": "Office bearer details across State, District, Zone, and Area/Union administrative tiers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "level": { "type": "string", "enum": ["state", "district", "zone", "union_area"] },
+        "role": { "type": "string" },
+        "roleEn": { "type": "string" },
+        "phone": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "district": { "type": "string" },
+        "districtEn": { "type": "string" },
+        "zone": { "type": "string" },
+        "zoneEn": { "type": "string" },
+        "unitType": { "type": "string" },
+        "unitName": { "type": "string" },
+        "status": { "type": "string" },
+        "appointedDate": { "type": "string" }
+      },
+      "required": ["id", "name", "level", "role", "phone", "status"]
     }
   },
   "firestore": {
@@ -145,6 +169,10 @@
     "/leaders/{leaderId}": {
       "schema": { "$ref": "#/entities/Leader" },
       "description": "Directory of state and district office bearers and leaders."
+    },
+    "/executives/{execId}": {
+      "schema": { "$ref": "#/entities/ExecutiveMember" },
+      "description": "Separate executive directory for State, District, Zone, and Area/Union tiers."
     },
     "/news/{newsId}": {
       "schema": { "$ref": "#/entities/NewsItem" },

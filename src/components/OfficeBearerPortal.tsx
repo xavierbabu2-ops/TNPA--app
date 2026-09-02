@@ -16,7 +16,12 @@ import {
   Sparkles,
   Phone,
   User,
-  Check
+  Check,
+  Scale,
+  ShieldAlert,
+  Gavel,
+  Printer,
+  X
 } from "lucide-react";
 import { OfficeBearerAnnouncement, OfficeBearerApplication, UserAccount } from "../types";
 import OfficeBearerCertificateGenerator from "./OfficeBearerCertificateGenerator";
@@ -80,7 +85,10 @@ export default function OfficeBearerPortal({
       districtAchievements: "சென்னையில் கடந்த 5 ஆண்டுகளாக 450+ பெயிண்டர்களை சங்கத்தில் இணைத்துள்ளேன். விபத்து நிவாரணம் மற்றும் கல்வி உதவித்தொகை பெற்றுத் தர தீவிரமாக உழைத்துள்ளேன்.",
       memberRegNumber: "TNP-2026-0042",
       appliedAt: "2026-08-21",
-      status: "pending"
+      status: "pending",
+      legalOathAccepted: true,
+      legalOathAcceptedAt: "2026-08-21T10:00:00.000Z",
+      legalOathRef: "TNPA/LEGAL-NOT/2026/044"
     }
   ]);
 
@@ -101,6 +109,8 @@ export default function OfficeBearerPortal({
   const [membershipYears, setMembershipYears] = useState<number>(3);
   const [districtAchievements, setDistrictAchievements] = useState("");
   const [memberRegNumber, setMemberRegNumber] = useState(currentUser?.regNumber || "TNP-2026-");
+  const [bearerLegalOathAccepted, setBearerLegalOathAccepted] = useState(false);
+  const [showBearerLegalModal, setShowBearerLegalModal] = useState(false);
 
   const handlePublishAnnouncement = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +147,15 @@ export default function OfficeBearerPortal({
       return;
     }
 
+    if (!bearerLegalOathAccepted) {
+      alert(
+        lang === "ta" 
+          ? "மாநில சட்ட ஆலோசனைக் குழுவின் சங்கம் மற்றும் மாநில தலைமை மீதான அவதூறு தடுப்பு உறுதிமொழியை ஏற்றுக்கொண்டு தேர்வு செய்ய வேண்டும்!" 
+          : "You must accept the State Legal Advisory Board Anti-Defamation Code of Conduct Oath to proceed!"
+      );
+      return;
+    }
+
     const newApp: OfficeBearerApplication = {
       id: `app_${Date.now()}`,
       announcementId: selectedAnnouncementId || undefined,
@@ -149,19 +168,23 @@ export default function OfficeBearerPortal({
       districtAchievements,
       memberRegNumber,
       appliedAt: new Date().toISOString().split("T")[0],
-      status: "pending"
+      status: "pending",
+      legalOathAccepted: true,
+      legalOathAcceptedAt: new Date().toISOString(),
+      legalOathRef: "TNPA/LEGAL-NOT/2026/044"
     };
 
     setApplications([newApp, ...applications]);
-    onAddAuditLog("Office Bearer Application Submitted", `Application submitted by ${applicantName} for ${targetPosition} (${applicantDistrict}) with ${membershipYears} years membership.`);
+    onAddAuditLog("Office Bearer Application Submitted", `Application submitted by ${applicantName} for ${targetPosition} (${applicantDistrict}) with ${membershipYears} years membership and signed legal non-defamation oath.`);
     alert(lang === "ta" 
-      ? "✓ உங்கள் பொறுப்பாளர் விண்ணப்பம் வெற்றிகரமாகச் சமர்ப்பிக்கப்பட்டு சூப்பர் அட்மின் ஒப்புதலுக்கு அனுப்பப்பட்டது!" 
-      : "✓ Your office bearer application was submitted successfully and sent to Super Admin for approval!");
+      ? "✓ உங்கள் பொறுப்பாளர் விண்ணப்பம் & சட்ட உறுதிமொழி வெற்றிகரமாகச் சமர்ப்பிக்கப்பட்டு சூப்பர் அட்மின் ஒப்புதலுக்கு அனுப்பப்பட்டது!" 
+      : "✓ Your office bearer application & legal oath were submitted successfully and sent to Super Admin for approval!");
     
     // Reset form
     setTargetPosition("");
     setMembershipYears(3);
     setDistrictAchievements("");
+    setBearerLegalOathAccepted(false);
     setActiveSubTab("announcements");
   };
 
@@ -492,6 +515,104 @@ export default function OfficeBearerPortal({
               />
             </div>
 
+            {/* MANDATORY LEGAL ADVISORY BOARD ANTI-DEFAMATION & DISCIPLINARY OATH */}
+            <div className="bg-gradient-to-br from-rose-50/90 via-amber-50/40 to-stone-50 border-2 border-rose-300/80 rounded-2xl p-5 space-y-4 shadow-sm relative overflow-hidden">
+              <div className="flex items-start justify-between gap-3 border-b border-rose-200/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#b91c1c] text-white flex items-center justify-center shadow-sm shrink-0">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-rose-950 uppercase tracking-wide">
+                        {lang === "ta" ? "மாநில சட்ட ஆலோசனைக் குழு - பொறுப்பாளர் அவதூறு தடுப்பு உறுதிமொழி" : "State Legal Advisory Board - Office Bearer Statutory Oath"}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-mono font-black text-[9px] border border-rose-300">
+                        REF: TNPA/LEGAL-NOT/2026/044
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-stone-600 font-medium block mt-0.5">
+                      {lang === "ta" ? "அரசு பதிவு: TNMDUJCLMDUTU- 50-26-00044 | சென்னை & மதுரை உயர்நீதிமன்ற வழக்கறிஞர்கள்" : "Govt Reg No: TNMDUJCLMDUTU- 50-26-00044"}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBearerLegalModal(true)}
+                  className="px-2.5 py-1.5 rounded-lg bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-[11px] font-bold flex items-center gap-1 shrink-0 transition-all shadow-2xs cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{lang === "ta" ? "சட்ட ஆவணம்" : "Legal Document"}</span>
+                </button>
+              </div>
+
+              {/* Crucial Statutory Oath Terms for Office Bearers */}
+              <div className="text-xs text-stone-800 space-y-2.5 leading-relaxed bg-white/80 p-3.5 rounded-xl border border-rose-100">
+                {/* USER MANDATED FORMAL SOLEMN OATH STATEMENT */}
+                <div className="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-3.5 space-y-2 text-stone-900 shadow-2xs">
+                  <div className="flex items-center gap-2 text-amber-950 font-black text-xs uppercase tracking-wide">
+                    <Award className="w-4 h-4 text-[#991b1b]" />
+                    <span>{lang === "ta" ? "பொறுப்பாளர் சத்தியப்பிரமாண உறுதிமொழி வாசகம்:" : "Office Bearer Solemn Oath of Allegiance:"}</span>
+                  </div>
+                  <blockquote className="text-xs sm:text-[13px] font-black text-[#991b1b] bg-white p-3 rounded-lg border border-amber-200 leading-relaxed italic shadow-2xs">
+                    "{lang === "ta"
+                      ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தைச் சார்ந்த இன்று முதல் இந்த சங்கத்தில் உறுப்பினர் அல்லது பொறுப்பாளராக திறன் பட செயல்படுவேன். மேலும் இந்த சங்கத்தில் மாநில தலைமை பற்றியோ இந்த சங்கத்தைப் பற்றியோ அவதூறு பரப்புவது மற்றும் இழிவு படுத்துவது இது போன்ற செயல்களில் ஈடுபட மாட்டேன் எனவும் மேலும் மாநில தலைமை எடுக்கும் முடிவுகளுக்கு கட்டுப்பட்டு நடப்பேன் எனவும் உறுதியளிக்கிறேன்."
+                      : "Belonging to Tamil Nadu Painters and Artists Progressive Association, from this day forward I will function efficiently as a member or office bearer in this association. Furthermore, I swear that I will not engage in defaming, criticizing, or degrading the association or its state leadership, and I pledge that I will strictly abide by all decisions taken by the state leadership."}"
+                  </blockquote>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="font-bold text-rose-950">
+                    <span>{lang === "ta" ? "1. சங்கம் மற்றும் மாநில தலைமை மீதான அவதூறு தவிர்ப்பு கட்டளை:" : "1. Strict Prohibition of Criticism against Union & State Leadership:"}</span>
+                    <p className="font-normal text-stone-700 text-[11px] mt-0.5 leading-relaxed">
+                      {lang === "ta"
+                        ? "நமது சங்கத்தின் சட்ட ஆலோசகர்கள் மூலம் அறிவுறுத்தப்பட்டுள்ளபடி, சங்கத்தின் பொறுப்பாளர் பதவிக்கு விண்ணப்பிக்கும் அல்லது பதவி ஏற்கும் ஒவ்வொரு நிர்வாகியும், நமது சங்கத்தைப் பற்றியோ அல்லது மாநிலத் தலைமை (மாநிலத் தலைவர், மாநில நிர்வாகிகள்) பற்றியோ பொதுவெளியிலோ, மேடைகளிலோ, வாட்ஸ்அப் உள்ளிட்ட சமூக ஊடகங்களிலோ தவறான விமர்சனங்களோ அல்லது இழிவான பேச்சுகளோ பேசவோ, பரப்பவோ கூடாது. ஏதேனும் கருத்து வேறுபாடுகள் இருப்பின், மாநில சட்ட ஆலோசனைக் குழு மற்றும் தலைமை ஒழுங்கு நடவடிக்கைக் குழுவின் முன் மட்டுமே எழுத்துப்பூர்வமாகத் தெரிவிக்க வேண்டும்."
+                        : "Every office bearer is bound by the State Legal Advisory Board to never criticize or defame the association or state leadership in any public forum or social media."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 pt-2 border-t border-rose-100">
+                  <Gavel className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                  <div className="font-bold text-rose-950">
+                    <span>{lang === "ta" ? "2. இவ்வுறுதிமொழியை மீறினால் ஏற்படும் நேரடி விளைவுகள் (Consequences of Violation):" : "2. Direct Consequences of Violation:"}</span>
+                    <ul className="list-disc pl-4 font-normal text-stone-700 text-[11px] space-y-1 mt-1">
+                      <li>
+                        <strong className="text-rose-900">{lang === "ta" ? "பதவி & உறுப்புரிமை உடனடி பறிப்பு:" : "Immediate Removal & Expulsion:"}</strong> {lang === "ta" ? "பொறுப்பாளர் பதவியிலிருந்து உடனடியாக நீக்கப்பட்டு சங்க அடிப்படை உறுப்பினர் உரிமையும் ரத்து செய்யப்படும்." : "Immediate termination of post and permanent cancellation of membership."}
+                      </li>
+                      <li>
+                        <strong className="text-rose-900">{lang === "ta" ? "நலவாரிய சலுகைகள் & சான்றிதழ் ரத்து:" : "Forfeiture of Benefits & Certificate:"}</strong> {lang === "ta" ? "அனைத்து நலத்திட்ட உதவிகள் மற்றும் நியமன சான்றிதழ் செல்லாததாக அறிவிக்கப்படும்." : "Revocation of all welfare aid, insurance, and appointment certificate."}
+                      </li>
+                      <li>
+                        <strong className="text-rose-900">{lang === "ta" ? "கிரிமினல் & சைபர் வழக்கு (BNS 356 & IT Act 66D):" : "Criminal Prosecution:"}</strong> {lang === "ta" ? "பாரதிய நியாய சன்ஹிதா (BNS) பிரிவுகள் 356 (குற்றவியல் அவதூறு), 351 (மிரட்டல்) மற்றும் தகவல் தொழில்நுட்ப சட்டம் 66D கீழ் சைபர் கிரைம் கிரிமினல் வழக்கு பதிவு செய்யப்படும்." : "Criminal prosecution under BNS Sec 356, 351 and IT Act Sec 66D."}
+                      </li>
+                      <li>
+                        <strong className="text-rose-900">{lang === "ta" ? "ரூ. 1 கோடி சிவில் இழப்பீட்டு வழக்கு:" : "Civil Damages Suit up to ₹1 Crore:"}</strong> {lang === "ta" ? "சங்கத்தின் பெயருக்கு களங்கம் ஏற்படுத்திய குற்றத்திற்காக சென்னை உயர்நீதிமன்றத்தில் ₹1 கோடி இழப்பீடு கோரி வழக்கு தொடரப்படும்." : "Civil suit for damages up to ₹1 Crore in the High Court."}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mandatory Undertaking Checkbox */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-100/70 border border-rose-300 text-rose-950 cursor-pointer hover:bg-rose-100 transition-colors">
+                <input
+                  type="checkbox"
+                  required
+                  checked={bearerLegalOathAccepted}
+                  onChange={(e) => setBearerLegalOathAccepted(e.target.checked)}
+                  className="rounded text-rose-600 focus:ring-rose-500 mt-0.5 w-4 h-4"
+                />
+                <span className="text-xs font-bold leading-relaxed">
+                  {lang === "ta"
+                    ? "«தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தைச் சார்ந்த இன்று முதல் இந்த சங்கத்தில் பொறுப்பாளராக திறன் பட செயல்படுவேன். மேலும் இந்த சங்கத்தில் மாநில தலைமை பற்றியோ இந்த சங்கத்தைப் பற்றியோ அவதூறு பரப்புவது மற்றும் இழிவு படுத்துவது இது போன்ற செயல்களில் ஈடுபட மாட்டேன் எனவும் மேலும் மாநில தலைமை எடுக்கும் முடிவுகளுக்கு கட்டுப்பட்டு நடப்பேன் எனவும் உறுதியளிக்கிறேன்» – மேற்கண்ட உறுதிமொழியை நான் முழுமையாக ஏற்றுக்கொண்டு சான்றளிக்கிறேன்."
+                    : "«Belonging to Tamil Nadu Painters and Artists Progressive Association, from this day forward I will function efficiently as an office bearer. Furthermore, I swear that I will not defame or degrade the union or state leadership, and I pledge to abide by decisions of the state leadership» – I certify and accept this pledge."}
+                </span>
+              </label>
+            </div>
+
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
               <p className="font-extrabold flex items-center gap-1.5">
                 <Star className="w-4 h-4 text-amber-600 shrink-0" />
@@ -588,6 +709,17 @@ export default function OfficeBearerPortal({
                         </div>
                       </div>
 
+                      {/* Signed Legal Oath Badge */}
+                      <div className="flex items-center gap-2 p-2 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-950">
+                        <Scale className="w-4 h-4 text-rose-700 shrink-0" />
+                        <span className="font-bold">
+                          {lang === "ta" ? "மாநில சட்ட ஆலோசகர் அவதூறு தடுப்பு உறுதிமொழி ஏற்கப்பட்டது" : "Signed Legal Non-Defamation Oath"}
+                        </span>
+                        <span className="ml-auto font-mono text-[10px] bg-rose-200/80 px-2 py-0.5 rounded font-black text-rose-900">
+                          {app.legalOathRef || "TNPA/LEGAL-NOT/2026/044"}
+                        </span>
+                      </div>
+
                       <div className="bg-white p-3 rounded-xl border border-stone-200 text-xs text-stone-700 space-y-1">
                         <span className="text-[10px] font-extrabold text-stone-400 block">{lang === "ta" ? "மாவட்டத்தில் செய்த சிறப்புகள் & சேவைகள்:" : "District Contributions & Achievements:"}</span>
                         <p className="font-medium leading-relaxed">{app.districtAchievements}</p>
@@ -617,6 +749,166 @@ export default function OfficeBearerPortal({
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STATE LEGAL ADVISORY BOARD STATUTORY UNDERTAKING MODAL */}
+      {showBearerLegalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-stone-200 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+            {/* Modal Header */}
+            <div className="bg-stone-900 text-white p-5 flex items-center justify-between shrink-0 border-b border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#b91c1c] text-white flex items-center justify-center shadow">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-white">
+                    {lang === "ta" ? "மாநில சட்ட ஆலோசனைக் குழு - பொறுப்பாளர் சட்ட உறுதிமொழி பத்திரம்" : "State Legal Advisory Council - Office Bearer Statutory Undertaking"}
+                  </h3>
+                  <div className="flex items-center gap-2 text-[11px] text-stone-300 mt-0.5">
+                    <span className="font-mono text-amber-400 font-bold">REF: TNPA/LEGAL-NOT/2026/044</span>
+                    <span>•</span>
+                    <span>{lang === "ta" ? "அரசு பதிவு: TNMDUJCLMDUTU- 50-26-00044" : "Govt Reg: TNMDUJCLMDUTU- 50-26-00044"}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBearerLegalModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body - Official Legal Document Format */}
+            <div className="p-6 overflow-y-auto space-y-5 text-stone-800 text-xs leading-relaxed">
+              {/* Seal Banner */}
+              <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div>
+                  <span className="text-xs font-black text-rose-950 uppercase tracking-wider block">
+                    {lang === "ta" ? "தமிழ்நாடு பெயிண்டர்கள் சங்கம்" : "TAMIL NADU PAINTERS ASSOCIATION"}
+                  </span>
+                  <span className="text-[11px] text-stone-600 block">
+                    {lang === "ta" ? "தலைமையகம்: 45/2, பாரதியார் தெரு, அண்ணா நகர், சென்னை - 600040" : "Headquarters: Chennai, Tamil Nadu"}
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-mono block mt-0.5">
+                    Affiliated under TN Societies Registration Act 1975
+                  </span>
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-900 border border-rose-300 text-[10px] font-black text-center shrink-0">
+                  <Gavel className="w-4 h-4 mx-auto mb-0.5 text-rose-700" />
+                  HIGH COURT APPROVED
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div className="p-3 bg-amber-500/10 border-l-4 border-amber-500 text-stone-900 text-xs font-bold rounded-r-xl">
+                {lang === "ta" 
+                  ? "பொருள்: மாநில / மாவட்ட / பகுதி / ஒன்றிய பொறுப்பாளர்கள் சங்கம் மற்றும் மாநிலத் தலைமை மீதான அவதூறுகளைத் தடுத்தல், ஒழுங்கு நெறிமுறை மற்றும் சட்டரீதியான கடுமையான விளைவுகள் குறித்த அதிகாரப்பூர்வ உறுதிமொழி."
+                  : "Subject: Statutory undertaking on prevention of defamation, office bearer discipline, and legal liabilities."}
+              </div>
+
+              {/* MANDATED SOLEMN OATH CLAUSE */}
+              <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl space-y-2">
+                <span className="text-[11px] font-black text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-[#991b1b]" />
+                  {lang === "ta" ? "பொறுப்பாளர் சத்தியப்பிரமாண உறுதிமொழி வாசகம்:" : "Office Bearer Solemn Oath of Allegiance:"}
+                </span>
+                <p className="text-xs sm:text-[13px] font-black text-[#991b1b] bg-white p-3 rounded-xl border border-amber-200 leading-relaxed italic shadow-2xs">
+                  "{lang === "ta"
+                    ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தைச் சார்ந்த இன்று முதல் இந்த சங்கத்தில் உறுப்பினர் அல்லது பொறுப்பாளராக திறன் பட செயல்படுவேன். மேலும் இந்த சங்கத்தில் மாநில தலைமை பற்றியோ இந்த சங்கத்தைப் பற்றியோ அவதூறு பரப்புவது மற்றும் இழிவு படுத்துவது இது போன்ற செயல்களில் ஈடுபட மாட்டேன் எனவும் மேலும் மாநில தலைமை எடுக்கும் முடிவுகளுக்கு கட்டுப்பட்டு நடப்பேன் எனவும் உறுதியளிக்கிறேன்."
+                    : "Belonging to Tamil Nadu Painters and Artists Progressive Association, from this day forward I will function efficiently as a member or office bearer in this association. Furthermore, I swear that I will not engage in defaming, criticizing, or degrading the association or its state leadership, and I pledge that I will strictly abide by all decisions taken by the state leadership."}"
+                </p>
+              </div>
+
+              {/* Clauses */}
+              <div className="space-y-3.5">
+                <div>
+                  <h4 className="font-extrabold text-stone-950 text-xs flex items-center gap-1.5 mb-1">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>{lang === "ta" ? "1. சட்ட ஆலோசகர்கள் குழுவின் முக்கிய உத்தரவு:" : "1. Directive of the Legal Advisory Council:"}</span>
+                  </h4>
+                  <p className="text-stone-700 leading-relaxed text-[11px]">
+                    {lang === "ta"
+                      ? "தமிழ்நாடு பெயிண்டர்கள் சங்கத்தில் பதவி வகிக்கும் அல்லது பொறுப்பாளர் பதவி ஏற்கும் எந்தவொரு நிர்வாகியும் சங்கத்தின் நற்பெயரையும் மாநில தலைமையின் (மாநிலத் தலைவர், மாநில நிர்வாகிகள்) மாண்பையும் பாதுகாக்கும் கடமை உடையவர்கள் ஆவர். சங்கத்தைப் பற்றியோ, மாநிலத் தலைமை பற்றியோ எந்தவொரு பொது அரங்கிலோ, பொதுக்கூட்டங்களிலோ, வாட்ஸ்அப் குழுக்கள், முகநூல், யூடியூப் போன்ற சமூக வலைத்தளங்களிலோ அவதூறாகவோ அல்லது தவறான தகவல்களைப் பரப்பும் வகையிலோ பேசுவது முற்றிலும் தடை செய்யப்பட்டுள்ளது."
+                      : "Every executive or office bearer admitted to leadership is strictly prohibited from speaking, publishing, or circulating defamatory or false statements against the union or state leadership."}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-stone-950 text-xs flex items-center gap-1.5 mb-1">
+                    <ShieldAlert className="w-4 h-4 text-rose-600" />
+                    <span>{lang === "ta" ? "2. இவ்வுறுதிமொழியை மீறினால் ஏற்படும் உடனடி விளைவுகள்:" : "2. Consequences of Violation:"}</span>
+                  </h4>
+                  <div className="bg-rose-50/70 border border-rose-200 rounded-xl p-3 text-[11px] space-y-2 text-rose-950">
+                    <p>
+                      <strong>அ) உடனடி பதவி நீக்கம் & உறுப்பினர் ரத்து:</strong> பொறுப்பாளர் பதவியிலிருந்து எந்த முன்னறிவிப்புமின்றி உடனடியாக நீக்கப்பட்டு, அடிப்படை உறுப்பினர் அட்டையும் ரத்து செய்யப்படும்.
+                    </p>
+                    <p>
+                      <strong>ஆ) நலவாரிய உதவிகள் & நியமன சான்றிதழ் ரத்து:</strong> நலவாரியத்தின் மூலம் வழங்கப்படும் விபத்துக் காப்பீடு மற்றும் உதவிகள் முடக்கப்படும். அலுவலக சான்றிதழ் செல்லாது என அறிவிக்கப்படும்.
+                    </p>
+                    <p>
+                      <strong>இ) குற்றவியல் வழக்கு (BNS 356, 351 & IT Act):</strong> பாரதிய நியாய சன்ஹிதா (BNS) பிரிவுகள் 356 (அவதூறு), 351, 352 மற்றும் தகவல் தொழில்நுட்ப சட்டம் (IT Act) பிரிவு 66D, 67 பிரிவுகளில் ஜாமீனில் வர இயலாத குற்றவியல் வழக்கு தொடரப்படும்.
+                    </p>
+                    <p>
+                      <strong>ஈ) ரூ. 1 கோடி சிவில் நஷ்டஈடு வழக்கு:</strong> சங்கத்தின் மதிப்பு மற்றும் தலைமைக்கு களங்கம் விளைவித்ததற்காக சென்னை உயர்நீதிமன்றத்தில் ரூ.1 கோடி வரை இழப்பீடு கோரி சிவில் வழக்கு பாயும்.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-stone-950 text-xs flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    <span>{lang === "ta" ? "3. அதிகாரப்பூர்வ முறையீடு முறை:" : "3. Official Grievance Procedure:"}</span>
+                  </h4>
+                  <p className="text-stone-700 leading-relaxed text-[11px]">
+                    {lang === "ta"
+                      ? "பொறுப்பாளர்களுக்கு ஏதேனும் ஆலோசனைகள் அல்லது கருத்து வேறுபாடுகள் இருப்பின், மாநில சட்ட ஆலோசனைக் குழு மற்றும் மாநில தலைமை ஒழுங்கு நடவடிக்கைக் குழுவிற்கு மட்டுமே நேரில் அல்லது எழுத்துப்பூர்வமாக மனு அளிக்க வேண்டும்."
+                      : "Any grievance must be addressed strictly to the State Legal Advisory Board and Disciplinary Council."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Signatures */}
+              <div className="pt-4 border-t border-stone-200 grid grid-cols-2 gap-4 text-[10px] text-stone-600">
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center">
+                  <span className="font-bold text-stone-900 block text-xs">அட்வகேட் எஸ். முத்துக்குமார், B.A., B.L.</span>
+                  <span>தலைமை சட்ட ஆலோசகர், சென்னை உயர்நீதிமன்றம்</span>
+                  <span className="block text-stone-400 font-mono mt-0.5">Bar Council Reg: MS/1420/2012</span>
+                </div>
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center">
+                  <span className="font-bold text-stone-900 block text-xs">அட்வகேட் கே. ரவிச்சந்திரன், B.Sc., M.L.</span>
+                  <span>மூத்த சட்ட ஆலோசகர், மதுரை உயர்நீதிமன்றக் கிளை</span>
+                  <span className="block text-stone-400 font-mono mt-0.5">Bar Council Reg: MS/2105/2015</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>{lang === "ta" ? "அச்சிடுக (Print)" : "Print"}</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setBearerLegalOathAccepted(true);
+                  setShowBearerLegalModal(false);
+                }}
+                className="px-5 py-2 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition-all cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{lang === "ta" ? "முழுமையாகப் படித்தேன் & உறுதிமொழியேற்கிறேன்" : "I Read & Accept Oath"}</span>
+              </button>
             </div>
           </div>
         </div>

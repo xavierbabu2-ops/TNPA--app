@@ -67,6 +67,12 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // 3b. EXECUTIVES HIERARCHY (State, District, Zone, Area/Union)
+    match /executives/{execId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // 4. NEWS & CIRCULARS (Visible to all users)
     match /news/{newsId} {
       allow read: if true;

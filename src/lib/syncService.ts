@@ -20,7 +20,8 @@ import {
   PaymentRecord,
   SystemSettings,
   GalleryPhoto,
-  GalleryVideo 
+  GalleryVideo,
+  ExecutiveMember
 } from "../types";
 
 /**
@@ -585,7 +586,57 @@ export async function saveGrievanceToFirestore(grievance: any): Promise<boolean>
   }
 }
 
-// 10. INITIAL SEEDING HELPER (Only if cloud database is empty)
+// 10. EXECUTIVES HIERARCHY REALTIME SYNC (State, District, Zone, Area/Union)
+export function subscribeToExecutives(
+  onUpdate: (executives: ExecutiveMember[]) => void,
+  onError?: (err: any) => void
+) {
+  try {
+    const colRef = collection(db, "executives");
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: ExecutiveMember[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ ...(docSnap.data() as ExecutiveMember), id: docSnap.id });
+        });
+        onUpdate(list);
+      },
+      (error) => {
+        console.warn("Firestore executives subscription error:", error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn("Failed to attach executives listener:", err);
+    return () => {};
+  }
+}
+
+export async function saveExecutiveToFirestore(executive: ExecutiveMember): Promise<boolean> {
+  try {
+    const docRef = doc(db, "executives", executive.id);
+    const cleaned = cleanForFirestore(executive);
+    await setDoc(docRef, cleaned, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn("Error saving executive to Firestore:", error);
+    return false;
+  }
+}
+
+export async function deleteExecutiveFromFirestore(executiveId: string): Promise<boolean> {
+  try {
+    const docRef = doc(db, "executives", executiveId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (error) {
+    console.warn("Error deleting executive from Firestore:", error);
+    return false;
+  }
+}
+
+// 11. INITIAL SEEDING HELPER (Only if cloud database is empty)
 export async function seedInitialFirestoreData(
   initialRegs: MemberRegistration[],
   initialLeadersList: Leader[],

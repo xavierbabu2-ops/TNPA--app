@@ -43,7 +43,12 @@ import {
   Tv,
   Crown,
   Radio,
-  Lock
+  Lock,
+  MessageCircle,
+  Building2,
+  Plus,
+  Smartphone,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -64,7 +69,9 @@ import {
   UserAccount, 
   WelfareApplication, 
   AuditLog, 
-  SystemSettings 
+  SystemSettings,
+  ExecutiveMember,
+  ExecutiveLevel
 } from "./types";
 import WelfareAdvisor from "./components/WelfareAdvisor";
 import FloatingAIAssistant from "./components/FloatingAIAssistant";
@@ -90,12 +97,14 @@ import { MemberCardRequest } from "./types/memberCard";
 import DistrictHierarchyDirectory from "./components/DistrictHierarchyDirectory";
 import RoleBasedControlPortal from "./components/RoleBasedControlPortal";
 import OfficeBearerPortal from "./components/OfficeBearerPortal";
+import ExecutiveDirectoryPortal from "./components/ExecutiveDirectoryPortal";
+import { INITIAL_EXECUTIVE_MEMBERS } from "./data/initialExecutives";
 import PainterInsurancePortal from "./components/PainterInsurancePortal";
 import PainterSkillAcademy from "./components/PainterSkillAcademy";
 import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
 import GrievanceSupportDesk from "./components/GrievanceSupportDesk";
 import StateLegalAdvisoryBoard from "./components/StateLegalAdvisoryBoard";
-import { AutoUpdatePrompt } from "./components/AutoUpdatePrompt";
+import { AutoUpdatePrompt, forcePurgeCacheAndReload } from "./components/AutoUpdatePrompt";
 import RoleMobileAuthModal, { ROLE_AUTH_CONFIGS, RoleAuthConfig } from "./components/RoleMobileAuthModal";
 import MemberDirectoryOfflinePortal from "./components/MemberDirectoryOfflinePortal";
 import { safeSpeak, safeCancelSpeech } from "./utils/safeSpeech";
@@ -113,6 +122,9 @@ import {
   saveUnionConfigToFirestore, 
   saveLeaderToFirestore, 
   saveNewsToFirestore,
+  subscribeToExecutives,
+  saveExecutiveToFirestore,
+  deleteExecutiveFromFirestore,
   seedInitialFirestoreData,
   GlobalUnionConfig 
 } from "./lib/syncService";
@@ -131,6 +143,21 @@ export default function App() {
   const [stats, setStats] = useState<SystemStats>(initialStats);
   const [isCloudSyncActive, setIsCloudSyncActive] = useState<boolean>(true);
   const [showSyncInfoModal, setShowSyncInfoModal] = useState<boolean>(false);
+
+  // Separate Executives Directory across State, District, Zonal, and Area/Union levels
+  const [executives, setExecutives] = useState<ExecutiveMember[]>(() => {
+    try {
+      const stored = localStorage.getItem("tnpa_executives_v1");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn("Could not read stored executives:", e);
+    }
+    return INITIAL_EXECUTIVE_MEMBERS;
+  });
+  const [selectedExecutiveLevel, setSelectedExecutiveLevel] = useState<ExecutiveLevel>("state");
 
   // AUTH STATE: null represents non-logged visitor (Visitor / Guest mode)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
@@ -199,6 +226,16 @@ export default function App() {
       }
     });
 
+    // 8. Real-time Executives listener (State, District, Zone, Area/Union)
+    const unsubExecs = subscribeToExecutives((remoteExecs) => {
+      if (remoteExecs && remoteExecs.length > 0) {
+        setExecutives(remoteExecs);
+        try {
+          localStorage.setItem("tnpa_executives_v1", JSON.stringify(remoteExecs));
+        } catch (e) {}
+      }
+    });
+
     return () => {
       unsubRegs();
       unsubConfig();
@@ -206,6 +243,7 @@ export default function App() {
       unsubNews();
       unsubWelfare();
       unsubPayments();
+      unsubExecs();
     };
   }, []);
 
@@ -263,7 +301,7 @@ export default function App() {
   });
 
   // Active Main Navigation tab
-  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control" | "legal_advisory" | "office_bearers" | "insurance" | "academy" | "broadcast" | "grievance">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "executives" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control" | "legal_advisory" | "office_bearers" | "insurance" | "academy" | "broadcast" | "grievance">("home");
 
   // Public QR Code verification modal state
   const [verifyCardToken, setVerifyCardToken] = useState<string | null>(null);
@@ -405,6 +443,39 @@ export default function App() {
       });
       return updated;
     });
+  };
+
+  // Save / Appoint / Update Executive (State, District, Zone, Area/Union)
+  const handleSaveExecutive = async (exec: ExecutiveMember) => {
+    setExecutives((prev) => {
+      const exists = prev.some(e => e.id === exec.id);
+      const updated = exists ? prev.map(e => e.id === exec.id ? exec : e) : [exec, ...prev];
+      try {
+        localStorage.setItem("tnpa_executives_v1", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    try {
+      await saveExecutiveToFirestore(exec);
+    } catch (err) {
+      console.warn("Error saving executive to Firestore:", err);
+    }
+  };
+
+  // Delete / Remove Executive
+  const handleDeleteExecutive = async (id: string) => {
+    setExecutives((prev) => {
+      const updated = prev.filter(e => e.id !== id);
+      try {
+        localStorage.setItem("tnpa_executives_v1", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    try {
+      await deleteExecutiveFromFirestore(id);
+    } catch (err) {
+      console.warn("Error deleting executive from Firestore:", err);
+    }
   };
 
   // Add payment
@@ -759,6 +830,7 @@ export default function App() {
             { id: "live_comm", label: "நேரடித் தொடர்பு 🔴", labelEn: "Live Meetings 🔴" },
             { id: "advisor", label: "AI ஆலோசகர்", labelEn: "AI Welfare Advisor" },
             { id: "payment", label: "சந்தா & வளர்ச்சி நிதி 💳", labelEn: "Subscriptions & Funds 💳" },
+            { id: "executives", label: "நிர்வாகிகள் பட்டியல் 🏛️", labelEn: "Executives Directory 🏛️" },
             { id: "directory", label: "மாவட்ட தொடர்புகள்", labelEn: "Districts Directory" },
             { id: "gallery", label: "மீடியா அரங்கு", labelEn: "Photo Gallery" },
             { id: "role_control", label: "அதிகாரப் பிரிவுகள் & சூப்பர் கீ 🛡️", labelEn: "Role Tiers & Super Key 🛡️" },
@@ -1048,7 +1120,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* State Leaders & Executive Panel */}
+            {/* State Leaders (Only State President & General Secretary on Home Page) */}
             <section className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
               <div className="text-center max-w-xl mx-auto mb-6">
                 <span className="text-[#b91c1c] font-black text-xs uppercase tracking-wider block">
@@ -1059,10 +1131,19 @@ export default function App() {
                 </h3>
               </div>
 
+              {/* Only State President and State General Secretary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                {leaders.map((leader, idx) => {
-                  const isPresident = leader.roleEn.includes("President");
-                  const isSecretary = leader.roleEn.includes("Secretary");
+                {leaders
+                  .filter(l => 
+                    l.roleEn.includes("President") || 
+                    l.roleEn.includes("Secretary") ||
+                    l.role.includes("தலைவர்") || 
+                    l.role.includes("பொதுச்செயலாளர்")
+                  )
+                  .slice(0, 2)
+                  .map((leader, idx) => {
+                  const isPresident = leader.roleEn.includes("President") || leader.role.includes("தலைவர்");
+                  const isSecretary = leader.roleEn.includes("Secretary") || leader.role.includes("செயலாளர்");
 
                   const defaultPhoto = isPresident 
                     ? "/s_michael_alvin.svg" 
@@ -1076,18 +1157,14 @@ export default function App() {
 
                   const borderStyle = isPresident
                     ? "border-4 border-amber-500 ring-2 ring-amber-100 shadow-amber-100"
-                    : isSecretary
-                      ? "border-4 border-blue-600 ring-2 ring-blue-100 shadow-blue-100"
-                      : "border-4 border-emerald-600 ring-2 ring-emerald-100 shadow-emerald-100";
+                    : "border-4 border-blue-600 ring-2 ring-blue-100 shadow-blue-100";
 
                   const badgeStyle = isPresident
                     ? "bg-amber-50 border-amber-200 text-amber-900"
-                    : isSecretary
-                      ? "bg-blue-50 border-blue-200 text-blue-900"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-900";
+                    : "bg-blue-50 border-blue-200 text-blue-900";
 
                   return (
-                    <div key={`app_ldr_${leader.id}_${idx}`} className="border border-stone-200 rounded-2xl overflow-hidden bg-stone-50 hover:shadow-md transition-all flex flex-col items-center p-4">
+                    <div key={`app_ldr_${leader.id}_${idx}`} className="border border-stone-200 rounded-2xl overflow-hidden bg-stone-50 hover:shadow-md transition-all flex flex-col items-center p-5 text-center">
                       <div 
                         className={`relative mb-3 ${isSuperAdmin ? "group cursor-pointer" : ""}`}
                         onClick={() => {
@@ -1138,139 +1215,233 @@ export default function App() {
                           />
                         )}
                       </div>
-                      <h4 className="font-extrabold text-stone-900 text-sm">
+
+                      <h4 className="font-extrabold text-stone-900 text-base">
                         {lang === "ta" ? leader.name : leader.nameEn}
                       </h4>
-                      <span className={`px-2.5 py-0.5 border rounded-full font-extrabold text-[10px] uppercase mt-1 text-center ${badgeStyle}`}>
+
+                      <span className={`px-3 py-0.5 border rounded-full font-extrabold text-[11px] uppercase mt-1 text-center ${badgeStyle}`}>
                         {lang === "ta" ? leader.role : leader.roleEn}
                       </span>
-                      <p className="text-stone-400 text-[10px] mt-1 text-center">
-                        {lang === "ta" ? leader.district : leader.districtEn}
-                      </p>
-                      
-                      <a
-                        href={`tel:${leader.phone}`}
-                        className="mt-4 w-full py-2 bg-stone-900 hover:bg-[#b91c1c] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                      >
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>{leader.phone}</span>
-                      </a>
+
+                      <div className="flex items-center gap-2 mt-4 w-full">
+                        <a
+                          href={`tel:${leader.phone}`}
+                          className="flex-1 py-2 bg-stone-900 hover:bg-[#b91c1c] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{leader.phone}</span>
+                        </a>
+
+                        <a
+                          href={`https://wa.me/${leader.phone.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl transition-all cursor-pointer"
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </section>
 
-            {/* STATE, ZONAL, CITY & UNION EXECUTIVE HIERARCHY & ENROLMENT DESK */}
+            {/* SEPARATE 4-TIER EXECUTIVE DIRECTORIES HUB (State, District, Zone, Area/Union) */}
             <section className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-5 text-left">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-stone-100 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <Layers className="w-5 h-5 text-[#b91c1c]" />
                     <h3 className="font-black text-stone-900 text-base uppercase tracking-wide">
-                      {lang === "ta" ? "மாநில, மண்டல, நகர & ஒன்றிய நிர்வாகிகள் கண்காணிப்பு மற்றும் சேர்க்கை" : "State, Zonal, City & Union Executive Hierarchy & Enrolment Desk"}
+                      {lang === "ta" ? "நிர்வாகிகள் பட்டியல் (4 தனித்தனி அடுக்குகள்)" : "Executive Directories (4 Distinct Tiers)"}
                     </h3>
                   </div>
                   <p className="text-stone-500 text-xs mt-1">
-                    {lang === "ta" ? "தமிழகத்தின் 38 மாவட்டங்கள் மற்றும் 380+ ஒன்றிய நிர்வாக அமைப்புகள் நேரடித் தொடர்பில் உள்ளன." : "Structure covering 38 districts, 4 zonal divisions & 380+ block unions."}
+                    {lang === "ta" 
+                      ? "மாநிலம், மாவட்டம், மண்டலம் மற்றும் பகுதி ஒன்றிய நிர்வாகிகள் பட்டியல் தனித்தனியாக தொகுக்கப்பட்டுள்ளது. பொறுப்பாளர்களை நியமிப்பது மாற்றுவது சூப்பர் அட்மின் கட்டுப்பாட்டில் உள்ளது."
+                      : "Distinct administrative directories for State, District, Zone, and Area/Union levels. Controlled by Super Admin."}
                   </p>
                 </div>
 
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 shrink-0">
                   <button
-                    onClick={() => setActiveTab("register")}
-                    className="px-3.5 py-2 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    onClick={() => {
+                      setActiveTab("executives");
+                      setSelectedExecutiveLevel("state");
+                    }}
+                    className="px-4 py-2 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>{lang === "ta" ? "+ புதிய நிர்வாகி சேர்க்கை" : "+ Enrol Executive"}</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("admin")}
-                    className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                  >
-                    <Eye className="w-4 h-4 text-amber-400" />
-                    <span>{lang === "ta" ? "கண்காணிப்பு பலகை" : "Monitoring Desk"}</span>
+                    <Building2 className="w-4 h-4" />
+                    <span>{lang === "ta" ? "முழு நிர்வாகிகள் பட்டியல் ➔" : "View Full Executives ➔"}</span>
                   </button>
                 </div>
               </div>
 
-              {/* 4 Hierarchy Levels Grid */}
+              {/* 4 Dedicated Tier Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  {
-                    level: "நிலை 1 / Level 1",
-                    title: "மாநில தலைமை நிர்வாகிகள்",
-                    titleEn: "State Office Bearers",
-                    count: "2 நிர்வாகிகள்",
-                    countEn: "2 Core Executives",
-                    desc: "மாநில தலைவர் (S. மைக்கேல் ஆல்வின்), பொதுச்செயலாளர் (ரா. சேவியர் பாபு).",
-                    descEn: "State President (S. Michael Alvin), Gen. Secretary (R. Xavier Babu)."
-                  },
-                  {
-                    level: "நிலை 2 / Level 2",
-                    title: "மண்டல செயலாளர்கள்",
-                    titleEn: "Zonal Secretaries",
-                    count: "4 மண்டலங்கள்",
-                    countEn: "4 Key Zones",
-                    desc: "வடக்கு, தெற்கு, கிழக்கு, மேற்கு மண்டல நிர்வாக ஒருங்கிணைப்பாளர்கள்.",
-                    descEn: "North, South, East, West zonal administrative coordinators."
-                  },
-                  {
-                    level: "நிலை 3 / Level 3",
-                    title: "மாவட்ட நிர்வாகிகள்",
-                    titleEn: "District Office Bearers",
-                    count: "38 மாவட்டங்கள்",
-                    countEn: "38 Districts",
-                    desc: "மாவட்ட தலைவர் மற்றும் செயலாளர் கொண்ட தலைமைக்குழு.",
-                    descEn: "District President and Secretary leadership panels across 38 districts."
-                  },
-                  {
-                    level: "நிலை 4 / Level 4",
-                    title: "ஒன்றிய / வட்ட அமைப்புகள்",
-                    titleEn: "Block & Taluk Unions",
-                    count: "380+ வட்டங்கள்",
-                    countEn: "380+ Taluks",
-                    desc: "வட்ட அளவிலான ஆட்டோ உரிமையாளர்கள் மற்றும் ஓட்டுனர்களின் கிளை அமைப்புகள்.",
-                    descEn: "Taluk level auto painter & driver union branch organizations."
-                  }
-                ].map((item, idx) => (
-                  <div key={idx} className="bg-stone-50 border border-stone-200 p-4 rounded-2xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                          {item.level}
-                        </span>
-                        <span className="text-[10px] font-bold text-stone-600">
-                          {lang === "ta" ? item.count : item.countEn}
-                        </span>
-                      </div>
-                      <h4 className="font-extrabold text-stone-900 text-sm mt-2">
-                        {lang === "ta" ? item.title : item.titleEn}
-                      </h4>
-                      <p className="text-stone-600 text-xs mt-1 leading-relaxed">
-                        {lang === "ta" ? item.desc : item.descEn}
-                      </p>
+                {/* 1. மாநில நிர்வாகிகள் பட்டியல் */}
+                <div className="bg-gradient-to-br from-stone-50 to-rose-50/40 border border-stone-200 hover:border-rose-300 p-4 rounded-2xl flex flex-col justify-between transition-all hover:shadow-md group">
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase text-[#b91c1c] bg-rose-100 px-2.5 py-0.5 rounded-full">
+                        {lang === "ta" ? "அடுக்கு 1 / Tier 1" : "Tier 1"}
+                      </span>
+                      <span className="text-[11px] font-extrabold text-stone-700">
+                        {executives.filter(e => e.level === "state").length} {lang === "ta" ? "நிர்வாகிகள்" : "Leaders"}
+                      </span>
                     </div>
-
-                    <button
-                      onClick={() => setActiveTab("admin")}
-                      className="w-full py-1.5 bg-white/90 hover:bg-white text-stone-900 border border-stone-300 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer mt-3"
-                    >
-                      <CheckSquare className="w-3.5 h-3.5 text-[#b91c1c]" />
-                      <span>{lang === "ta" ? "நிர்வாகிகள் பட்டியல்" : "View Directory"}</span>
-                    </button>
+                    <h4 className="font-extrabold text-stone-900 text-sm mt-2 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-[#b91c1c]" />
+                      <span>{lang === "ta" ? "மாநில நிர்வாகிகள் பட்டியல்" : "State Executives List"}</span>
+                    </h4>
+                    <p className="text-stone-600 text-xs mt-1 leading-relaxed">
+                      {lang === "ta" 
+                        ? "மாநில தலைவர், பொதுச்செயலாளர், பொருளாளர், துணைத் தலைவர்கள் மற்றும் மாநில சட்ட ஆலோசனைக் குழு."
+                        : "State President, General Secretary, Treasurer, Vice Presidents, and State Advisory Board."}
+                    </p>
                   </div>
-                ))}
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("executives");
+                      setSelectedExecutiveLevel("state");
+                    }}
+                    className="w-full py-2 bg-white group-hover:bg-[#b91c1c] text-stone-900 group-hover:text-white border border-stone-200 group-hover:border-transparent rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer mt-3"
+                  >
+                    <span>{lang === "ta" ? "மாநில பட்டியல் பார்க்க" : "View State List"}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* 2. மாவட்ட நிர்வாகிகள் பட்டியல் */}
+                <div className="bg-gradient-to-br from-stone-50 to-blue-50/40 border border-stone-200 hover:border-blue-300 p-4 rounded-2xl flex flex-col justify-between transition-all hover:shadow-md group">
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full">
+                        {lang === "ta" ? "அடுக்கு 2 / Tier 2" : "Tier 2"}
+                      </span>
+                      <span className="text-[11px] font-extrabold text-stone-700">
+                        {executives.filter(e => e.level === "district").length} {lang === "ta" ? "பொறுப்பாளர்கள்" : "Leaders"}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-stone-900 text-sm mt-2 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-blue-600" />
+                      <span>{lang === "ta" ? "மாவட்ட நிர்வாகிகள் பட்டியல்" : "District Executives List"}</span>
+                    </h4>
+                    <p className="text-stone-600 text-xs mt-1 leading-relaxed">
+                      {lang === "ta" 
+                        ? "தமிழ்நாட்டின் 38 மாவட்டங்களின் தலைவர், செயலாளர், பொருளாளர் மற்றும் மாவட்ட ஒருங்கிணைப்பாளர்கள்."
+                        : "District Presidents, Secretaries, Treasurers, and Coordinators across all 38 districts."}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("executives");
+                      setSelectedExecutiveLevel("district");
+                    }}
+                    className="w-full py-2 bg-white group-hover:bg-blue-600 text-stone-900 group-hover:text-white border border-stone-200 group-hover:border-transparent rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer mt-3"
+                  >
+                    <span>{lang === "ta" ? "மாவட்ட பட்டியல் பார்க்க" : "View District List"}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* 3. மண்டல நிர்வாகிகள் பட்டியல் */}
+                <div className="bg-gradient-to-br from-stone-50 to-amber-50/40 border border-stone-200 hover:border-amber-300 p-4 rounded-2xl flex flex-col justify-between transition-all hover:shadow-md group">
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                        {lang === "ta" ? "அடுக்கு 3 / Tier 3" : "Tier 3"}
+                      </span>
+                      <span className="text-[11px] font-extrabold text-stone-700">
+                        {executives.filter(e => e.level === "zone").length} {lang === "ta" ? "மண்டல பொறுப்புகள்" : "Zonal Posts"}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-stone-900 text-sm mt-2 flex items-center gap-1.5">
+                      <Globe className="w-4 h-4 text-amber-600" />
+                      <span>{lang === "ta" ? "மண்டல நிர்வாகிகள் பட்டியல்" : "Zonal Executives List"}</span>
+                    </h4>
+                    <p className="text-stone-600 text-xs mt-1 leading-relaxed">
+                      {lang === "ta" 
+                        ? "வடக்கு, தெற்கு, மேற்கு, மத்திய மற்றும் கிழக்கு மண்டல செயலாளர்கள் மற்றும் ஒருங்கிணைப்பாளர்கள்."
+                        : "North, South, West, Central & East Zonal Secretaries and Regional Coordinators."}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("executives");
+                      setSelectedExecutiveLevel("zone");
+                    }}
+                    className="w-full py-2 bg-white group-hover:bg-amber-600 text-stone-900 group-hover:text-white border border-stone-200 group-hover:border-transparent rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer mt-3"
+                  >
+                    <span>{lang === "ta" ? "மண்டல பட்டியல் பார்க்க" : "View Zonal List"}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* 4. பகுதி ஒன்றிய நிர்வாகிகள் பட்டியல் */}
+                <div className="bg-gradient-to-br from-stone-50 to-emerald-50/40 border border-stone-200 hover:border-emerald-300 p-4 rounded-2xl flex flex-col justify-between transition-all hover:shadow-md group">
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                        {lang === "ta" ? "அடுக்கு 4 / Tier 4" : "Tier 4"}
+                      </span>
+                      <span className="text-[11px] font-extrabold text-stone-700">
+                        {executives.filter(e => e.level === "union_area").length} {lang === "ta" ? "கிளை அமைப்புகள்" : "Local Units"}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-stone-900 text-sm mt-2 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-emerald-600" />
+                      <span>{lang === "ta" ? "பகுதி ஒன்றிய நிர்வாகிகள் பட்டியல்" : "Area & Union List"}</span>
+                    </h4>
+                    <p className="text-stone-600 text-xs mt-1 leading-relaxed">
+                      {lang === "ta" 
+                        ? "வட்ட ஒன்றியங்கள், நகர அமைப்புகள் மற்றும் பகுதி அளவிலான களப் பொறுப்பாளர்கள் பட்டியல்."
+                        : "Block unions, town branches, and area coordinators connecting local professional painters."}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("executives");
+                      setSelectedExecutiveLevel("union_area");
+                    }}
+                    className="w-full py-2 bg-white group-hover:bg-emerald-600 text-stone-900 group-hover:text-white border border-stone-200 group-hover:border-transparent rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer mt-3"
+                  >
+                    <span>{lang === "ta" ? "பகுதி/ஒன்றிய பட்டியல் பார்க்க" : "View Union/Area List"}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="pt-3">
-                <button
-                  onClick={() => setShowDistrictDirectoryModal(true)}
-                  className="w-full py-3.5 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
-                >
-                  <Users className="w-5 h-5 text-amber-300" />
-                  <span>{lang === "ta" ? "🏛️ 38 மாவட்டங்கள் மற்றும் அனைத்து அடுக்கு நிர்வாகிகள் முழுப் பட்டியல் (View 38 Districts & All Tiers Directory)" : "🏛️ View 38 Districts & All Tiers Complete Directory"}</span>
-                </button>
+              {/* Super Admin Status Banner */}
+              <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span className="text-stone-700 font-semibold">
+                    {lang === "ta" 
+                      ? "நிர்வாகிகளை நியமிப்பது, பொறுப்புகளை மாற்றுவது மற்றும் நீக்குவது அனைத்தும் சூப்பர் அட்மினின் நேரடிக் கட்டுப்பாட்டில் இயங்குகிறது."
+                      : "Executive appointments, role modifications, and relieves are exclusively managed under Super Admin credentials."}
+                  </span>
+                </div>
+
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("executives");
+                      setSelectedExecutiveLevel("state");
+                    }}
+                    className="px-3.5 py-1.5 bg-[#b91c1c] text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs hover:bg-rose-700 transition-all shrink-0 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{lang === "ta" ? "நிர்வாகி நியமன பலகை" : "Open Appoint Desk"}</span>
+                  </button>
+                )}
               </div>
             </section>
 
@@ -2127,6 +2298,22 @@ export default function App() {
           </div>
         )}
 
+        {/* EXECUTIVES DIRECTORY PORTAL (4 SEPARATE TIERS: STATE, DISTRICT, ZONE, AREA/UNION) */}
+        {activeTab === "executives" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <ExecutiveDirectoryPortal
+              lang={lang}
+              currentUser={currentUser}
+              isSuperAdmin={isSuperAdmin}
+              executives={executives}
+              onSaveExecutive={handleSaveExecutive}
+              onDeleteExecutive={handleDeleteExecutive}
+              onAddAuditLog={handleAddAuditLog}
+              initialActiveLevel={selectedExecutiveLevel}
+            />
+          </div>
+        )}
+
         {/* OFFICE BEARER ANNOUNCEMENTS & APPLICATIONS PORTAL */}
         {activeTab === "office_bearers" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
@@ -2447,10 +2634,37 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="p-3 bg-stone-800/90 rounded-2xl border border-stone-700 space-y-2 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-amber-400 font-bold flex items-center gap-1.5">
+                      <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{lang === "ta" ? "ஏபிகே (APK) & மொபைல் ஒத்திசைவு:" : "APK & Mobile Over-the-Air Sync:"}</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-bold text-[10px]">
+                      OTA ACTIVE
+                    </span>
+                  </div>
+                  <p className="text-stone-300 text-[11px] leading-relaxed">
+                    {lang === "ta"
+                      ? "ஏற்கனவே இந்த செயலியை ஏபிகே (APK) கோப்பாக பதிவிறக்கம் செய்து வைத்துள்ள அனைவருக்கும், நீங்கள் செய்யும் நிர்வாகிகள் நியமனம், உறுப்பினர் சேர்க்கை, சட்ட ஆலோசனைக் குழுவின் அவதூறு தடுப்பு உறுதிமொழி போன்ற அனைத்து மாற்றங்களும் தானாகவே உடனடியாகப் பிரதிபலிக்கும்."
+                      : "For all users who previously downloaded this app as an APK file, all database updates, new features, and legal undertakings sync live over-the-air automatically."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      forcePurgeCacheAndReload();
+                    }}
+                    className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{lang === "ta" ? "செயலியை உடனே நேரலையாகப் புதுப்பிக்க (Force Sync APK)" : "Instant Force Update (Clear Cache & Reload)"}</span>
+                  </button>
+                </div>
+
                 <p className="text-stone-400 text-[11px]">
                   {lang === "ta"
-                    ? "குறிப்பு: சூப்பர் அட்மின் ஐடி கார்டு பக்கத்தில் உள்ள 'அனைவருக்கும் நேரலையாகப் பதிவேற்று' பொத்தானை அழுத்தியவுடன் சங்கத்தின் புதிய லோகோ, முத்திரை மற்றும் விபரங்கள் உலகளவில் புதுப்பிக்கப்படும்."
-                    : "Note: When Super Admin broadcasts changes from the ID Card Portal, all templates, official seals and credentials update globally across all downloads."}
+                    ? "குறிப்பு: சூப்பர் அட்மின் அல்லது மாநில தலைவர் செய்யும் அனைத்து மாற்றங்களும் கிளவுட் டேட்டாபேஸ் மூலமாக நொடிக்குள் உலகளவில் அனைத்து கைபேசிகளுக்கும் ஒத்திசைக்கப்படும்."
+                    : "Note: All administrative updates propagate globally in real time via Cloud Firestore."}
                 </p>
               </div>
 
@@ -2464,6 +2678,9 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* AUTOMATIC UPDATE NOTIFICATION & SILENT OTA RELOADER */}
+      <AutoUpdatePrompt lang={lang} />
 
     </div>
   );

@@ -107,6 +107,34 @@ export interface Leader {
   districtEn: string;
 }
 
+export type ExecutiveLevel = "state" | "district" | "zone" | "union_area";
+
+export interface ExecutiveMember {
+  id: string;
+  name: string;
+  nameEn?: string;
+  level: ExecutiveLevel; // "state" (மாநில) | "district" (மாவட்ட) | "zone" (மண்டல) | "union_area" (பகுதி/ஒன்றிய)
+  role: string;
+  roleEn?: string;
+  district?: string;
+  districtEn?: string;
+  zone?: string;
+  zoneEn?: string;
+  unitType?: "union" | "town" | "area" | "wing" | "other";
+  unitName?: string;
+  unitNameEn?: string;
+  phone: string;
+  photoUrl?: string;
+  appointedDate?: string;
+  status: "active" | "inactive" | "transferred";
+  order?: number;
+  appointedBy?: string;
+  notes?: string;
+  legalOathAccepted?: boolean;
+  legalOathAcceptedAt?: string;
+  legalOathRef?: string;
+}
+
 export interface NewsItem {
   id: string;
   title: string;
@@ -206,6 +234,9 @@ export interface MemberRegistration {
   whatsappConsentDate?: string;
   whatsappInviteLinkShown?: string;
   whatsappGroupName?: string;
+  legalOathAccepted?: boolean;
+  legalOathAcceptedAt?: string;
+  legalOathRef?: string;
 }
 
 export interface PaymentRecord {
@@ -377,6 +408,9 @@ export interface OfficeBearerApplication {
   appliedAt: string;
   status: "pending" | "approved" | "rejected";
   superAdminRemarks?: string;
+  legalOathAccepted?: boolean;
+  legalOathAcceptedAt?: string;
+  legalOathRef?: string;
 }
 
 // SELF-HEALING & AUTO-RECOVERY SYSTEM TYPES

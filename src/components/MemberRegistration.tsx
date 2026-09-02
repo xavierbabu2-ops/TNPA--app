@@ -32,7 +32,11 @@ import {
   ExternalLink,
   KeyRound,
   X,
-  Lock
+  Lock,
+  Scale,
+  ShieldAlert,
+  Gavel,
+  Award
 } from "lucide-react";
 import { MemberRegistration as RegType } from "../types";
 import { auth } from "../lib/firebase";
@@ -110,6 +114,8 @@ export default function MemberRegistration({
   // --- STEP 5: Declaration & Signature State ---
   const [acceptRules, setAcceptRules] = useState(false);
   const [declareTruth, setDeclareTruth] = useState(false);
+  const [acceptLegalConduct, setAcceptLegalConduct] = useState(false);
+  const [showLegalUndertakingModal, setShowLegalUndertakingModal] = useState(false);
   const [signatureType, setSignatureType] = useState<"drawn" | "typed">("drawn");
   const [signatureText, setSignatureText] = useState("");
   const [signatureStyle, setSignatureStyle] = useState("font-serif italic");
@@ -560,7 +566,16 @@ export default function MemberRegistration({
   const handleFinalSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!acceptRules || !declareTruth) {
-      setError(lang === "ta" ? "விதிகள் மற்றும் உண்மைகளை உறுதிப்படுத்தும் பெட்டிகளைத் தேர்வு செய்யவும்!" : "You must accept the Union terms and certify accuracy to proceed!");
+      setError(lang === "ta" ? "சங்க விதிமுறைகள் மற்றும் உண்மைச் சான்று பெட்டிகளைத் தேர்வு செய்யவும்!" : "You must accept the Union terms and certify accuracy to proceed!");
+      return;
+    }
+
+    if (!acceptLegalConduct) {
+      setError(
+        lang === "ta"
+          ? "மாநில சட்ட ஆலோசனைக் குழுவின் சங்கம் மற்றும் மாநில தலைமை மீதான அவதூறு தடுப்பு உறுதிமொழியை ஏற்றுக்கொண்டு தேர்வு செய்ய வேண்டும்!"
+          : "You must accept the State Legal Advisory Board Anti-Defamation Code of Conduct Oath to proceed!"
+      );
       return;
     }
 
@@ -609,7 +624,10 @@ export default function MemberRegistration({
       signatureType,
       signatureText: signatureType === "typed" ? signatureText : undefined,
       status: "pending", // Starts fresh as Pending
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      legalOathAccepted: true,
+      legalOathAcceptedAt: new Date().toISOString(),
+      legalOathRef: "TNPA/LEGAL-NOT/2026/044"
     };
 
     onSubmitRegistration(finalReg);
@@ -1406,7 +1424,7 @@ export default function MemberRegistration({
                   
                   {/* Terms check */}
                   <div className="bg-stone-50 border p-5 rounded-2xl space-y-3.5 text-xs text-stone-700 leading-relaxed">
-                    <span className="font-extrabold text-stone-950 block">{lang === "ta" ? "சங்க விதிமுறைகள் மற்றும் உறுதிமொழி" : "Union Rules Declaration & Privacy Consent"}</span>
+                    <span className="font-extrabold text-stone-950 block">{lang === "ta" ? "சங்க விதிமுறைகள் மற்றும் பொது உறுதிமொழி" : "Union Rules Declaration & Privacy Consent"}</span>
                     
                     <label className="flex items-start gap-2 cursor-pointer">
                       <input
@@ -1433,6 +1451,103 @@ export default function MemberRegistration({
                         {lang === "ta" 
                           ? "விண்ணப்பத்தில் நான் வழங்கியுள்ள தனிநபர், முகவரி மற்றும் தொழில் சார்ந்த அனைத்துத் தகவல்களும் முற்றிலும் உண்மை என்று சான்றளிக்கிறேன்." 
                           : "I solemnly certify that all details, address booklets, and document uploads submitted are true and verifiable."}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* MANDATORY LEGAL ADVISORY BOARD ANTI-DEFAMATION & DISCIPLINARY OATH */}
+                  <div className="bg-gradient-to-br from-rose-50/90 via-amber-50/40 to-stone-50 border-2 border-rose-300/80 rounded-2xl p-5 space-y-4 shadow-sm relative overflow-hidden">
+                    <div className="flex items-start justify-between gap-3 border-b border-rose-200/80 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-[#b91c1c] text-white flex items-center justify-center shadow-sm shrink-0">
+                          <Scale className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-black text-rose-950 uppercase tracking-wide">
+                              {lang === "ta" ? "மாநில சட்ட ஆலோசனைக் குழு - அவதூறு தடுப்பு உறுதிமொழி" : "State Legal Advisory Board - Statutory Undertaking"}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-mono font-black text-[9px] border border-rose-300">
+                              REF: TNPA/LEGAL-NOT/2026/044
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-stone-600 font-medium block mt-0.5">
+                            {lang === "ta" ? "அரசு பதிவு எண்: TNMDUJCLMDUTU- 50-26-00044 | சென்னை & மதுரை உயர்நீதிமன்ற சட்ட ஆலோசகர்கள்" : "Govt Reg No: TNMDUJCLMDUTU- 50-26-00044"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowLegalUndertakingModal(true)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-[11px] font-bold flex items-center gap-1 shrink-0 transition-all shadow-2xs cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{lang === "ta" ? "முழு ஆவணம்" : "Full Document"}</span>
+                      </button>
+                    </div>
+
+                    {/* Crucial Statutory Oath Terms */}
+                    <div className="text-xs text-stone-800 space-y-2.5 leading-relaxed bg-white/80 p-3.5 rounded-xl border border-rose-100">
+                      {/* USER MANDATED FORMAL SOLEMN OATH STATEMENT */}
+                      <div className="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-3.5 space-y-2 text-stone-900 shadow-2xs">
+                        <div className="flex items-center gap-2 text-amber-950 font-black text-xs uppercase tracking-wide">
+                          <Award className="w-4 h-4 text-[#991b1b]" />
+                          <span>{lang === "ta" ? "உறுப்பினர் சத்தியப்பிரமாண உறுதிமொழி வாசகம்:" : "Member Solemn Oath of Allegiance:"}</span>
+                        </div>
+                        <blockquote className="text-xs sm:text-[13px] font-black text-[#991b1b] bg-white p-3 rounded-lg border border-amber-200 leading-relaxed italic shadow-2xs">
+                          "{lang === "ta"
+                            ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தைச் சார்ந்த இன்று முதல் இந்த சங்கத்தில் உறுப்பினர் அல்லது பொறுப்பாளராக திறன் பட செயல்படுவேன். மேலும் இந்த சங்கத்தில் மாநில தலைமை பற்றியோ இந்த சங்கத்தைப் பற்றியோ அவதூறு பரப்புவது மற்றும் இழிவு படுத்துவது இது போன்ற செயல்களில் ஈடுபட மாட்டேன் எனவும் மேலும் மாநில தலைமை எடுக்கும் முடிவுகளுக்கு கட்டுப்பட்டு நடப்பேன் எனவும் உறுதியளிக்கிறேன்."
+                            : "Belonging to Tamil Nadu Painters and Artists Progressive Association, from this day forward I will function efficiently as a member or office bearer in this association. Furthermore, I swear that I will not engage in defaming, criticizing, or degrading the association or its state leadership, and I pledge that I will strictly abide by all decisions taken by the state leadership."}"
+                        </blockquote>
+                      </div>
+
+                      <div className="flex items-start gap-2">
+                        <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="font-bold text-rose-950">
+                          <span>{lang === "ta" ? "1. சங்கம் மற்றும் மாநில தலைமை மீதான அவதூறு தவிர்ப்பு நெறிமுறை:" : "1. Strict Prohibition of Criticism against Union & State Leadership:"}</span>
+                          <p className="font-normal text-stone-700 text-[11px] mt-0.5 leading-relaxed">
+                            {lang === "ta"
+                              ? "நமது சங்கத்தின் சட்ட ஆலோசகர்கள் மூலம் அறிவுறுத்தப்பட்டுள்ளபடி, நமது சங்கத்தைப் பற்றியோ அல்லது மாநிலத் தலைமை (மாநிலத் தலைவர், மாநில நிர்வாகிகள்) பற்றியோ பொதுவெளியிலோ, சமூக ஊடகங்களிலோ (WhatsApp, Facebook, YouTube, Instagram, X/Twitter, போஸ்டர்கள், ஆடியோ/வீடியோ) தவறான விமர்சனங்களோ அல்லது தவறாகப் பேசுவதோ முற்றிலும் தவிர்க்கப்பட வேண்டும். ஏதேனும் கருத்து வேறுபாடுகள் இருப்பின், அவற்றை மாநில சட்ட ஆலோசனைக் குழு மற்றும் தலைமை ஒழுங்கு நடவடிக்கைக் குழுவின் முன் மட்டுமே முறையாக எழுத்துப்பூர்வமாக முறையிட வேண்டும்."
+                              : "No member shall post, speak, or circulate false criticisms or defamatory remarks against the association or state leadership across any public forum or social media platform."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2 pt-2 border-t border-rose-100">
+                        <Gavel className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                        <div className="font-bold text-rose-950">
+                          <span>{lang === "ta" ? "2. இவ்வுறுதிமொழியை மீறினால் ஏற்படும் சட்ட & ஒழுங்கு விளைவுகள் (Legal Consequences):" : "2. Consequences of Violation:"}</span>
+                          <ul className="list-disc pl-4 font-normal text-stone-700 text-[11px] space-y-1 mt-1">
+                            <li>
+                              <strong className="text-rose-900">{lang === "ta" ? "உடனடி உறுப்பினர் பதவி ரத்து:" : "Immediate Expulsion:"}</strong> {lang === "ta" ? "எந்தவித முன்னறிவிப்புமின்றி சங்கத்தின் அடிப்படை உறுப்பினர் உரிமை மற்றும் உறுப்பினர் அட்டை நிரந்தரமாக ரத்து செய்யப்படும்." : "Immediate cancellation of union membership and ID card."}
+                            </li>
+                            <li>
+                              <strong className="text-rose-900">{lang === "ta" ? "நலவாரிய சலுகைகள் முடக்கம்:" : "Forfeiture of Benefits:"}</strong> {lang === "ta" ? "சங்கத்தின் சார்பாகவும், அரசு நலவாரியத்தின் மூலமாகவும் வழங்கப்படும் விபத்துக் காப்பீடு, உதவித்தொகைகள் மற்றும் அனைத்து சலுகைகளும் முடக்கப்படும்." : "Revocation of all welfare, accidental insurance, and educational benefits."}
+                            </li>
+                            <li>
+                              <strong className="text-rose-900">{lang === "ta" ? "குற்றவியல் & சைபர் வழக்கு (BNS 356 & IT Act 66D):" : "Criminal Prosecution:"}</strong> {lang === "ta" ? "பாரதிய நியாய சன்ஹிதா (BNS) பிரிவுகள் 356 (குற்றவியல் அவதூறு), 351 (மிரட்டல்), 352 மற்றும் தகவல் தொழில்நுட்ப சட்டம் (IT Act) பிரிவு 66D-ன் கீழ் ஜாமீனில் வெளிவர இயலாத குற்றவியல் வழக்கு பதிவு செய்யப்படும்." : "Criminal prosecution under BNS Sec 356, 351, 352 and IT Act Sec 66D."}
+                            </li>
+                            <li>
+                              <strong className="text-rose-900">{lang === "ta" ? "ரூ.1 கோடி சிவில் நஷ்டஈடு வழக்கு:" : "Civil Damages Suit up to ₹1 Crore:"}</strong> {lang === "ta" ? "சங்கத்தின் நற்பெயருக்கு களங்கம் ஏற்படுத்திய குற்றத்திற்காக சென்னை உயர்நீதிமன்றத்தில் ₹1 கோடி வரை சிவில் நஷ்டஈடு வழக்கு தொடரப்படும்." : "Civil damages suit for up to ₹1,00,00,000 filed in High Court."}
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mandatory Undertaking Checkbox */}
+                    <label className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-100/70 border border-rose-300 text-rose-950 cursor-pointer hover:bg-rose-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={acceptLegalConduct}
+                        onChange={(e) => setAcceptLegalConduct(e.target.checked)}
+                        className="rounded text-rose-600 focus:ring-rose-500 mt-0.5 w-4 h-4"
+                      />
+                      <span className="text-xs font-bold leading-relaxed">
+                        {lang === "ta"
+                          ? "«தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தைச் சார்ந்த இன்று முதல் இந்த சங்கத்தில் உறுப்பினர் அல்லது பொறுப்பாளராக திறன் பட செயல்படுவேன். மேலும் இந்த சங்கத்தில் மாநில தலைமை பற்றியோ இந்த சங்கத்தைப் பற்றியோ அவதூறு பரப்புவது மற்றும் இழிவு படுத்துவது இது போன்ற செயல்களில் ஈடுபட மாட்டேன் எனவும் மேலும் மாநில தலைமை எடுக்கும் முடிவுகளுக்கு கட்டுப்பட்டு நடப்பேன் எனவும் உறுதியளிக்கிறேன்» – மேற்கண்ட உறுதிமொழியை நான் முழுமையாக ஏற்றுக்கொண்டு கையொப்பமிடுகிறேன்."
+                          : "«Belonging to Tamil Nadu Painters and Artists Progressive Association, from this day forward I will function efficiently as a member or office bearer. Furthermore, I swear that I will not defame or degrade the union or state leadership, and I pledge to abide by all decisions taken by state leadership» – I solemnly accept and sign this pledge."}
                       </span>
                     </label>
                   </div>
@@ -2080,6 +2195,163 @@ export default function MemberRegistration({
             <div className="bg-stone-50 border-t border-stone-100 px-5 py-2.5 text-center text-[10px] text-stone-500 flex items-center justify-center gap-1">
               <Lock className="w-3 h-3 text-stone-400" />
               <span>{lang === "ta" ? "100% பாதுகாப்பான மற்றும் இலவச சரிபார்ப்பு முறை" : "100% Secure & Zero-Cost OTP Verification"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STATE LEGAL ADVISORY BOARD STATUTORY UNDERTAKING MODAL */}
+      {showLegalUndertakingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-stone-200 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+            {/* Modal Header */}
+            <div className="bg-stone-900 text-white p-5 flex items-center justify-between shrink-0 border-b border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#b91c1c] text-white flex items-center justify-center shadow">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-white">
+                    {lang === "ta" ? "மாநில சட்ட ஆலோசனைக் குழு - அதிகாரப்பூர்வ உறுதிமொழி பத்திரம்" : "State Legal Advisory Council - Official Statutory Undertaking"}
+                  </h3>
+                  <div className="flex items-center gap-2 text-[11px] text-stone-300 mt-0.5">
+                    <span className="font-mono text-amber-400 font-bold">REF: TNPA/LEGAL-NOT/2026/044</span>
+                    <span>•</span>
+                    <span>{lang === "ta" ? "அரசு பதிவு: TNMDUJCLMDUTU- 50-26-00044" : "Govt Reg: TNMDUJCLMDUTU- 50-26-00044"}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowLegalUndertakingModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body - Official Legal Document Format */}
+            <div className="p-6 overflow-y-auto space-y-5 text-stone-800 text-xs leading-relaxed">
+              {/* Seal Banner */}
+              <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div>
+                  <span className="text-xs font-black text-rose-950 uppercase tracking-wider block">
+                    {lang === "ta" ? "தமிழ்நாடு பெயிண்டர்கள் சங்கம்" : "TAMIL NADU PAINTERS ASSOCIATION"}
+                  </span>
+                  <span className="text-[11px] text-stone-600 block">
+                    {lang === "ta" ? "தலைமையகம்: 45/2, பாரதியார் தெரு, அண்ணா நகர், சென்னை - 600040" : "Headquarters: Chennai, Tamil Nadu"}
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-mono block mt-0.5">
+                    Affiliated under TN Societies Registration Act 1975
+                  </span>
+                </div>
+                <div className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-900 border border-rose-300 text-[10px] font-black text-center shrink-0">
+                  <Gavel className="w-4 h-4 mx-auto mb-0.5 text-rose-700" />
+                  HIGH COURT APPROVED
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div className="p-3 bg-amber-500/10 border-l-4 border-amber-500 text-stone-900 text-xs font-bold rounded-r-xl">
+                {lang === "ta" 
+                  ? "பொருள்: சங்கம் மற்றும் மாநிலத் தலைமை மீதான அவதூறுகளைத் தடுத்தல், சமூக ஊடக ஒழுங்குமுறை மற்றும் சட்டரீதியான விளைவுகள் குறித்த உறுதிமொழிப் பத்திரம்."
+                  : "Subject: Statutory undertaking on prevention of defamation, social media code of conduct, and legal consequences."}
+              </div>
+
+              {/* MANDATED SOLEMN OATH CLAUSE */}
+              <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl space-y-2">
+                <span className="text-[11px] font-black text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-[#991b1b]" />
+                  {lang === "ta" ? "உறுப்பினர் / பொறுப்பாளர் சத்தியப்பிரமாண உறுதிமொழி:" : "Solemn Pledge of Allegiance & Union Loyalty:"}
+                </span>
+                <p className="text-xs sm:text-[13px] font-black text-[#991b1b] bg-white p-3 rounded-xl border border-amber-200 leading-relaxed italic shadow-2xs">
+                  "{lang === "ta"
+                    ? "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தைச் சார்ந்த இன்று முதல் இந்த சங்கத்தில் உறுப்பினர் அல்லது பொறுப்பாளராக திறன் பட செயல்படுவேன். மேலும் இந்த சங்கத்தில் மாநில தலைமை பற்றியோ இந்த சங்கத்தைப் பற்றியோ அவதூறு பரப்புவது மற்றும் இழிவு படுத்துவது இது போன்ற செயல்களில் ஈடுபட மாட்டேன் எனவும் மேலும் மாநில தலைமை எடுக்கும் முடிவுகளுக்கு கட்டுப்பட்டு நடப்பேன் எனவும் உறுதியளிக்கிறேன்."
+                    : "Belonging to Tamil Nadu Painters and Artists Progressive Association, from this day forward I will function efficiently as a member or office bearer in this association. Furthermore, I swear that I will not engage in defaming, criticizing, or degrading the association or its state leadership, and I pledge that I will strictly abide by all decisions taken by the state leadership."}"
+                </p>
+              </div>
+
+              {/* Clauses */}
+              <div className="space-y-3.5">
+                <div>
+                  <h4 className="font-extrabold text-stone-950 text-xs flex items-center gap-1.5 mb-1">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>{lang === "ta" ? "1. சட்ட ஆலோசகர்கள் குழுவின் அறிவுறுத்தல்:" : "1. Directive of the Legal Advisory Council:"}</span>
+                  </h4>
+                  <p className="text-stone-700 leading-relaxed text-[11px]">
+                    {lang === "ta"
+                      ? "நமது சங்கத்தின் மாநில சட்ட ஆலோசகர்கள் (சென்னை மற்றும் மதுரை உயர்நீதிமன்ற வழக்கறிஞர்கள் குழு) வழங்கியுள்ள சட்ட வழிகாட்டுதலின்படி, சங்கத்தில் இணையும் ஒவ்வொரு உறுப்பினரும் மற்றும் நிர்வாகப் பொறுப்பு ஏற்கும் ஒவ்வொரு பொறுப்பாளரும் சங்கத்தின் ஒற்றுமையையும் மாநில தலைமையின் மாண்பையும் காக்கக் கடமைப்பட்டவர்கள் ஆவர். சங்கத்தைப் பற்றியோ அல்லது மாநிலத் தலைமை (மாநிலத் தலைவர், மாநில நிர்வாகிகள்) பற்றியோ பொது இடங்களிலோ, வாட்ஸ்அப் குழுக்கள், முகநூல், யூடியூப் அல்லது பிற சமூக வலைத்தளங்களிலோ எந்தவித ஆதாரமற்ற அவதூறுகளையோ அல்லது தவறான விமர்சனங்களையோ முன்வைப்பது முழுமையாகத் தடை செய்யப்பட்டுள்ளது."
+                      : "Every member and official admitted to the association is strictly bound by the legal guidance issued by the State Legal Advisory Council to safeguard the honor, integrity, and prestige of the association and its state leadership."}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-stone-950 text-xs flex items-center gap-1.5 mb-1">
+                    <ShieldAlert className="w-4 h-4 text-rose-600" />
+                    <span>{lang === "ta" ? "2. விதிமீறல் செய்தால் ஏற்படும் கடுமையான விளைவுகள்:" : "2. Statutory Consequences of Defamation or Anti-Union Activity:"}</span>
+                  </h4>
+                  <div className="bg-rose-50/70 border border-rose-200 rounded-xl p-3 text-[11px] space-y-2 text-rose-950">
+                    <p>
+                      <strong>அ) உறுப்பினர் தகுதி & நலவாரிய சலுகைகள் ரத்து:</strong> சங்கத்தின் அடிப்படை உறுப்பினர் உரிமை உடனடியாக ரத்து செய்யப்படும். சங்கம் மற்றும் கட்டுமான நலவாரியம் மூலம் கிடைக்கும் விபத்துக் காப்பீடு, உதவித்தொகைகள் அனைத்தும் நிரந்தரமாக முடக்கப்படும்.
+                    </p>
+                    <p>
+                      <strong>ஆ) குற்றவியல் நடவடிக்கை (BNS & IT Act):</strong> பாரதிய நியாய சன்ஹிதா (BNS) பிரிவு 356 (குற்றவியல் அவதூறு), 351 (மிரட்டல்), 352, மற்றும் தகவல் தொழில்நுட்ப சட்டம் 66D, 67 பிரிவுகளின் கீழ் காவல்துறை சைபர் கிரைம் பிரிவில் முதல் தகவல் அறிக்கை (FIR) பதிவு செய்யப்பட்டு சிறை நடவடிக்கை எடுக்கப்படும்.
+                    </p>
+                    <p>
+                      <strong>இ) ரூ. 1 கோடி சிவில் நஷ்டஈடு வழக்கு:</strong> சங்கத்தின் நற்பெயருக்கு பொதுவெளியில் அவப்பெயர் உண்டாக்கியமைக்காக சென்னை உயர்நீதிமன்றத்தில் ரூ. 1,00,00,000/- (ஒரு கோடி ரூபாய்) வரை இழப்பீடு கோரி சிவில் வழக்கு தொடரப்படும்.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-extrabold text-stone-950 text-xs flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    <span>{lang === "ta" ? "3. சட்டப்பூர்வ முறையீட்டு முறை:" : "3. Official Grievance Redressal Procedure:"}</span>
+                  </h4>
+                  <p className="text-stone-700 leading-relaxed text-[11px]">
+                    {lang === "ta"
+                      ? "உறுப்பினர்கள் அல்லது நிர்வாகிகளுக்கு சங்க நடவடிக்கைகள் மீது ஏதேனும் கருத்து வேறுபாடோ அல்லது முறையீடோ இருப்பின், பொதுவெளியில் பேசாமல், சங்கத்தின் மாநில சட்ட ஆலோசனைக் குழு மற்றும் தலைமை ஒழுங்கு நடவடிக்கைக் குழுவிற்கு மட்டுமே எழுத்துப்பூர்வமாக மனு அளிக்க வேண்டும்."
+                      : "Any genuine grievance or dispute must strictly be presented in writing before the State Legal Advisory Board and Disciplinary Council, and never ventilated in public forums."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Legal Council Endorsement Signatures */}
+              <div className="pt-4 border-t border-stone-200 grid grid-cols-2 gap-4 text-[10px] text-stone-600">
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center">
+                  <span className="font-bold text-stone-900 block text-xs">அட்வகேட் எஸ். முத்துக்குமார், B.A., B.L.</span>
+                  <span>தலைமை சட்ட ஆலோசகர், சென்னை உயர்நீதிமன்றம்</span>
+                  <span className="block text-stone-400 font-mono mt-0.5">Bar Council Reg: MS/1420/2012</span>
+                </div>
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center">
+                  <span className="font-bold text-stone-900 block text-xs">அட்வகேட் கே. ரவிச்சந்திரன், B.Sc., M.L.</span>
+                  <span>மூத்த சட்ட ஆலோசகர், மதுரை உயர்நீதிமன்றக் கிளை</span>
+                  <span className="block text-stone-400 font-mono mt-0.5">Bar Council Reg: MS/2105/2015</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>{lang === "ta" ? "அச்சிடுக (Print)" : "Print Document"}</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setAcceptLegalConduct(true);
+                  setShowLegalUndertakingModal(false);
+                }}
+                className="px-5 py-2 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition-all cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{lang === "ta" ? "முழுமையாகப் படித்தேன் & ஒப்புக்கொள்கிறேன்" : "I Read & Accept Terms"}</span>
+              </button>
             </div>
           </div>
         </div>
