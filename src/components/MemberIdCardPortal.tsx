@@ -52,7 +52,15 @@ export default function MemberIdCardPortal({
   onUpdateRegistration,
   onAddAuditLog
 }: MemberIdCardPortalProps) {
-  const isSuperAdmin = currentUser?.role === "super_admin" || currentUser?.role?.includes("admin");
+  // Check authorization: only Super Admin and State President can modify / edit ID cards
+  const canEditIdCard = Boolean(
+    currentUser && (
+      currentUser.role === "super_admin" ||
+      currentUser.role === "state_president" ||
+      currentUser.isPrimarySuperAdmin
+    )
+  );
+  const isSuperAdmin = canEditIdCard;
 
   const safeRegistrations = Array.isArray(registrations) ? registrations : [];
 
@@ -165,6 +173,14 @@ export default function MemberIdCardPortal({
 
   // BROADCAST & PUBLISH ALL CHANGES LIVE TO EVERY USER DOWNLOADING THE APP
   const handlePublishLiveToAllUsers = async () => {
+    if (!canEditIdCard) {
+      alert(
+        lang === "ta"
+          ? "⚠️ உறுப்பினர் அட்டையை திருத்துவது மற்றும் மாற்றுவது சூப்பர் அட்மின் மற்றும் மாநிலத் தலைவருக்கு மட்டுமே அனுமதி உண்டு!"
+          : "⚠️ Only Super Admin and State President are authorized to edit and modify ID cards!"
+      );
+      return;
+    }
     setIsPublishing(true);
     try {
       if (currentMember) {
@@ -445,16 +461,18 @@ export default function MemberIdCardPortal({
                 </button>
               </div>
 
-              {/* Toggle Live Customizer Form */}
-              <button
-                onClick={() => setShowLiveCustomizer(!showLiveCustomizer)}
-                className={`px-3.5 py-2 rounded-2xl text-xs font-black border transition-all flex items-center gap-1.5 cursor-pointer ${
-                  showLiveCustomizer ? "bg-stone-900 text-yellow-400 border-stone-900" : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>{showLiveCustomizer ? (lang === "ta" ? "படிவத்தை மறை" : "Hide Form") : (lang === "ta" ? "நேரடி திருத்தம்" : "Edit Live")}</span>
-              </button>
+              {/* Toggle Live Customizer Form (Authorized Super Admin & State President only) */}
+              {canEditIdCard && (
+                <button
+                  onClick={() => setShowLiveCustomizer(!showLiveCustomizer)}
+                  className={`px-3.5 py-2 rounded-2xl text-xs font-black border transition-all flex items-center gap-1.5 cursor-pointer ${
+                    showLiveCustomizer ? "bg-stone-900 text-yellow-400 border-stone-900" : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
+                  }`}
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>{showLiveCustomizer ? (lang === "ta" ? "படிவத்தை மறை" : "Hide Form") : (lang === "ta" ? "நேரடி திருத்தம்" : "Edit Live")}</span>
+                </button>
+              )}
 
               {/* Print Button */}
               <button
@@ -497,6 +515,8 @@ export default function MemberIdCardPortal({
           {/* DYNAMIC TWO PREVIEW CARDS (SIDE-BY-SIDE) */}
           <div className="w-full flex justify-center py-4">
             <UnionOfficialIdCard
+              currentUser={currentUser}
+              isEditable={canEditIdCard}
               member={{
                 id: currentMember?.id || "member_1",
                 name: memberName,
@@ -541,7 +561,7 @@ export default function MemberIdCardPortal({
           {/* =============================================================== */}
           {/* INTERACTIVE LIVE CUSTOMIZER / FIELD EDITOR PANEL                */}
           {/* =============================================================== */}
-          {showLiveCustomizer && (
+          {canEditIdCard && showLiveCustomizer && (
             <div className="bg-white p-6 sm:p-8 rounded-3xl border-2 border-stone-200 shadow-xl space-y-6">
               
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-stone-200 pb-4">

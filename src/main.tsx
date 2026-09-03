@@ -70,13 +70,36 @@ initOfflineDatabase().catch((err) => {
   console.warn('[Offline DB] Initialization warning:', err);
 });
 
-// Register PWA Service Worker for local member database caching & background sync
+// Register PWA Service Worker for local member database caching, auto-updates & background sync
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
         console.log('[PWA] Service Worker registered with scope:', reg.scope);
+
+        // Check for updates on load
+        reg.update().catch(() => {});
+
+        // Periodic update check every 15 minutes
+        setInterval(() => {
+          reg.update().catch(() => {});
+        }, 15 * 60 * 1000);
+
+        // Check when user refocuses or opens the app
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            reg.update().catch(() => {});
+          }
+        });
       })
       .catch((err) => {
         console.log('[PWA] Service Worker registration failed:', err);

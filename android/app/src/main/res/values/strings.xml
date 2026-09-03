@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TNPA²</string>
+    <string name="title_activity_main">TNPA²</string>
+    <string name="package_name">com.tnpa.artists.app</string>
+    <string name="custom_url_scheme">com.tnpa.artists.app</string>
+</resources>

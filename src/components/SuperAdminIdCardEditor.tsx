@@ -38,7 +38,13 @@ export default function SuperAdminIdCardEditor({
   onAddRegistration,
   onAddAuditLog
 }: SuperAdminIdCardEditorProps) {
-  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isSuperAdmin = Boolean(
+    currentUser && (
+      currentUser.role === "super_admin" ||
+      currentUser.role === "state_president" ||
+      currentUser.isPrimarySuperAdmin
+    )
+  );
 
   // Studio Tab State & New ID Card Creation State
   const [studioTab, setStudioTab] = useState<"edit_existing" | "create_new">("edit_existing");
@@ -256,12 +262,12 @@ export default function SuperAdminIdCardEditor({
       <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-8 text-center space-y-4 max-w-xl mx-auto my-12">
         <ShieldAlert className="w-16 h-16 text-rose-600 mx-auto animate-pulse" />
         <h3 className="text-xl font-black text-rose-900">
-          {lang === "ta" ? "சூப்பர் அட்மின் அனுமதி தேவை (Super Admin Restriction)" : "Super Admin Authorization Required"}
+          {lang === "ta" ? "சூப்பர் அட்மின் / மாநிலத் தலைவர் அனுமதி தேவை" : "Super Admin / State President Authorization Required"}
         </h3>
         <p className="text-stone-700 text-xs md:text-sm">
           {lang === "ta"
-            ? "அடையாள அட்டைகளை நேரடியாக திருத்துவது, டெம்ப்ளேட் வடிவமைப்பை மாற்றுவது மற்றும் அட்ஜஸ்ட் செய்வது போன்ற மேம்பட்ட கட்டுப்பாடுகள் சூப்பர் அட்மின் (Super Admin) கணக்கிற்கு மட்டுமே அனுமதிக்கப்பட்டுள்ளன."
-            : "Direct ID card editing, layout adjustments, and template customization are strictly restricted to Super Admin accounts."}
+            ? "அடையாள அட்டைகளை நேரடியாக திருத்துவது, டெம்ப்ளேட் வடிவமைப்பை மாற்றுவது மற்றும் அட்ஜஸ்ட் செய்வது போன்ற மேம்பட்ட கட்டுப்பாடுகள் சூப்பர் அட்மின் (Super Admin) மற்றும் மாநிலத் தலைவர் (State President) கணக்கிற்கு மட்டுமே அனுமதிக்கப்பட்டுள்ளன."
+            : "Direct ID card editing, layout adjustments, and template customization are strictly restricted to Super Admin and State President accounts."}
         </p>
       </div>
     );
@@ -277,7 +283,7 @@ export default function SuperAdminIdCardEditor({
         <div className="space-y-2 z-10">
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 bg-amber-500 text-stone-950 font-black text-[10px] rounded-full uppercase tracking-wider shadow">
-              {lang === "ta" ? "சூப்பர் அட்மின் பிரத்யேகக் கட்டுப்பாடு" : "Super Admin Exclusive"}
+              {lang === "ta" ? "சூப்பர் அட்மின் / மாநிலத் தலைவர் கட்டுப்பாடு" : "Super Admin / State President Control"}
             </span>
             <span className="text-amber-300 text-xs font-bold">
               {lang === "ta" ? "அடையாள அட்டை வடிவமைப்பு & நேரடி எடிட்டர்" : "ID Card Layout & Direct Editor"}
@@ -288,14 +294,14 @@ export default function SuperAdminIdCardEditor({
           </h3>
           <p className="text-stone-300 text-xs md:text-sm max-w-2xl">
             {lang === "ta"
-              ? "உறுப்பினர் அடையாள அட்டையின் வடிவமைப்பு (Design), நிறங்கள், தலைப்புகள், புலங்கள் (Fields) மற்றும் தனிப்பட்ட உறுப்பினர் தரவுகளை நேரடியாக மாற்றி அட்ஜஸ்ட் செய்யக்கூடிய சூப்பர் அட்மின் கட்டுப்பாட்டு மையம்."
-              : "Advanced Super Admin studio to directly edit, customize layout, modify fields, and adjust design themes for all union member ID cards."}
+              ? "உறுப்பினர் அடையாள அட்டையின் வடிவமைப்பு (Design), நிறங்கள், தலைப்புகள், புலங்கள் (Fields) மற்றும் தனிப்பட்ட உறுப்பினர் தரவுகளை நேரடியாக மாற்றி அட்ஜஸ்ட் செய்யக்கூடிய சூப்பர் அட்மின் & மாநிலத் தலைவர் கட்டுப்பாட்டு மையம்."
+              : "Advanced studio to directly edit, customize layout, modify fields, and adjust design themes for all union member ID cards (Authorized for Super Admin and State President)."}
           </p>
         </div>
 
         <div className="flex items-center gap-2 bg-stone-800/80 px-4 py-2.5 rounded-2xl border border-stone-700 text-xs font-bold text-amber-300 z-10">
           <ShieldCheck className="w-5 h-5 text-emerald-400" />
-          <span>{lang === "ta" ? "அதிகாரம்: சூப்பர் அட்மின்" : "Role: Super Admin Verified"}</span>
+          <span>{lang === "ta" ? "அதிகாரம்: அங்கீகரிக்கப்பட்டது" : "Role: Authorized"}</span>
         </div>
       </div>
 

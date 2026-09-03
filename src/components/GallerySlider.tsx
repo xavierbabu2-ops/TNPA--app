@@ -22,8 +22,11 @@ import {
   Check,
   Eye,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Layers,
+  Sliders
 } from "lucide-react";
+import GalleryImageOverlayModal from "./GalleryImageOverlayModal";
 import { UserAccount, GalleryPhoto, GalleryVideo } from "../types";
 import { 
   subscribeToGalleryPhotos, 
@@ -94,6 +97,11 @@ export default function GallerySlider({
   // Modal Lightbox states
   const [selectedPhotoForModal, setSelectedPhotoForModal] = useState<GalleryPhoto | null>(null);
   const [selectedVideoForModal, setSelectedVideoForModal] = useState<GalleryVideo | null>(null);
+
+  // Gallery Watermark & Image Overlay Tool State
+  const [isOverlayModalOpen, setIsOverlayModalOpen] = useState(false);
+  const [overlayBaseImageSrc, setOverlayBaseImageSrc] = useState<string>("");
+  const [overlayTargetPhoto, setOverlayTargetPhoto] = useState<GalleryPhoto | null>(null);
 
   // Form states for new Photo
   const [photoSourceType, setPhotoSourceType] = useState<"file" | "url">("file");
@@ -300,6 +308,71 @@ export default function GallerySlider({
     }
   };
 
+  // Open Image Overlay & Watermark Studio Tool
+  const handleOpenOverlayTool = (photo?: GalleryPhoto | null, customImgSrc?: string) => {
+    if (photo) {
+      setOverlayTargetPhoto(photo);
+      setOverlayBaseImageSrc(photo.url);
+    } else if (customImgSrc) {
+      setOverlayTargetPhoto(null);
+      setOverlayBaseImageSrc(customImgSrc);
+    } else if (newPhotoFileBase64) {
+      setOverlayTargetPhoto(null);
+      setOverlayBaseImageSrc(newPhotoFileBase64);
+    } else if (photos[activePhotoIdx]) {
+      setOverlayTargetPhoto(photos[activePhotoIdx]);
+      setOverlayBaseImageSrc(photos[activePhotoIdx].url);
+    } else {
+      setOverlayTargetPhoto(null);
+      setOverlayBaseImageSrc("");
+    }
+    setIsOverlayModalOpen(true);
+  };
+
+  // Save Watermarked Composite directly into live Firestore Gallery
+  const handleSaveOverlayToGallery = async (watermarkedDataUrl: string, caption?: string) => {
+    // Upload the processed watermarked base64 to server/cloud
+    const uploadedUrl = await uploadMediaToServer(
+      watermarkedDataUrl,
+      `tnpa_watermarked_${Date.now()}.jpg`,
+      "photo"
+    );
+
+    if (overlayTargetPhoto) {
+      // Update existing photo
+      const updatedPhoto: GalleryPhoto = {
+        ...overlayTargetPhoto,
+        url: uploadedUrl,
+        caption: caption || overlayTargetPhoto.caption,
+        captionEn: overlayTargetPhoto.captionEn || caption || overlayTargetPhoto.caption
+      };
+      await saveGalleryPhotoToFirestore(updatedPhoto);
+      setPhotos(prev => prev.map(p => p.id === updatedPhoto.id ? updatedPhoto : p));
+      onAddAuditLog("Watermark Overlay Applied", `Updated watermarked image for: ${updatedPhoto.caption}`);
+    } else {
+      // Create new photo entry
+      const newP: GalleryPhoto = {
+        id: `photo_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        url: uploadedUrl,
+        caption: caption || (lang === "ta" ? "வாட்டர்மார்க் இணைக்கப்பட்ட சங்க புகைப்படம்" : "Watermarked Union Photo"),
+        captionEn: "Watermarked Union Official Photo",
+        uploadedAt: new Date().toISOString()
+      };
+      await saveGalleryPhotoToFirestore(newP);
+      setPhotos(prev => [newP, ...prev.filter(p => p.id !== newP.id)]);
+      setActivePhotoIdx(0);
+      onAddAuditLog("Watermark Overlay Created", `Published watermarked photo: ${newP.caption}`);
+    }
+  };
+
+  // Apply watermarked image back into the upload form
+  const handleApplyOverlayToUpload = (watermarkedDataUrl: string) => {
+    setNewPhotoFileBase64(watermarkedDataUrl);
+    setNewPhotoFileName(`watermarked_photo_${Date.now()}.jpg`);
+    setPhotoSourceType("file");
+    setShowSuperAdminEditor(true);
+  };
+
   // Add new video with cloud synchronization
   const handleAddVideo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -442,6 +515,17 @@ export default function GallerySlider({
               <span>{lang === "ta" ? "புகைப்படங்கள்" : "Photos"} ({photos.length})</span>
             </button>
           </div>
+
+          {/* Quick Watermark Overlay Tool Button for All / Admin */}
+          <button
+            type="button"
+            onClick={() => handleOpenOverlayTool()}
+            className="px-3 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-amber-400/30 shrink-0"
+            title={lang === "ta" ? "வாட்டர்மார்க் PNG ஓவர்லே டூல் திறக்க" : "Open Transparent PNG Watermark Overlay Tool"}
+          >
+            <Layers className="w-4 h-4 text-yellow-200" />
+            <span>{lang === "ta" ? "வாட்டர்மார்க் டூல்" : "Watermark Tool"}</span>
+          </button>
 
           {isSuperAdmin && (
             <div className="flex items-center gap-1.5">
@@ -726,26 +810,40 @@ export default function GallerySlider({
                           </span>
                         </label>
 
-                        {/* Thumbnail Preview */}
+                        {/* Thumbnail Preview & Overlay Shortcut */}
                         {newPhotoFileBase64 && (
-                          <div className="mt-3 relative inline-block">
-                            <img 
-                              src={newPhotoFileBase64} 
-                              alt="Preview" 
-                              className="h-24 w-auto max-w-full rounded-xl object-cover border-2 border-rose-500 shadow-md mx-auto"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNewPhotoFileBase64("");
-                                setNewPhotoFileName("");
-                                if (photoFileInputRef.current) photoFileInputRef.current.value = "";
-                              }}
-                              className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full shadow hover:bg-red-700 cursor-pointer"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="text-[10px] font-bold text-stone-600 block mt-1 truncate max-w-xs mx-auto">
+                          <div className="mt-3 space-y-2">
+                            <div className="relative inline-block">
+                              <img 
+                                src={newPhotoFileBase64} 
+                                alt="Preview" 
+                                className="h-24 w-auto max-w-full rounded-xl object-cover border-2 border-rose-500 shadow-md mx-auto"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewPhotoFileBase64("");
+                                  setNewPhotoFileName("");
+                                  if (photoFileInputRef.current) photoFileInputRef.current.value = "";
+                                }}
+                                className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full shadow hover:bg-red-700 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenOverlayTool(null, newPhotoFileBase64)}
+                                className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 shadow cursor-pointer transition-all border border-amber-400/40"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-yellow-200" />
+                                <span>{lang === "ta" ? "🎨 வாட்டர்மார்க் PNG ஓவர்லே சேர்" : "🎨 Apply Watermark PNG Overlay"}</span>
+                              </button>
+                            </div>
+
+                            <span className="text-[10px] font-bold text-stone-600 block truncate max-w-xs mx-auto">
                               {newPhotoFileName}
                             </span>
                           </div>
@@ -953,6 +1051,15 @@ export default function GallerySlider({
                     {/* Action buttons */}
                     <div className="flex items-center gap-2 shrink-0">
                       <button
+                        onClick={() => handleOpenOverlayTool(photos[activePhotoIdx])}
+                        className="px-3 py-1.5 bg-amber-500/90 hover:bg-amber-600 backdrop-blur-md text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
+                        title={lang === "ta" ? "வாட்டர்மார்க் PNG இணைக்க / மாற்ற" : "Apply Watermark Overlay"}
+                      >
+                        <Layers className="w-3.5 h-3.5 text-yellow-200" />
+                        <span>{lang === "ta" ? "வாட்டர்மார்க்" : "Watermark"}</span>
+                      </button>
+
+                      <button
                         onClick={() => setSelectedPhotoForModal(photos[activePhotoIdx])}
                         className="px-3 py-1.5 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
                         title={lang === "ta" ? "பெரிதாக்கிப் பார்க்க" : "View Full Size"}
@@ -1084,6 +1191,19 @@ export default function GallerySlider({
                   {lang === "ta" ? selectedPhotoForModal.caption : selectedPhotoForModal.captionEn}
                 </p>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentPhoto = selectedPhotoForModal;
+                      setSelectedPhotoForModal(null);
+                      handleOpenOverlayTool(currentPhoto);
+                    }}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold flex items-center gap-1 cursor-pointer transition-all"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>{lang === "ta" ? "வாட்டர்மார்க் ஓவர்லே" : "Watermark Tool"}</span>
+                  </button>
+
                   <a
                     href={selectedPhotoForModal.url}
                     download="tnpa_gallery_photo.jpg"
@@ -1193,6 +1313,21 @@ export default function GallerySlider({
           </div>
         )}
       </AnimatePresence>
+
+      {/* GALLERY IMAGE WATERMARK & OVERLAY MODAL */}
+      <GalleryImageOverlayModal
+        isOpen={isOverlayModalOpen}
+        lang={lang}
+        initialImageSrc={overlayBaseImageSrc}
+        initialPhoto={overlayTargetPhoto}
+        onSaveToGallery={isSuperAdmin ? handleSaveOverlayToGallery : undefined}
+        onApplyForUpload={handleApplyOverlayToUpload}
+        onClose={() => {
+          setIsOverlayModalOpen(false);
+          setOverlayTargetPhoto(null);
+          setOverlayBaseImageSrc("");
+        }}
+      />
 
     </div>
   );
