@@ -106,6 +106,7 @@ import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
 import GrievanceSupportDesk from "./components/GrievanceSupportDesk";
 import StateLegalAdvisoryBoard from "./components/StateLegalAdvisoryBoard";
 import { AutoUpdatePrompt, forcePurgeCacheAndReload } from "./components/AutoUpdatePrompt";
+import { getCloudBackendUrl } from "./utils/apiClient";
 import RoleMobileAuthModal, { ROLE_AUTH_CONFIGS, RoleAuthConfig, getRegisteredRoleConfigs } from "./components/RoleMobileAuthModal";
 import MemberDirectoryOfflinePortal from "./components/MemberDirectoryOfflinePortal";
 import { safeSpeak, safeCancelSpeech } from "./utils/safeSpeech";
@@ -2677,15 +2678,19 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    <a
-                      href="https://ais-pre-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all text-center no-underline"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetUrl = getCloudBackendUrl();
+                        if (typeof window !== "undefined") {
+                          window.open(targetUrl, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                      className="py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all text-center cursor-pointer"
                     >
                       <Globe className="w-3.5 h-3.5" />
                       <span>{lang === "ta" ? "🌐 நேரலை கிளவுட் செயலியைத் திற (100% Live)" : "🌐 Open Live Cloud App"}</span>
-                    </a>
+                    </button>
 
                     <button
                       type="button"

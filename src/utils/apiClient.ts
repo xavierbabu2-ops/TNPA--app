@@ -5,8 +5,18 @@
  * Prevents "Invalid response received from server / Non-JSON" errors on standalone APKs.
  */
 
-// Fallback Live Production Cloud Backend URL when running inside APK or file://
-const CLOUD_BACKEND_URL = "https://ais-pre-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app";
+// Dynamic Live Production Cloud Backend URL with robust fallback
+export function getCloudBackendUrl(): string {
+  if (typeof window !== "undefined" && window.location.origin) {
+    const origin = window.location.origin;
+    if (origin.startsWith("http://") || origin.startsWith("https://")) {
+      if (!origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+        return origin;
+      }
+    }
+  }
+  return "https://ais-dev-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app";
+}
 
 /**
  * Normalizes Indian 10-digit phone number to standard +91XXXXXXXXXX
@@ -62,13 +72,19 @@ export async function safeApiFetch<T = any>(
   // Candidate URLs to try in order
   const urlsToTry: string[] = [];
 
+  const cloudBase = getCloudBackendUrl();
+
   // In Web environment on cloud run, relative path is fastest
   if (!isStandaloneApp()) {
     urlsToTry.push(normalizedEndpoint);
-    urlsToTry.push(`${CLOUD_BACKEND_URL}${normalizedEndpoint}`);
+    if (cloudBase) {
+      urlsToTry.push(`${cloudBase}${normalizedEndpoint}`);
+    }
   } else {
     // In standalone APK or local file, prefer cloud backend first, then relative
-    urlsToTry.push(`${CLOUD_BACKEND_URL}${normalizedEndpoint}`);
+    if (cloudBase) {
+      urlsToTry.push(`${cloudBase}${normalizedEndpoint}`);
+    }
     urlsToTry.push(normalizedEndpoint);
   }
 
