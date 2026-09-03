@@ -600,7 +600,7 @@ export default function OfficeBearerCertificateGenerator({
               <div className="flex flex-col items-center text-center w-60">
                 <div className="h-12 flex items-center justify-center">
                   <span className="font-serif italic text-base text-[#991b1b] font-black tracking-wider">
-                    S. Michael Alvin
+                    S. Michael Alwin
                   </span>
                 </div>
                 <div className="w-48 border-t-2 border-stone-800 pt-1">

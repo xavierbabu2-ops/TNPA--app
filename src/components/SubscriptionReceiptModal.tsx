@@ -300,7 +300,7 @@ export default function SubscriptionReceiptModal({
               </div>
               <div class="sig-block">
                 <div class="sig-line"></div>
-                <div class="sig-name">S. மைக்கேல் ஆல்வின் (S. Michael Alvin)</div>
+                <div class="sig-name">S. மைக்கேல் ஆல்வின் (S. Michael Alwin)</div>
                 <div class="sig-role">மாநில தலைவர் (State President)</div>
               </div>
             </div>
@@ -543,7 +543,7 @@ Association: Tamil Nadu Painters and Artists Progressive Association (Reg: TNMDU
             {/* State President Sign */}
             <div className="space-y-1">
               <div className="h-9 border-b border-stone-400 flex items-end justify-center pb-1">
-                <span className="font-serif italic font-bold text-stone-700 text-xs text-red-900">S. Michael Alvin</span>
+                <span className="font-serif italic font-bold text-stone-700 text-xs text-red-900">S. Michael Alwin</span>
               </div>
               <span className="font-bold text-[11px] text-stone-900 block leading-tight">S. மைக்கேல் ஆல்வின்</span>
               <span className="text-[9px] text-stone-500 block">மாநில தலைவர்</span>

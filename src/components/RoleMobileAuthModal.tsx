@@ -50,7 +50,7 @@ export const ROLE_AUTH_CONFIGS: Record<string, RoleAuthConfig> = {
     badgeEn: "Full Master Access",
     officerNameTa: "ரா. சேவியர் பாபு (மாநில பொதுச்செயலாளர்)",
     officerNameEn: "R. Xavier Babu (State General Secretary)",
-    validPhones: [],
+    validPhones: ["9443254321", "7010131915"],
     account: defaultAccounts[0],
     icon: <ShieldCheck className="w-5 h-5 text-amber-400" />,
     colorTheme: {
@@ -67,7 +67,7 @@ export const ROLE_AUTH_CONFIGS: Record<string, RoleAuthConfig> = {
     badgeTa: "மாநில நிர்வாக அதிகாரம்",
     badgeEn: "State Executive Power",
     officerNameTa: "எஸ். மைக்கேல் ஆல்வின் (மாநில தலைவர்)",
-    officerNameEn: "S. Michael Alvin (State President)",
+    officerNameEn: "S. Michael Alwin (State President)",
     validPhones: ["9443212345", "9789331681"],
     account: defaultAccounts[1],
     icon: <Award className="w-5 h-5 text-amber-400" />,
@@ -115,6 +115,184 @@ export const ROLE_AUTH_CONFIGS: Record<string, RoleAuthConfig> = {
     }
   }
 };
+
+/**
+ * Dynamically builds RoleAuthConfig list only for registered officials appointed / verified by Super Admin
+ */
+export function getRegisteredRoleConfigs(executives: any[] = []): RoleAuthConfig[] {
+  const configs: RoleAuthConfig[] = [];
+
+  // 1. Super Admin (Master Admin registered by default)
+  const superAdminExec = executives.find(e => 
+    e.level === "state" && (
+      e.id === "exec_st_2" ||
+      e.name?.includes("சேவியர் பாபு") ||
+      e.nameEn?.toLowerCase()?.includes("xavier babu") ||
+      e.role?.includes("பொதுச்செயலாளர்")
+    )
+  );
+
+  const superPhone = superAdminExec?.phone ? superAdminExec.phone.replace(/\D/g, "").slice(-10) : "7010131915";
+  const superAdminValidPhones = Array.from(new Set(["9443254321", superPhone])).filter(p => p.length === 10);
+
+  configs.push({
+    role: "super_admin",
+    titleTa: "சூப்பர் அட்மின்",
+    titleEn: "Super Admin Power",
+    badgeTa: "முழு கட்டுப்பாடு & Super Key",
+    badgeEn: "Full Master Access",
+    officerNameTa: superAdminExec ? `${superAdminExec.name} (${superAdminExec.role})` : "ரா. சேவியர் பாபு (மாநில பொதுச்செயலாளர்)",
+    officerNameEn: superAdminExec ? `${superAdminExec.nameEn || superAdminExec.name} (${superAdminExec.roleEn || superAdminExec.role})` : "R. Xavier Babu (State General Secretary)",
+    validPhones: superAdminValidPhones,
+    account: {
+      ...defaultAccounts[0],
+      phone: superPhone,
+      name: superAdminExec?.name || defaultAccounts[0].name,
+      nameEn: superAdminExec?.nameEn || defaultAccounts[0].nameEn,
+      photoUrl: superAdminExec?.photoUrl || defaultAccounts[0].photoUrl
+    },
+    icon: <ShieldCheck className="w-5 h-5 text-amber-400" />,
+    colorTheme: {
+      bg: "bg-stone-950",
+      border: "border-amber-500/50",
+      text: "text-amber-400",
+      badgeBg: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+    }
+  });
+
+  // 2. State President (Registered Executive)
+  const statePresidentExec = executives.find(e => 
+    e.level === "state" && (
+      e.role?.includes("தலைவர்") || 
+      e.roleEn?.toLowerCase()?.includes("president") ||
+      e.name?.includes("மைக்கேல் ஆல்வின்")
+    )
+  );
+
+  if (statePresidentExec) {
+    const presPhone = statePresidentExec.phone ? statePresidentExec.phone.replace(/\D/g, "").slice(-10) : "9789331681";
+    const presPhones = Array.from(new Set([presPhone, "9443212345", "9789331681"])).filter(p => p.length === 10);
+
+    configs.push({
+      role: "state_president",
+      titleTa: statePresidentExec.role || "மாநில தலைவர்",
+      titleEn: statePresidentExec.roleEn || "State President",
+      badgeTa: "மாநில தலைமை நிர்வாகம்",
+      badgeEn: "State Executive Power",
+      officerNameTa: `${statePresidentExec.name} (${statePresidentExec.role})`,
+      officerNameEn: `${statePresidentExec.nameEn || statePresidentExec.name} (${statePresidentExec.roleEn || statePresidentExec.role})`,
+      validPhones: presPhones,
+      account: {
+        ...defaultAccounts[1],
+        phone: presPhone,
+        name: statePresidentExec.name,
+        nameEn: statePresidentExec.nameEn || statePresidentExec.name,
+        photoUrl: statePresidentExec.photoUrl || defaultAccounts[1].photoUrl
+      },
+      icon: <Award className="w-5 h-5 text-amber-400" />,
+      colorTheme: {
+        bg: "bg-amber-950/40",
+        border: "border-amber-500/50",
+        text: "text-amber-400",
+        badgeBg: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      }
+    });
+  }
+
+  // 3. State Treasurer (Registered Executive)
+  const stateTreasurerExec = executives.find(e => 
+    e.level === "state" && (
+      e.role?.includes("பொருளாளர்") || 
+      e.roleEn?.toLowerCase()?.includes("treasurer") ||
+      e.name?.includes("சக்திவேல்")
+    )
+  );
+
+  if (stateTreasurerExec) {
+    const treasPhone = stateTreasurerExec.phone ? stateTreasurerExec.phone.replace(/\D/g, "").slice(-10) : "9842155667";
+    const treasPhones = Array.from(new Set([treasPhone, "9443298765", "9842155667"])).filter(p => p.length === 10);
+
+    configs.push({
+      role: "state_treasurer",
+      titleTa: stateTreasurerExec.role || "மாநில பொருளாளர்",
+      titleEn: stateTreasurerExec.roleEn || "State Treasurer",
+      badgeTa: "மாநில நிதி மேலாண்மை",
+      badgeEn: "State Financial Control",
+      officerNameTa: `${stateTreasurerExec.name} (${stateTreasurerExec.role})`,
+      officerNameEn: `${stateTreasurerExec.nameEn || stateTreasurerExec.name} (${stateTreasurerExec.roleEn || stateTreasurerExec.role})`,
+      validPhones: treasPhones,
+      account: {
+        id: "usr_treasurer",
+        role: "state_treasurer",
+        name: stateTreasurerExec.name,
+        nameEn: stateTreasurerExec.nameEn || stateTreasurerExec.name,
+        phone: treasPhone,
+        email: "treasurer@tnpainters.org",
+        district: stateTreasurerExec.district || "கோயம்புத்தூர்",
+        districtEn: stateTreasurerExec.districtEn || "Coimbatore",
+        status: "approved",
+        regNumber: "TNP-TREAS-003",
+        photoUrl: stateTreasurerExec.photoUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200",
+        joinedAt: stateTreasurerExec.appointedDate || "2020-01-01T10:00:00Z"
+      },
+      icon: <Award className="w-5 h-5 text-emerald-400" />,
+      colorTheme: {
+        bg: "bg-emerald-950/40",
+        border: "border-emerald-500/50",
+        text: "text-emerald-400",
+        badgeBg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+      }
+    });
+  }
+
+  // 4. District Admins (Only registered active district executives)
+  const districtExecs = executives.filter(e => e.level === "district" && e.status === "active");
+  
+  if (districtExecs.length > 0) {
+    // Pick the primary active district executive or first district admin
+    const primaryDistExec = districtExecs.find(e => e.role?.includes("செயலாளர்") || e.role?.includes("தலைவர்")) || districtExecs[0];
+    const distPhone = primaryDistExec.phone ? primaryDistExec.phone.replace(/\D/g, "").slice(-10) : "9840987654";
+    const allDistPhones = Array.from(
+      new Set(
+        districtExecs
+          .map(d => d.phone.replace(/\D/g, "").slice(-10))
+          .concat(["9840987654", "9710055443"])
+      )
+    ).filter(p => p.length === 10);
+
+    configs.push({
+      role: "district_admin",
+      titleTa: `${primaryDistExec.district || "மாவட்ட"} அட்மின்`,
+      titleEn: `${primaryDistExec.districtEn || "District"} Admin Power`,
+      badgeTa: "மாவட்ட கிளை ஒப்புதல்",
+      badgeEn: "District Branch Approval",
+      officerNameTa: `${primaryDistExec.name} (${primaryDistExec.role || "மாவட்ட பொறுப்பாளர்"} - ${primaryDistExec.district || "சென்னை"})`,
+      officerNameEn: `${primaryDistExec.nameEn || primaryDistExec.name} (${primaryDistExec.roleEn || primaryDistExec.role} - ${primaryDistExec.districtEn || "District"})`,
+      validPhones: allDistPhones.slice(0, 3), // Show clean top valid registered numbers
+      account: {
+        ...defaultAccounts[3],
+        phone: distPhone,
+        district: primaryDistExec.district || defaultAccounts[3].district,
+        districtEn: primaryDistExec.districtEn || defaultAccounts[3].districtEn,
+        name: primaryDistExec.name,
+        nameEn: primaryDistExec.nameEn || primaryDistExec.name,
+        photoUrl: primaryDistExec.photoUrl || defaultAccounts[3].photoUrl
+      },
+      icon: <Building className="w-5 h-5 text-blue-400" />,
+      colorTheme: {
+        bg: "bg-blue-950/40",
+        border: "border-blue-500/50",
+        text: "text-blue-400",
+        badgeBg: "bg-blue-500/20 text-blue-300 border-blue-500/30"
+      }
+    });
+  } else {
+    // Fallback default district admin if no district execs in list
+    configs.push(ROLE_AUTH_CONFIGS.district_admin);
+  }
+
+  return configs;
+}
 
 interface RoleMobileAuthModalProps {
   lang: "ta" | "en";

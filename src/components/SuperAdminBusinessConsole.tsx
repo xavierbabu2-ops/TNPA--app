@@ -318,7 +318,7 @@ export default function SuperAdminBusinessConsole({
     {
       id: "adm_2",
       name: "எஸ். மைக்கேல் ஆல்வின்",
-      nameEn: "S. Michael Alvin",
+      nameEn: "S. Michael Alwin",
       email: "president@tnpainters.org",
       role: "State President",
       phone: "9443212345",
@@ -571,7 +571,7 @@ export default function SuperAdminBusinessConsole({
   // Comprehensive multi-column Audit Logs
   const [auditLogs, setAuditLogs] = useState<any[]>([
     { id: "log_1", user: "R. Xavier Babu", role: "Super Admin", date: "2026-08-04", time: "08:36:12", action: "Data Export Triggered", oldVal: "N/A", newVal: "TNPA_SUPER_ADMIN_REPORT.csv", device: "Admin Workstation", browser: "Chrome 140.0", os: "Ubuntu Linux", loginMethod: "Google SSO + Biometrics", sessionId: "SESS-773a2e9b" },
-    { id: "log_2", user: "S. Michael Alvin", role: "State President", date: "2026-08-04", time: "07:45:01", action: "Welfare Claim Approved", oldVal: "Status: Pending", newVal: "Status: Approved (ID: TNP-WLF-9041)", device: "Apple iPad Pro", browser: "Safari Mobile", os: "iOS 19.1", loginMethod: "OTP + Fingerprint", sessionId: "SESS-bb1c905e" },
+    { id: "log_2", user: "S. Michael Alwin", role: "State President", date: "2026-08-04", time: "07:45:01", action: "Welfare Claim Approved", oldVal: "Status: Pending", newVal: "Status: Approved (ID: TNP-WLF-9041)", device: "Apple iPad Pro", browser: "Safari Mobile", os: "iOS 19.1", loginMethod: "OTP + Fingerprint", sessionId: "SESS-bb1c905e" },
     { id: "log_3", user: "R. Sakthivel", role: "State Treasurer", date: "2026-08-03", time: "18:22:15", action: "Treasurer Payment Verification", oldVal: "Status: Pending", newVal: "Status: Success (Txn: UPI901248)", device: "Samsung Galaxy S26", browser: "Chrome Mobile", os: "Android 16", loginMethod: "Secure PIN", sessionId: "SESS-44fa1290" },
     { id: "log_4", user: "R. Ganesan", role: "Media Administrator", date: "2026-08-04", time: "08:10:05", action: "Published News / Bulletin", oldVal: "N/A", newVal: "ID: n_801 - State Painting Standards v2", device: "Windows desktop", browser: "Firefox 138.0", os: "Windows 11 Enterprise", loginMethod: "Email OTP", sessionId: "SESS-993d3921" },
     { id: "log_5", user: "System Automated Node", role: "Cron Daemon", date: "2026-08-04", time: "08:00:00", action: "Database Auto-Backup Scheduled", oldVal: "Hash: 8a1f", newVal: "Hash: c90a - Uploaded to safe-bucket-1", device: "VPC Cloud Server", browser: "N/A", os: "Debian 12 Server", loginMethod: "Internal Auth Token", sessionId: "SESS-CRON-8201" },

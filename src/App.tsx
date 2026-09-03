@@ -106,7 +106,7 @@ import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
 import GrievanceSupportDesk from "./components/GrievanceSupportDesk";
 import StateLegalAdvisoryBoard from "./components/StateLegalAdvisoryBoard";
 import { AutoUpdatePrompt, forcePurgeCacheAndReload } from "./components/AutoUpdatePrompt";
-import RoleMobileAuthModal, { ROLE_AUTH_CONFIGS, RoleAuthConfig } from "./components/RoleMobileAuthModal";
+import RoleMobileAuthModal, { ROLE_AUTH_CONFIGS, RoleAuthConfig, getRegisteredRoleConfigs } from "./components/RoleMobileAuthModal";
 import MemberDirectoryOfflinePortal from "./components/MemberDirectoryOfflinePortal";
 import { safeSpeak, safeCancelSpeech } from "./utils/safeSpeech";
 import { 
@@ -1096,7 +1096,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {Object.values(ROLE_AUTH_CONFIGS).map((item, idx) => (
+                {getRegisteredRoleConfigs(executives).map((item, idx) => (
                   <button
                     key={idx}
                     onClick={() => {
@@ -1118,7 +1118,7 @@ export default function App() {
                       <span className="font-extrabold text-xs block text-stone-100">{lang === "ta" ? item.titleTa : item.titleEn}</span>
                       <span className="text-[11px] text-stone-300 block truncate mt-0.5 font-medium">{lang === "ta" ? item.officerNameTa : item.officerNameEn}</span>
                       <span className="text-[10px] text-amber-300/80 block font-mono mt-1">
-                        {lang === "ta" ? "பதிவு எண்:" : "Reg Phone:"} {item.validPhones.map(p => `...${p.slice(-4)}`).join(" / ")}
+                        {lang === "ta" ? "பதிவு எண்:" : "Reg Phone:"} {item.validPhones.length > 0 ? item.validPhones.map(p => `...${p.slice(-4)}`).join(" / ") : (lang === "ta" ? "பதிவு செய்யப்பட்டுள்ளது" : "Registered")}
                       </span>
                     </div>
                     <div className="text-[10px] text-amber-400 font-bold mt-3 pt-2 border-t border-white/5 flex items-center justify-between">

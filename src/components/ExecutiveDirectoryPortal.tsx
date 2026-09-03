@@ -1559,7 +1559,7 @@ export default function ExecutiveDirectoryPortal({
                 <div className="p-4 bg-white rounded-2xl border-2 border-stone-200/90 shadow-xs flex flex-col items-center justify-between">
                   <div className="h-12 flex items-center justify-center">
                     <span className="font-serif italic text-base text-[#991b1b] font-black tracking-wider">
-                      S. Michael Alvin
+                      S. Michael Alwin
                     </span>
                   </div>
                   <div className="w-full border-t border-stone-300 pt-2">

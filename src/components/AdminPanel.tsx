@@ -1962,7 +1962,7 @@ export default function AdminPanel({
                     required
                     value={newLeaderNameEn}
                     onChange={(e) => setNewLeaderNameEn(e.target.value)}
-                    placeholder="S. Michael Alvin"
+                    placeholder="S. Michael Alwin"
                     className="w-full px-3 py-2 border rounded-xl bg-white"
                   />
                 </div>

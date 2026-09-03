@@ -49,7 +49,7 @@ const SEED_PAYMENTS: PaymentRecord[] = [
   {
     id: "pay_sub_02",
     memberId: "TNP-STATE-002",
-    memberName: "S. மைக்கேல் ஆல்வின் (S. Michael Alvin)",
+    memberName: "S. மைக்கேல் ஆல்வின் (S. Michael Alwin)",
     amount: 720,
     paymentDate: "2026-08-01 11:15 AM",
     paymentType: "membership",

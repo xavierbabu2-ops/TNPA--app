@@ -113,7 +113,7 @@ export default function TnpaTvChannel({
 
   const [tickerNewsEn, setTickerNewsEn] = useState<string[]>([
     "TNPA² TV Live: Official digital TV Channel launched for 38 districts of Tamil Nadu Painters Association!",
-    "State President S. Michael Alvin: Memorandum submitted requesting construction welfare pension increase to ₹2,000.",
+    "State President S. Michael Alwin: Memorandum submitted requesting construction welfare pension increase to ₹2,000.",
     "General Secretary R. Xavier Babu: Official TV channel link being dispatched via SMS to all union office bearers.",
     "State Treasurer R. Sakthivel: Instant digital QR ID Cards issued to all subscribed union members."
   ]);
@@ -214,7 +214,7 @@ export default function TnpaTvChannel({
       id: "p3",
       time: "02:30 PM",
       title: "மாநில தலைவர் S. மைக்கேல் ஆல்வின் சிறப்பு உரை (நேரலை)",
-      titleEn: "State President S. Michael Alvin Special Address (LIVE)",
+      titleEn: "State President S. Michael Alwin Special Address (LIVE)",
       category: "speech",
       presenter: "S. மைக்கேல் ஆல்வின் (மாநில தலைவர்)",
       isLiveNow: true
@@ -1568,7 +1568,7 @@ export default function TnpaTvChannel({
                   <span className="font-mono text-amber-800">+91 70101 31915 ✓</span>
                 </div>
                 <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-amber-200">
-                  <span className="font-bold">2. S. Michael Alvin (State President)</span>
+                  <span className="font-bold">2. S. Michael Alwin (State President)</span>
                   <span className="font-mono text-amber-800">+91 98765 43210 ✓</span>
                 </div>
                 <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-amber-200">

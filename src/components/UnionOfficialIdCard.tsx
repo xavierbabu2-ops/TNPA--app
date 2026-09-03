@@ -704,7 +704,7 @@ export default function UnionOfficialIdCard({
             {/* Front Card Canvas */}
             <div 
               id="union-id-card-front"
-              className="w-full max-w-[560px] aspect-[1.58/1] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
+              className="w-full max-w-[560px] min-h-[340px] sm:min-h-[360px] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
               {/* Top Red Header Banner (#C00000) */}
@@ -872,7 +872,7 @@ export default function UnionOfficialIdCard({
               <div className="px-3 py-1 grid grid-cols-3 gap-1 border-t border-stone-300 text-center font-black bg-white shrink-0">
                 <div className="space-y-0">
                   <div className="h-4 md:h-5 flex items-end justify-center font-serif italic font-bold text-stone-900 text-[10px] md:text-xs">
-                    S. Michael Alvin
+                    S. Michael Alwin
                   </div>
                   <div className="font-black text-[#C00000] text-[8px] md:text-[9.5px]">
                     மாநிலத் தலைவர்
@@ -943,7 +943,7 @@ export default function UnionOfficialIdCard({
             {/* Back Card Canvas */}
             <div 
               id="union-id-card-back"
-              className="w-full max-w-[560px] aspect-[1.58/1] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
+              className="w-full max-w-[560px] min-h-[340px] sm:min-h-[360px] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
               {/* Top Red Header Banner (#C00000) */}

@@ -8,7 +8,7 @@ export const INITIAL_EXECUTIVE_MEMBERS: ExecutiveMember[] = [
     id: "exec_st_1",
     level: "state",
     name: "S. மைக்கேல் ஆல்வின்",
-    nameEn: "S. Michael Alvin",
+    nameEn: "S. Michael Alwin",
     role: "மாநில தலைவர்",
     roleEn: "State President",
     phone: "+919789331681",

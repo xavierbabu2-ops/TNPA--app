@@ -39,7 +39,7 @@ export default function RoleBasedControlPortal({
       issuedBy: "R. Xavier Babu (Primary Super Admin)",
       createdAt: "2026-01-01",
       status: "active",
-      assignedTo: "S. Michael Alvin",
+      assignedTo: "S. Michael Alwin",
       adminPhone: "9840048200"
     },
     {

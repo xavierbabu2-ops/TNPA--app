@@ -43,8 +43,8 @@ export function getExecutivePhoto(exec?: { id?: string; name?: string; role?: st
   const r = (exec.role || "").toLowerCase();
   const id = exec.id || "";
 
-  // 1. State President - S. Michael Alvin
-  if (n.includes("மைக்கேல்") || n.includes("alvin") || r.includes("மாநில தலைவர்") || id === "exec_st_1" || id === "l1") {
+  // 1. State President - S. Michael Alwin
+  if (n.includes("மைக்கேல்") || n.includes("alwin") || n.includes("alvin") || r.includes("மாநில தலைவர்") || id === "exec_st_1" || id === "l1") {
     return DEFAULT_EXECUTIVE_PORTRAITS[0];
   }
 

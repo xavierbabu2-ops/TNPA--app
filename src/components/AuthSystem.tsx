@@ -54,7 +54,7 @@ export const defaultAccounts: UserAccount[] = [
     id: "usr_president",
     role: "state_president",
     name: "எஸ். மைக்கேல் ஆல்வின்",
-    nameEn: "S. Michael Alvin",
+    nameEn: "S. Michael Alwin",
     phone: "9443212345",
     email: "president@tnpainters.org",
     district: "சென்னை",
