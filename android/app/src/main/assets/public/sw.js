@@ -1,6 +1,6 @@
 /**
  * TNPA Progressive Web Application (PWA) Service Worker
- * Version: 2.4.0
+ * Version: 3.0.0
  * Features:
  * - App Shell Caching
  * - Local Member Database & Directory Caching (Offline Read-Access)
@@ -8,13 +8,14 @@
  * - Automatic Connectivity Recovery Syncing
  */
 
-const STATIC_CACHE_NAME = 'tnpa-pwa-static-v2.5';
-const MEMBERS_CACHE_NAME = 'tnpa-members-database-v2.5';
+const STATIC_CACHE_NAME = 'tnpa-pwa-static-v3.0';
+const MEMBERS_CACHE_NAME = 'tnpa-members-database-v3.0';
 
 const STATIC_URLS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/tnpa_official_logo.png',
   '/logo.svg',
   '/flag.svg',
   '/r_xavier_babu.svg',
