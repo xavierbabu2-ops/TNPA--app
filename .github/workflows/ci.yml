@@ -76,7 +76,8 @@ jobs:
     - name: Sync Capacitor Android
       run: |
         npx cap sync android
-        sed -i "s/classpath 'com.android.tools.build:gradle:[^']*'/classpath 'com.android.tools.build:gradle:8.13.0'/g" android/build.gradle android/capacitor-cordova-android-plugins/build.gradle 2>/dev/null || true
+        sed -i "s/classpath 'com.android.tools.build:gradle:[^']*'/classpath 'com.android.tools.build:gradle:8.13.0'/g" android/build.gradle 2>/dev/null || true
+        sed -i "/capacitor-cordova-android-plugins/d" android/app/build.gradle 2>/dev/null || true
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
