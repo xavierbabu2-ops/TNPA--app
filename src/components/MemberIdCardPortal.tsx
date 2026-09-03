@@ -21,7 +21,8 @@ import {
   Radio,
   Share2,
   RefreshCw,
-  Globe
+  Globe,
+  Image as ImageIcon
 } from "lucide-react";
 import { MemberRegistration, UserAccount } from "../types";
 import UnionOfficialIdCard from "./UnionOfficialIdCard";
@@ -83,6 +84,7 @@ export default function MemberIdCardPortal({
   );
   const [customEmblemUrl, setCustomEmblemUrl] = useState<string>("");
   const [customLogoUrl, setCustomLogoUrl] = useState<string>("");
+  const [customWatermarkUrl, setCustomWatermarkUrl] = useState<string>(() => localStorage.getItem("tnpa_custom_watermark") || "");
 
   // Subscribe to global union config on mount to pull latest Super Admin logos and emblem
   useEffect(() => {
@@ -512,6 +514,7 @@ export default function MemberIdCardPortal({
               side={cardSide}
               customLogoUrl={customLogoUrl}
               customGovtSealUrl={customEmblemUrl}
+              customWatermarkUrl={customWatermarkUrl}
               onUpdatePhoto={(newPhotoUrl) => {
                 setCustomPhotoUrl(newPhotoUrl);
                 if (currentMember) {
@@ -526,6 +529,11 @@ export default function MemberIdCardPortal({
               onUpdateLogo={(newLogoUrl) => {
                 setCustomLogoUrl(newLogoUrl);
                 onAddAuditLog("Update Association Logo", `Updated association logo on member ID cards`);
+              }}
+              onUpdateWatermark={(newWatermarkUrl) => {
+                setCustomWatermarkUrl(newWatermarkUrl);
+                localStorage.setItem("tnpa_custom_watermark", newWatermarkUrl);
+                onAddAuditLog("Update Watermark", `Updated ID card watermark image from device`);
               }}
             />
           </div>
@@ -689,7 +697,7 @@ export default function MemberIdCardPortal({
               </div>
 
               {/* Direct Device File Manager Upload Buttons */}
-              <div className="pt-4 border-t border-stone-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="pt-4 border-t border-stone-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
                 {/* 1. Photo File Manager Trigger */}
                 <label className="p-4 bg-stone-50 hover:bg-stone-100 rounded-2xl border-2 border-dashed border-[#C00000]/40 flex items-center gap-3 cursor-pointer transition-all">
@@ -701,7 +709,7 @@ export default function MemberIdCardPortal({
                       📁 உறுப்பினர் புகைப்படம்
                     </span>
                     <span className="text-[10px] text-stone-500">
-                      மொபைல் கேலரி / ஃபைல் மேனேஜர்
+                      மொபைல் கேலரி / ஃபைல்
                     </span>
                   </div>
                   <input
@@ -722,7 +730,7 @@ export default function MemberIdCardPortal({
                       🏛️ அரசு முத்திரை சின்னம்
                     </span>
                     <span className="text-[10px] text-stone-500">
-                      முத்திரை படம் பதிவேற்றவும்
+                      முத்திரை படம் பதிவேற்ற
                     </span>
                   </div>
                   <input
@@ -750,7 +758,7 @@ export default function MemberIdCardPortal({
                       🎨 சங்க லோகோ மாற்றம்
                     </span>
                     <span className="text-[10px] text-stone-500">
-                      புதிய லோகோ தேர்ந்தெடுக்கவும்
+                      புதிய லோகோ தேர்வு
                     </span>
                   </div>
                   <input
@@ -761,6 +769,39 @@ export default function MemberIdCardPortal({
                       if (file) {
                         const reader = new FileReader();
                         reader.onload = () => setCustomLogoUrl(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* 4. Center Watermark Trigger */}
+                <label className="p-4 bg-amber-50/80 hover:bg-amber-100/90 rounded-2xl border-2 border-dashed border-amber-500/60 flex items-center gap-3 cursor-pointer transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="font-black text-xs text-stone-900 block">
+                      🖼️ நடு வாட்டர்மார்க்
+                    </span>
+                    <span className="text-[10px] text-stone-600">
+                      {customWatermarkUrl ? "✓ மாற்றப்பட்டது" : "போனிலிருந்து தேர்வு"}
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const res = reader.result as string;
+                          setCustomWatermarkUrl(res);
+                          localStorage.setItem("tnpa_custom_watermark", res);
+                          onAddAuditLog("Update Watermark", "Updated ID card watermark image from device");
+                        };
                         reader.readAsDataURL(file);
                       }
                     }}

@@ -12,7 +12,9 @@ import {
   Eye, 
   RotateCcw,
   Building2,
-  FileCheck
+  FileCheck,
+  Image as ImageIcon,
+  SlidersHorizontal
 } from "lucide-react";
 import { formatMemberNumber } from "../utils/districtCodes";
 import { UserAccount } from "../types";
@@ -28,95 +30,31 @@ export function AssociationEmblemLogo({
   onClick
 }: {
   customUrl?: string;
-  size?: "sm" | "md" | "lg" | "xl" | "header";
+  size?: "sm" | "md" | "lg";
   className?: string;
   onClick?: () => void;
 }) {
   const sizeClasses = {
     sm: "w-10 h-10 md:w-11 md:h-11",
     md: "w-12 h-12 md:w-14 md:h-14",
-    lg: "w-16 h-16 md:w-20 md:h-20",
-    xl: "w-20 h-20 md:w-24 md:h-24",
-    header: "w-14 h-14 sm:w-16 sm:h-16 md:w-[70px] md:h-[70px]"
+    lg: "w-16 h-16 md:w-20 md:h-20"
   }[size];
-
-  if (customUrl) {
-    return (
-      <div 
-        onClick={onClick}
-        className={`${sizeClasses} rounded-full bg-white border-2 sm:border-[2.5px] border-amber-300 p-0.5 shadow-md overflow-hidden flex items-center justify-center shrink-0 ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
-      >
-        <img src={customUrl} alt="Association Logo" className="w-full h-full object-contain rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <div 
       onClick={onClick}
-      className={`${sizeClasses} rounded-full bg-white border-2 sm:border-[2.5px] border-amber-300 shadow-md flex items-center justify-center shrink-0 relative overflow-hidden select-none ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
+      className={`${sizeClasses} rounded-full bg-white border-2 border-[#C00000] p-0.5 shadow-sm overflow-hidden flex items-center justify-center shrink-0 ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
       title="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்"
     >
-      <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-        {/* Outer Circular Red Rim */}
-        <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke="#C00000" strokeWidth="4" />
-        <circle cx="50" cy="50" r="44" fill="none" stroke="#111111" strokeWidth="0.8" strokeDasharray="1 1" />
-
-        {/* Association Top Text Arc */}
-        <path id="textArcTop" d="M 18,50 A 32,32 0 0,1 82,50" fill="none" />
-        <text className="text-[5.5px] font-black fill-[#C00000]" textAnchor="middle">
-          <textPath href="#textArcTop" startOffset="50%">TN PA² ASSOCIATION</textPath>
-        </text>
-
-        {/* Association Bottom Text Arc */}
-        <path id="textArcBottom" d="M 82,52 A 32,32 0 0,1 18,52" fill="none" />
-        <text className="text-[5.5px] font-black fill-[#111111]" textAnchor="middle">
-          <textPath href="#textArcBottom" startOffset="50%">MADURAI • TAMIL NADU</textPath>
-        </text>
-
-        {/* Inner Gold / White Center Disc */}
-        <circle cx="50" cy="50" r="30" fill="#FFFDF0" stroke="#C00000" strokeWidth="1.2" />
-
-        {/* Raised Hand & Paint Tools Illustration */}
-        <g transform="translate(50, 50) scale(0.9) translate(-50, -50)">
-          {/* Paint Splashes & Strokes */}
-          <path d="M 28 42 C 34 30, 66 30, 72 42" stroke="#C00000" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-          <circle cx="34" cy="34" r="1.5" fill="#C00000" />
-          <circle cx="66" cy="34" r="1.5" fill="#C00000" />
-
-          {/* Paint Roller Tool (Diagonal Left) */}
-          <g transform="rotate(-25 45 42)">
-            {/* Roller Sleeve */}
-            <rect x="36" y="24" width="18" height="7" rx="1.5" fill="#111111" stroke="#C00000" strokeWidth="0.8" />
-            <line x1="40" y1="24" x2="40" y2="31" stroke="#FFFFFF" strokeWidth="0.6" />
-            <line x1="45" y1="24" x2="45" y2="31" stroke="#FFFFFF" strokeWidth="0.6" />
-            <line x1="50" y1="24" x2="50" y2="31" stroke="#FFFFFF" strokeWidth="0.6" />
-            {/* Metal Frame */}
-            <path d="M 54 27.5 L 58 27.5 L 58 38 L 48 42" fill="none" stroke="#555555" strokeWidth="1.2" strokeLinecap="round" />
-          </g>
-
-          {/* Paint Brush Tool (Diagonal Right) */}
-          <g transform="rotate(25 55 42)">
-            {/* Bristles */}
-            <path d="M 50 24 L 58 24 L 59 31 L 49 31 Z" fill="#C00000" />
-            {/* Ferrule (Metal) */}
-            <rect x="49" y="31" width="10" height="4" fill="#888888" stroke="#111111" strokeWidth="0.5" />
-            {/* Handle */}
-            <path d="M 52 35 L 53 48 L 55 48 L 56 35 Z" fill="#111111" />
-          </g>
-
-          {/* Strong Raised Fist (Black & White with Red Outline) */}
-          {/* Arm / Wrist */}
-          <rect x="45" y="60" width="10" height="15" fill="#111111" rx="1" />
-          {/* Fist Clench */}
-          <circle cx="50" cy="53" r="8" fill="#111111" stroke="#FFFFFF" strokeWidth="0.8" />
-          {/* Fingers / Knuckles */}
-          <rect x="43" y="48" width="14" height="4" rx="1.5" fill="#222222" stroke="#FFFFFF" strokeWidth="0.6" />
-          <rect x="44" y="52" width="12" height="3" rx="1" fill="#333333" stroke="#FFFFFF" strokeWidth="0.5" />
-          {/* Thumb */}
-          <path d="M 43 51 C 41 54, 43 58, 47 57" fill="#222222" stroke="#FFFFFF" strokeWidth="0.6" />
-        </g>
-      </svg>
+      <img 
+        src={customUrl || "/tnpa_official_logo.png"} 
+        alt="TNPA Official Association Logo" 
+        referrerPolicy="no-referrer"
+        className="w-full h-full object-contain rounded-full" 
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = "/tnpa_logo.svg";
+        }}
+      />
     </div>
   );
 }
@@ -254,85 +192,44 @@ export function TamilNaduGovtEmblemStamp({
 }
 
 // ============================================================================
-// WATERMARK COMPONENT FOR ID CARD BACKGROUND (FRONT & BACK)
-// Renders our Association's official emblem directly behind the text
+// WATERMARK COMPONENT FOR ID CARD BACKGROUND
 // ============================================================================
-function IdCardCenterWatermark({ customUrl }: { customUrl?: string }) {
-  if (customUrl) {
-    return (
-      <div 
-        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden"
-        aria-hidden="true"
-      >
-        <div className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full border-4 border-[#C00000]/25 p-2 flex items-center justify-center opacity-20">
-          <img 
-            src={customUrl} 
-            alt="Association Watermark" 
-            className="w-full h-full object-contain rounded-full filter contrast-125" 
-          />
-        </div>
-      </div>
-    );
-  }
-
+function IdCardCenterWatermark({
+  customUrl,
+  opacity = 0.08,
+  onTriggerUpload
+}: {
+  customUrl?: string;
+  opacity?: number;
+  onTriggerUpload?: () => void;
+}) {
   return (
     <div 
-      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden"
-      aria-hidden="true"
+      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0"
+      style={{ opacity }}
     >
-      <div className="w-52 h-52 sm:w-60 sm:h-60 md:w-72 md:h-72 opacity-[0.18] flex items-center justify-center">
-        <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          {/* Outer Red Ring */}
-          <circle cx="50" cy="50" r="48" fill="none" stroke="#C00000" strokeWidth="4" />
-          <circle cx="50" cy="50" r="44" fill="none" stroke="#C00000" strokeWidth="1" strokeDasharray="1.5 1.5" />
-
-          {/* Top Text Arc */}
-          <path id="watermarkArcTop" d="M 17,50 A 33,33 0 0,1 83,50" fill="none" />
-          <text className="text-[5.2px] font-black fill-[#C00000]" textAnchor="middle">
-            <textPath href="#watermarkArcTop" startOffset="50%">தமிழ்நாடு பெயிண்டர்கள் & ஓவியர்கள் சங்கம்</textPath>
-          </text>
-
-          {/* Bottom Text Arc */}
-          <path id="watermarkArcBottom" d="M 83,52 A 33,33 0 0,1 17,52" fill="none" />
-          <text className="text-[5.5px] font-black fill-[#C00000]" textAnchor="middle">
-            <textPath href="#watermarkArcBottom" startOffset="50%">TN PA² • உழைப்போம் உயர்வோம்</textPath>
-          </text>
-
-          {/* Inner Disc Ring */}
-          <circle cx="50" cy="50" r="30" fill="none" stroke="#C00000" strokeWidth="1.5" />
-
-          {/* Raised Fist and Painter Tools Illustration */}
-          <g transform="translate(50, 50) scale(0.92) translate(-50, -50)">
-            {/* Paint Strokes & Splashes */}
-            <path d="M 28 42 C 34 30, 66 30, 72 42" stroke="#C00000" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            <circle cx="34" cy="34" r="1.8" fill="#C00000" />
-            <circle cx="66" cy="34" r="1.8" fill="#C00000" />
-
-            {/* Paint Roller Tool (Diagonal Left) */}
-            <g transform="rotate(-25 45 42)">
-              <rect x="36" y="24" width="18" height="7" rx="1.5" fill="#C00000" />
-              <line x1="40" y1="24" x2="40" y2="31" stroke="#FFFFFF" strokeWidth="0.8" />
-              <line x1="45" y1="24" x2="45" y2="31" stroke="#FFFFFF" strokeWidth="0.8" />
-              <line x1="50" y1="24" x2="50" y2="31" stroke="#FFFFFF" strokeWidth="0.8" />
-              <path d="M 54 27.5 L 58 27.5 L 58 38 L 48 42" fill="none" stroke="#C00000" strokeWidth="1.4" strokeLinecap="round" />
-            </g>
-
-            {/* Paint Brush Tool (Diagonal Right) */}
-            <g transform="rotate(25 55 42)">
-              <path d="M 50 24 L 58 24 L 59 31 L 49 31 Z" fill="#C00000" />
-              <rect x="49" y="31" width="10" height="4" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.5" />
-              <path d="M 52 35 L 53 48 L 55 48 L 56 35 Z" fill="#C00000" />
-            </g>
-
-            {/* Raised Strong Fist */}
-            <rect x="45" y="60" width="10" height="15" fill="#C00000" rx="1" />
-            <circle cx="50" cy="53" r="8" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.8" />
-            <rect x="43" y="48" width="14" height="4" rx="1.5" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.6" />
-            <rect x="44" y="52" width="12" height="3" rx="1" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.5" />
-            <path d="M 43 51 C 41 54, 43 58, 47 57" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.6" />
-          </g>
-        </svg>
-      </div>
+      {customUrl ? (
+        <div className="w-56 h-56 md:w-64 md:h-64 flex items-center justify-center p-2">
+          <img
+            src={customUrl}
+            alt="Watermark"
+            referrerPolicy="no-referrer"
+            className="max-w-full max-h-full object-contain filter drop-shadow-sm rounded-full"
+          />
+        </div>
+      ) : (
+        <div className="w-56 h-56 md:w-64 md:h-64 rounded-full border-8 border-[#C00000] flex flex-col items-center justify-center p-4 text-[#C00000] text-center">
+          <svg viewBox="0 0 100 100" className="w-40 h-40" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="46" fill="none" stroke="#C00000" strokeWidth="4" />
+            <path d="M 30 65 L 50 30 L 70 65 Z" fill="#C00000" />
+            <rect x="44" y="60" width="12" height="25" fill="#C00000" rx="2" />
+          </svg>
+          <span className="text-[9px] md:text-[10px] font-black leading-tight mt-1 text-[#C00000]">
+            தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்
+          </span>
+          <span className="text-xs font-black tracking-widest text-black">TN PA²</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -366,11 +263,13 @@ export interface UnionOfficialIdCardProps {
   customGovtSealUrl?: string;
   customLeader1Url?: string;
   customLeader2Url?: string;
+  customWatermarkUrl?: string;
   onUpdatePhoto?: (newPhotoUrl: string) => void;
   onUpdateLogo?: (newLogoUrl: string) => void;
   onUpdateGovtSeal?: (newUrl: string) => void;
   onUpdateLeader1?: (newUrl: string) => void;
   onUpdateLeader2?: (newUrl: string) => void;
+  onUpdateWatermark?: (newWatermarkUrl: string) => void;
 }
 
 // ============================================================================
@@ -386,14 +285,17 @@ export default function UnionOfficialIdCard({
   customGovtSealUrl,
   customLeader1Url,
   customLeader2Url,
+  customWatermarkUrl,
   onUpdatePhoto,
   onUpdateLogo,
-  onUpdateGovtSeal
+  onUpdateGovtSeal,
+  onUpdateWatermark
 }: UnionOfficialIdCardProps) {
   // Input references to directly open the device / mobile file manager
   const memberPhotoInputRef = useRef<HTMLInputElement>(null);
   const govtEmblemInputRef = useRef<HTMLInputElement>(null);
   const assocLogoInputRef = useRef<HTMLInputElement>(null);
+  const watermarkInputRef = useRef<HTMLInputElement>(null);
 
   // Field values with defaults
   const districtName = member.district || "மதுரை";
@@ -406,12 +308,19 @@ export default function UnionOfficialIdCard({
   const place = member.place || districtName;
   const fullAddress = member.address || `${place}, ${districtName} மாவட்டம், தமிழ்நாடு - 625107`;
 
-  // Local state for photo and logos
+  // Local state for photo, logos, and watermark
   const [photoUrl, setPhotoUrl] = useState<string>(
     member.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"
   );
   const [logoUrl, setLogoUrl] = useState<string>(customLogoUrl || "");
   const [govtSealUrl, setGovtSealUrl] = useState<string>(customGovtSealUrl || "");
+  const [watermarkUrl, setWatermarkUrl] = useState<string>(() => {
+    return customWatermarkUrl || localStorage.getItem("tnpa_custom_watermark") || "";
+  });
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(() => {
+    const saved = localStorage.getItem("tnpa_watermark_opacity");
+    return saved ? parseFloat(saved) : 0.08;
+  });
   const [uploadSuccessToast, setUploadSuccessToast] = useState<string | null>(null);
 
   // Sync props changes
@@ -426,6 +335,12 @@ export default function UnionOfficialIdCard({
   useEffect(() => {
     if (customGovtSealUrl) setGovtSealUrl(customGovtSealUrl);
   }, [customGovtSealUrl]);
+
+  useEffect(() => {
+    if (customWatermarkUrl !== undefined) {
+      setWatermarkUrl(customWatermarkUrl);
+    }
+  }, [customWatermarkUrl]);
 
   // Direct trigger to open mobile / device file manager
   const triggerMemberPhotoUpload = () => {
@@ -451,6 +366,15 @@ export default function UnionOfficialIdCard({
       assocLogoInputRef.current.click();
     } else {
       const el = document.getElementById("assocLogo") as HTMLInputElement;
+      if (el) el.click();
+    }
+  };
+
+  const triggerWatermarkUpload = () => {
+    if (watermarkInputRef.current) {
+      watermarkInputRef.current.click();
+    } else {
+      const el = document.getElementById("watermarkImageInput") as HTMLInputElement;
       if (el) el.click();
     }
   };
@@ -500,6 +424,35 @@ export default function UnionOfficialIdCard({
     }
   };
 
+  // Handle Watermark file selection from Phone File Manager / Gallery
+  const handleWatermarkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultUrl = reader.result as string;
+        setWatermarkUrl(resultUrl);
+        localStorage.setItem("tnpa_custom_watermark", resultUrl);
+        if (onUpdateWatermark) onUpdateWatermark(resultUrl);
+        showToast("✅ அட்டையின் நடு வாட்டர்மார்க் படம் போனிலிருந்து மாற்றப்பட்டது! (Watermark Updated)");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleResetWatermark = () => {
+    setWatermarkUrl("");
+    localStorage.removeItem("tnpa_custom_watermark");
+    if (onUpdateWatermark) onUpdateWatermark("");
+    showToast("🔄 அசல் சங்க வாட்டர்மார்க் மீட்டமைக்கப்பட்டது! (Reset to Default)");
+  };
+
+  const handleChangeOpacity = (newOpacity: number) => {
+    setWatermarkOpacity(newOpacity);
+    localStorage.setItem("tnpa_watermark_opacity", String(newOpacity));
+    showToast(`🎨 வாட்டர்மார்க் அடர்த்தி: ${Math.round(newOpacity * 100)}%`);
+  };
+
   const showToast = (msg: string) => {
     setUploadSuccessToast(msg);
     setTimeout(() => {
@@ -535,12 +488,95 @@ export default function UnionOfficialIdCard({
         onChange={handleAssocLogoChange}
         style={{ display: "none" }}
       />
+      <input
+        type="file"
+        id="watermarkImageInput"
+        ref={watermarkInputRef}
+        accept="image/*"
+        onChange={handleWatermarkFileChange}
+        style={{ display: "none" }}
+      />
 
       {/* Floating Success Notification Toast */}
       {uploadSuccessToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#C00000] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white animate-bounce">
           <CheckCircle2 className="w-5 h-5 text-yellow-300" />
           <span className="font-bold text-xs md:text-sm">{uploadSuccessToast}</span>
+        </div>
+      )}
+
+      {/* Watermark Quick Control Bar (நேரடியாக போனிலிருந்து மாற்ற) */}
+      {isEditable && (
+        <div className="w-full max-w-[560px] xl:max-w-6xl bg-amber-50/80 border-2 border-amber-200/80 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <ImageIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-black text-stone-900 flex items-center gap-1.5 flex-wrap">
+                <span>அட்டையின் நடு வாட்டர்மார்க் படம் (Watermark Photo)</span>
+                {watermarkUrl ? (
+                  <span className="px-2 py-0.5 bg-green-100 text-green-800 border border-green-300 text-[10px] font-bold rounded-full">
+                    ✓ போனிலிருந்து படம் வைக்கப்பட்டுள்ளது
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-stone-100 text-stone-600 text-[10px] font-bold rounded-full">
+                    அசல் சங்க வாட்டர்மார்க்
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-stone-600">
+                போன் கேலரியிலிருந்து உங்களுக்கு விருப்பமான படத்தை வாட்டர்மார்க்காக வைக்கலாம்
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={triggerWatermarkUpload}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl shadow cursor-pointer transition-all"
+              title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் தேர்ந்தெடுக்க"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>போனிலிருந்து மாற்ற</span>
+            </button>
+
+            {/* Watermark Opacity Presets */}
+            <div className="flex items-center gap-1 bg-white border border-stone-200 rounded-xl p-0.5">
+              <span className="text-[10px] text-stone-400 font-bold px-1">அடர்த்தி:</span>
+              {[
+                { label: "8%", val: 0.08 },
+                { label: "15%", val: 0.15 },
+                { label: "25%", val: 0.25 },
+              ].map(opt => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => handleChangeOpacity(opt.val)}
+                  className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                    Math.abs(watermarkOpacity - opt.val) < 0.03
+                      ? "bg-[#C00000] text-white shadow-xs"
+                      : "text-stone-600 hover:bg-stone-100"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {watermarkUrl && (
+              <button
+                type="button"
+                onClick={handleResetWatermark}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 font-bold rounded-xl cursor-pointer transition-all border border-stone-300"
+                title="அசல் வாட்டர்மார்க்கை மீண்டும் அமைக்க"
+              >
+                <RotateCcw className="w-3 h-3 text-stone-600" />
+                <span>அசல் மீட்டமை</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -558,14 +594,25 @@ export default function UnionOfficialIdCard({
                 <FileCheck className="w-3.5 h-3.5" />
                 <span>முன்பக்க அட்டை (Front Side)</span>
               </span>
-              <button
-                type="button"
-                onClick={triggerMemberPhotoUpload}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-900 hover:bg-stone-800 text-yellow-400 text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
-              >
-                <Pencil className="w-3 h-3" />
-                <span>போட்டோ மாற்று</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={triggerWatermarkUpload}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
+                  title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற"
+                >
+                  <ImageIcon className="w-3 h-3 text-white" />
+                  <span>வாட்டர்மார்க்</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={triggerMemberPhotoUpload}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-stone-900 hover:bg-stone-800 text-yellow-400 text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>போட்டோ மாற்று</span>
+                </button>
+              </div>
             </div>
 
             {/* Front Card Canvas */}
@@ -575,13 +622,13 @@ export default function UnionOfficialIdCard({
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
               {/* Top Red Header Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0 gap-1.5">
+              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
                 
-                {/* Left Circular Association Logo (Enlarged) */}
+                {/* Left Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="header"
+                    size="md"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -594,7 +641,7 @@ export default function UnionOfficialIdCard({
                 </div>
 
                 {/* Center Header Titles */}
-                <div className="text-center space-y-0.5 px-1.5 flex-1 min-w-0">
+                <div className="text-center space-y-0.5 px-2 flex-1">
                   <h1 className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] font-black tracking-wide text-white drop-shadow-sm leading-tight">
                     தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள்
                   </h1>
@@ -609,11 +656,11 @@ export default function UnionOfficialIdCard({
                   </p>
                 </div>
 
-                {/* Right Circular Association Logo (Enlarged) */}
+                {/* Right Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="header"
+                    size="md"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -630,8 +677,25 @@ export default function UnionOfficialIdCard({
               {/* Middle Body Section (Front Side) */}
               <div className="px-4 md:px-5 py-2.5 md:py-3 flex-1 relative flex items-center justify-between overflow-hidden bg-[#FFFFFF]">
                 
-                {/* Center Association Logo Watermark Behind Text */}
-                <IdCardCenterWatermark customUrl={logoUrl} />
+                {/* Center Translucent Watermark (Phone or Default) */}
+                <IdCardCenterWatermark 
+                  customUrl={watermarkUrl}
+                  opacity={watermarkOpacity}
+                  onTriggerUpload={triggerWatermarkUpload}
+                />
+
+                {/* Direct Watermark Change Shortcut Button inside Card (visible in edit mode) */}
+                {isEditable && (
+                  <button
+                    type="button"
+                    onClick={triggerWatermarkUpload}
+                    title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற தட்டவும்"
+                    className="absolute top-1 right-2 z-20 inline-flex items-center gap-1 px-2 py-0.5 bg-white/80 hover:bg-white text-stone-800 text-[9px] font-bold rounded-full shadow-sm border border-stone-300 hover:border-amber-500 cursor-pointer backdrop-blur-sm transition-all"
+                  >
+                    <ImageIcon className="w-2.5 h-2.5 text-amber-600" />
+                    <span>வாட்டர்மார்க் மாற்று</span>
+                  </button>
+                )}
 
                 {/* Left Side Member Details */}
                 <div className="space-y-2 md:space-y-2.5 relative z-10 flex-1 pr-2">
@@ -764,14 +828,25 @@ export default function UnionOfficialIdCard({
                 <Building2 className="w-3.5 h-3.5" />
                 <span>பின்பக்க அட்டை (Back Side)</span>
               </span>
-              <button
-                type="button"
-                onClick={triggerGovtEmblemUpload}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C00000] hover:bg-red-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
-              >
-                <Pencil className="w-3 h-3" />
-                <span>சின்னம் மாற்று</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={triggerWatermarkUpload}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
+                  title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற"
+                >
+                  <ImageIcon className="w-3 h-3 text-white" />
+                  <span>வாட்டர்மார்க்</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={triggerGovtEmblemUpload}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C00000] hover:bg-red-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>சின்னம் மாற்று</span>
+                </button>
+              </div>
             </div>
 
             {/* Back Card Canvas */}
@@ -781,13 +856,13 @@ export default function UnionOfficialIdCard({
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
               {/* Top Red Header Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0 gap-1.5">
+              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
                 
-                {/* Left Circular Association Logo (Enlarged) */}
+                {/* Left Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="header"
+                    size="md"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -800,7 +875,7 @@ export default function UnionOfficialIdCard({
                 </div>
 
                 {/* Center Header Titles */}
-                <div className="text-center space-y-0.5 px-1.5 flex-1 min-w-0">
+                <div className="text-center space-y-0.5 px-2 flex-1">
                   <h1 className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] font-black tracking-wide text-white drop-shadow-sm leading-tight">
                     தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள்
                   </h1>
@@ -815,11 +890,11 @@ export default function UnionOfficialIdCard({
                   </p>
                 </div>
 
-                {/* Right Circular Association Logo (Enlarged) */}
+                {/* Right Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="header"
+                    size="md"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -836,8 +911,25 @@ export default function UnionOfficialIdCard({
               {/* Middle Body Section (Back Side) */}
               <div className="px-4 md:px-5 py-2.5 md:py-3 flex-1 relative flex items-center justify-between overflow-hidden bg-[#FFFFFF]">
                 
-                {/* Center Association Logo Watermark Behind Text */}
-                <IdCardCenterWatermark customUrl={logoUrl} />
+                {/* Center Translucent Watermark (Phone or Default) */}
+                <IdCardCenterWatermark 
+                  customUrl={watermarkUrl}
+                  opacity={watermarkOpacity}
+                  onTriggerUpload={triggerWatermarkUpload}
+                />
+
+                {/* Direct Watermark Change Shortcut Button inside Card (visible in edit mode) */}
+                {isEditable && (
+                  <button
+                    type="button"
+                    onClick={triggerWatermarkUpload}
+                    title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற தட்டவும்"
+                    className="absolute top-1 right-2 z-20 inline-flex items-center gap-1 px-2 py-0.5 bg-white/80 hover:bg-white text-stone-800 text-[9px] font-bold rounded-full shadow-sm border border-stone-300 hover:border-amber-500 cursor-pointer backdrop-blur-sm transition-all"
+                  >
+                    <ImageIcon className="w-2.5 h-2.5 text-amber-600" />
+                    <span>வாட்டர்மார்க் மாற்று</span>
+                  </button>
+                )}
 
                 {/* Left Side Member Details (Back) */}
                 <div className="space-y-1.5 md:space-y-2 relative z-10 flex-1 pr-2 text-stone-900 text-xs md:text-sm font-bold leading-tight">
