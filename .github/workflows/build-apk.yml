@@ -37,7 +37,7 @@ jobs:
         echo "sdk.dir=$ANDROID_HOME" > android/local.properties
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
         yes | sdkmanager --licenses 2>/dev/null || true
-        sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools" 2>/dev/null || true
+        sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "platform-tools" 2>/dev/null || true
 
     - name: Install NPM Dependencies
       run: npm install --include=dev
@@ -50,6 +50,7 @@ jobs:
     - name: Sync Capacitor Android
       run: |
         npx cap sync android
+        sed -i "s/classpath 'com.android.tools.build:gradle:[^']*'/classpath 'com.android.tools.build:gradle:8.13.0'/g" android/build.gradle android/capacitor-cordova-android-plugins/build.gradle 2>/dev/null || true
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
