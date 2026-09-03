@@ -55,15 +55,15 @@ jobs:
         java-version: '21'
 
     - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Android Platforms and Build Tools
       run: |
-        export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+        yes | sdkmanager --licenses || true
+        sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "platform-tools" || true
         mkdir -p android
         echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-        export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-        yes | sdkmanager --licenses 2>/dev/null || true
-        sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "platform-tools" 2>/dev/null || true
+        echo "android.builder.sdkDownload=true" >> android/gradle.properties
 
     - name: Install NPM Dependencies
       run: npm install --include=dev
