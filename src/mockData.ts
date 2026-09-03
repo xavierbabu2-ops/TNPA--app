@@ -8,7 +8,7 @@ export const initialLeaders: Leader[] = [
     role: "மாநில தலைவர்",
     roleEn: "State President",
     phone: "+919789331681",
-    photoUrl: "/s_michael_alvin.svg",
+    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400&h=400",
     district: "தமிழ்நாடு",
     districtEn: "Tamil Nadu"
   },
@@ -19,7 +19,7 @@ export const initialLeaders: Leader[] = [
     role: "மாநில பொதுச்செயலாளர்",
     roleEn: "State General Secretary",
     phone: "+917010131915",
-    photoUrl: "/r_xavier_babu.svg",
+    photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400&h=400",
     district: "தமிழ்நாடு",
     districtEn: "Tamil Nadu"
   }

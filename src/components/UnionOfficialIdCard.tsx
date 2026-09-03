@@ -28,21 +28,23 @@ export function AssociationEmblemLogo({
   onClick
 }: {
   customUrl?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl" | "header";
   className?: string;
   onClick?: () => void;
 }) {
   const sizeClasses = {
     sm: "w-10 h-10 md:w-11 md:h-11",
     md: "w-12 h-12 md:w-14 md:h-14",
-    lg: "w-16 h-16 md:w-20 md:h-20"
+    lg: "w-16 h-16 md:w-20 md:h-20",
+    xl: "w-20 h-20 md:w-24 md:h-24",
+    header: "w-14 h-14 sm:w-16 sm:h-16 md:w-[70px] md:h-[70px]"
   }[size];
 
   if (customUrl) {
     return (
       <div 
         onClick={onClick}
-        className={`${sizeClasses} rounded-full bg-white border-2 border-[#C00000] p-0.5 shadow-sm overflow-hidden flex items-center justify-center shrink-0 ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
+        className={`${sizeClasses} rounded-full bg-white border-2 sm:border-[2.5px] border-amber-300 p-0.5 shadow-md overflow-hidden flex items-center justify-center shrink-0 ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
       >
         <img src={customUrl} alt="Association Logo" className="w-full h-full object-contain rounded-full" />
       </div>
@@ -52,7 +54,7 @@ export function AssociationEmblemLogo({
   return (
     <div 
       onClick={onClick}
-      className={`${sizeClasses} rounded-full bg-white border-2 border-[#C00000] shadow-sm flex items-center justify-center shrink-0 relative overflow-hidden select-none ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
+      className={`${sizeClasses} rounded-full bg-white border-2 sm:border-[2.5px] border-amber-300 shadow-md flex items-center justify-center shrink-0 relative overflow-hidden select-none ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
       title="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்"
     >
       <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -252,21 +254,84 @@ export function TamilNaduGovtEmblemStamp({
 }
 
 // ============================================================================
-// WATERMARK COMPONENT FOR ID CARD BACKGROUND
+// WATERMARK COMPONENT FOR ID CARD BACKGROUND (FRONT & BACK)
+// Renders our Association's official emblem directly behind the text
 // ============================================================================
-function IdCardCenterWatermark() {
+function IdCardCenterWatermark({ customUrl }: { customUrl?: string }) {
+  if (customUrl) {
+    return (
+      <div 
+        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        <div className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full border-4 border-[#C00000]/25 p-2 flex items-center justify-center opacity-20">
+          <img 
+            src={customUrl} 
+            alt="Association Watermark" 
+            className="w-full h-full object-contain rounded-full filter contrast-125" 
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08] select-none z-0">
-      <div className="w-56 h-56 md:w-64 md:h-64 rounded-full border-8 border-[#C00000] flex flex-col items-center justify-center p-4 text-[#C00000] text-center">
-        <svg viewBox="0 0 100 100" className="w-40 h-40" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="46" fill="none" stroke="#C00000" strokeWidth="4" />
-          <path d="M 30 65 L 50 30 L 70 65 Z" fill="#C00000" />
-          <rect x="44" y="60" width="12" height="25" fill="#C00000" rx="2" />
+    <div 
+      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden"
+      aria-hidden="true"
+    >
+      <div className="w-52 h-52 sm:w-60 sm:h-60 md:w-72 md:h-72 opacity-[0.18] flex items-center justify-center">
+        <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          {/* Outer Red Ring */}
+          <circle cx="50" cy="50" r="48" fill="none" stroke="#C00000" strokeWidth="4" />
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#C00000" strokeWidth="1" strokeDasharray="1.5 1.5" />
+
+          {/* Top Text Arc */}
+          <path id="watermarkArcTop" d="M 17,50 A 33,33 0 0,1 83,50" fill="none" />
+          <text className="text-[5.2px] font-black fill-[#C00000]" textAnchor="middle">
+            <textPath href="#watermarkArcTop" startOffset="50%">தமிழ்நாடு பெயிண்டர்கள் & ஓவியர்கள் சங்கம்</textPath>
+          </text>
+
+          {/* Bottom Text Arc */}
+          <path id="watermarkArcBottom" d="M 83,52 A 33,33 0 0,1 17,52" fill="none" />
+          <text className="text-[5.5px] font-black fill-[#C00000]" textAnchor="middle">
+            <textPath href="#watermarkArcBottom" startOffset="50%">TN PA² • உழைப்போம் உயர்வோம்</textPath>
+          </text>
+
+          {/* Inner Disc Ring */}
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#C00000" strokeWidth="1.5" />
+
+          {/* Raised Fist and Painter Tools Illustration */}
+          <g transform="translate(50, 50) scale(0.92) translate(-50, -50)">
+            {/* Paint Strokes & Splashes */}
+            <path d="M 28 42 C 34 30, 66 30, 72 42" stroke="#C00000" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+            <circle cx="34" cy="34" r="1.8" fill="#C00000" />
+            <circle cx="66" cy="34" r="1.8" fill="#C00000" />
+
+            {/* Paint Roller Tool (Diagonal Left) */}
+            <g transform="rotate(-25 45 42)">
+              <rect x="36" y="24" width="18" height="7" rx="1.5" fill="#C00000" />
+              <line x1="40" y1="24" x2="40" y2="31" stroke="#FFFFFF" strokeWidth="0.8" />
+              <line x1="45" y1="24" x2="45" y2="31" stroke="#FFFFFF" strokeWidth="0.8" />
+              <line x1="50" y1="24" x2="50" y2="31" stroke="#FFFFFF" strokeWidth="0.8" />
+              <path d="M 54 27.5 L 58 27.5 L 58 38 L 48 42" fill="none" stroke="#C00000" strokeWidth="1.4" strokeLinecap="round" />
+            </g>
+
+            {/* Paint Brush Tool (Diagonal Right) */}
+            <g transform="rotate(25 55 42)">
+              <path d="M 50 24 L 58 24 L 59 31 L 49 31 Z" fill="#C00000" />
+              <rect x="49" y="31" width="10" height="4" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.5" />
+              <path d="M 52 35 L 53 48 L 55 48 L 56 35 Z" fill="#C00000" />
+            </g>
+
+            {/* Raised Strong Fist */}
+            <rect x="45" y="60" width="10" height="15" fill="#C00000" rx="1" />
+            <circle cx="50" cy="53" r="8" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.8" />
+            <rect x="43" y="48" width="14" height="4" rx="1.5" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.6" />
+            <rect x="44" y="52" width="12" height="3" rx="1" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.5" />
+            <path d="M 43 51 C 41 54, 43 58, 47 57" fill="#C00000" stroke="#FFFFFF" strokeWidth="0.6" />
+          </g>
         </svg>
-        <span className="text-[9px] md:text-[10px] font-black leading-tight mt-1 text-[#C00000]">
-          தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்
-        </span>
-        <span className="text-xs font-black tracking-widest text-black">TN PA²</span>
       </div>
     </div>
   );
@@ -510,13 +575,13 @@ export default function UnionOfficialIdCard({
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
               {/* Top Red Header Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
+              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0 gap-1.5">
                 
-                {/* Left Circular Association Logo */}
+                {/* Left Circular Association Logo (Enlarged) */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="md"
+                    size="header"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -529,7 +594,7 @@ export default function UnionOfficialIdCard({
                 </div>
 
                 {/* Center Header Titles */}
-                <div className="text-center space-y-0.5 px-2 flex-1">
+                <div className="text-center space-y-0.5 px-1.5 flex-1 min-w-0">
                   <h1 className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] font-black tracking-wide text-white drop-shadow-sm leading-tight">
                     தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள்
                   </h1>
@@ -544,11 +609,11 @@ export default function UnionOfficialIdCard({
                   </p>
                 </div>
 
-                {/* Right Circular Association Logo */}
+                {/* Right Circular Association Logo (Enlarged) */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="md"
+                    size="header"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -565,8 +630,8 @@ export default function UnionOfficialIdCard({
               {/* Middle Body Section (Front Side) */}
               <div className="px-4 md:px-5 py-2.5 md:py-3 flex-1 relative flex items-center justify-between overflow-hidden bg-[#FFFFFF]">
                 
-                {/* Center Translucent Watermark */}
-                <IdCardCenterWatermark />
+                {/* Center Association Logo Watermark Behind Text */}
+                <IdCardCenterWatermark customUrl={logoUrl} />
 
                 {/* Left Side Member Details */}
                 <div className="space-y-2 md:space-y-2.5 relative z-10 flex-1 pr-2">
@@ -716,13 +781,13 @@ export default function UnionOfficialIdCard({
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
               {/* Top Red Header Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
+              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0 gap-1.5">
                 
-                {/* Left Circular Association Logo */}
+                {/* Left Circular Association Logo (Enlarged) */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="md"
+                    size="header"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -735,7 +800,7 @@ export default function UnionOfficialIdCard({
                 </div>
 
                 {/* Center Header Titles */}
-                <div className="text-center space-y-0.5 px-2 flex-1">
+                <div className="text-center space-y-0.5 px-1.5 flex-1 min-w-0">
                   <h1 className="text-[11px] sm:text-xs md:text-sm lg:text-[15px] font-black tracking-wide text-white drop-shadow-sm leading-tight">
                     தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள்
                   </h1>
@@ -750,11 +815,11 @@ export default function UnionOfficialIdCard({
                   </p>
                 </div>
 
-                {/* Right Circular Association Logo */}
+                {/* Right Circular Association Logo (Enlarged) */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
                     customUrl={logoUrl}
-                    size="md"
+                    size="header"
                     onClick={triggerAssocLogoUpload}
                   />
                   <div 
@@ -771,8 +836,8 @@ export default function UnionOfficialIdCard({
               {/* Middle Body Section (Back Side) */}
               <div className="px-4 md:px-5 py-2.5 md:py-3 flex-1 relative flex items-center justify-between overflow-hidden bg-[#FFFFFF]">
                 
-                {/* Center Translucent Watermark */}
-                <IdCardCenterWatermark />
+                {/* Center Association Logo Watermark Behind Text */}
+                <IdCardCenterWatermark customUrl={logoUrl} />
 
                 {/* Left Side Member Details (Back) */}
                 <div className="space-y-1.5 md:space-y-2 relative z-10 flex-1 pr-2 text-stone-900 text-xs md:text-sm font-bold leading-tight">

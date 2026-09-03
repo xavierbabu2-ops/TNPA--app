@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ta">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA² | Official Portal</title>
+    <meta name="description" content="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தின் (TNPA²) அதிகாரப்பூர்வ இணையதளம். டிஜிட்டல் உறுப்பினர் அடையாள அட்டை, கட்டுமானத் தொழிலாளர் நலவாரிய நிதி உதவிகள், மற்றும் AI வழிகாட்டி சேவைகள்." />
+    <meta name="keywords" content="தமிழ்நாடு பெயிண்டர்கள் சங்கம், ஓவியர்கள் சங்கம், TN Painters Association, TNPA, TNPA², Painters Welfare Board, கட்டுமானத் தொழிலாளர்கள் நலவாரியம், Painter ID Card, Painting Union Tamil Nadu" />
+    <link rel="icon" type="image/svg+xml" href="/tnpa_logo.svg" />
+    <link rel="apple-touch-icon" href="/tnpa_logo.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <script>
+      (function() {
+        // Global interceptor for benign sandbox websocket, dev warnings & background database closing
+        function isBenignError(str) {
+          if (!str) return false;
+          var s = String(str).toLowerCase();
+          return (
+            s.indexOf('websocket') !== -1 ||
+            s.indexOf('[vite]') !== -1 ||
+            s.indexOf('webchannel') !== -1 ||
+            s.indexOf('database is closing') !== -1 ||
+            s.indexOf('connection is closing') !== -1 ||
+            s.indexOf('closing/hidden') !== -1 ||
+            s.indexOf('invalidstateerror') !== -1
+          );
+        }
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var str = String(event.reason && (event.reason.message || event.reason) || '');
+          if (isBenignError(str)) {
+            event.preventDefault && event.preventDefault();
+            event.stopImmediatePropagation && event.stopImmediatePropagation();
+            return false;
+          }
+        }, true);
+
+        window.addEventListener('error', function(event) {
+          var msg = String(event.message || '');
+          if (isBenignError(msg)) {
+            event.preventDefault && event.preventDefault();
+            event.stopImmediatePropagation && event.stopImmediatePropagation();
+            return false;
+          }
+        }, true);
+
+        var _err = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var txt = args.join(' ');
+          if (isBenignError(txt)) {
+            return;
+          }
+          _err.apply(console, args);
+        };
+
+        var _warn = console.warn;
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var txt = args.join(' ');
+          if (isBenignError(txt)) {
+            return;
+          }
+          _warn.apply(console, args);
+        };
+      })();
+    </script>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²" />
+    <meta property="og:description" content="மாநிலத்தின் முன்னணி ஓவியர்கள் மற்றும் பெயிண்டர்கள் சங்கம் (TNPA²). உங்கள் நலவாரிய உரிமைகள் மற்றும் காப்பீட்டைப் பெற உடனே இணையுங்கள்." />
+    <meta property="og:image" content="/tnpa_logo.svg" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²" />
+    <meta property="twitter:description" content="டிஜிட்டல் உறுப்பினர் அடையாள அட்டை, நலவாரிய நிதி உதவிகள், மற்றும் AI வழிகாட்டி சேவைகள்." />
+    <meta property="twitter:image" content="/tnpa_logo.svg" />
+
+    <!-- Structured Data (Schema.org Organization/Union Markup) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "GovernmentOrganization",
+        "name": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் (TNPA²)",
+        "alternateName": "TNPA² - Tamil Nadu Painters & Artists Progressive Association",
+        "url": "https://tnpaintersunion.org",
+        "logo": "https://raw.githubusercontent.com/xavierbabu2-ops/TNPA--app/main/public/tnpa_logo.svg",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+91-9443212345",
+          "contactType": "Emergency Dispatch",
+          "areaServed": "IN",
+          "availableLanguage": ["ta", "en"]
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "32, Madurai Main Road",
+          "addressLocality": "Tiruchirappalli",
+          "addressRegion": "Tamil Nadu",
+          "postalCode": "620001",
+          "addressCountry": "IN"
+        }
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-DaDqiOB0.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D8czJ0k1.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+

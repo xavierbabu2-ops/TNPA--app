@@ -4,6 +4,7 @@
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
+    "url": "https://ais-pre-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app",
     "androidScheme": "https",
     "cleartext": true
   },

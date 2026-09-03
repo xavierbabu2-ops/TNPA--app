@@ -99,6 +99,7 @@ import RoleBasedControlPortal from "./components/RoleBasedControlPortal";
 import OfficeBearerPortal from "./components/OfficeBearerPortal";
 import ExecutiveDirectoryPortal from "./components/ExecutiveDirectoryPortal";
 import { INITIAL_EXECUTIVE_MEMBERS } from "./data/initialExecutives";
+import { getExecutivePhoto } from "./utils/executivePhotos";
 import PainterInsurancePortal from "./components/PainterInsurancePortal";
 import PainterSkillAcademy from "./components/PainterSkillAcademy";
 import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
@@ -150,12 +151,20 @@ export default function App() {
       const stored = localStorage.getItem("tnpa_executives_v1");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((e: ExecutiveMember) => ({
+            ...e,
+            photoUrl: getExecutivePhoto(e)
+          }));
+        }
       }
     } catch (e) {
       console.warn("Could not read stored executives:", e);
     }
-    return INITIAL_EXECUTIVE_MEMBERS;
+    return INITIAL_EXECUTIVE_MEMBERS.map((e: ExecutiveMember) => ({
+      ...e,
+      photoUrl: getExecutivePhoto(e)
+    }));
   });
   const [selectedExecutiveLevel, setSelectedExecutiveLevel] = useState<ExecutiveLevel>("state");
 
@@ -229,9 +238,13 @@ export default function App() {
     // 8. Real-time Executives listener (State, District, Zone, Area/Union)
     const unsubExecs = subscribeToExecutives((remoteExecs) => {
       if (remoteExecs && remoteExecs.length > 0) {
-        setExecutives(remoteExecs);
+        const sanitized = remoteExecs.map((e) => ({
+          ...e,
+          photoUrl: getExecutivePhoto(e)
+        }));
+        setExecutives(sanitized);
         try {
-          localStorage.setItem("tnpa_executives_v1", JSON.stringify(remoteExecs));
+          localStorage.setItem("tnpa_executives_v1", JSON.stringify(sanitized));
         } catch (e) {}
       }
     });
@@ -2634,31 +2647,57 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="p-3 bg-stone-800/90 rounded-2xl border border-stone-700 space-y-2 text-[11px]">
+                <div className="p-3.5 bg-stone-800/90 rounded-2xl border border-amber-500/30 space-y-3 text-[11px]">
                   <div className="flex items-center justify-between">
                     <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                      <Smartphone className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{lang === "ta" ? "ஏபிகே (APK) & மொபைல் ஒத்திசைவு:" : "APK & Mobile Over-the-Air Sync:"}</span>
+                      <Smartphone className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs">{lang === "ta" ? "ஏபிகே (APK) நேரலை கிளவுட் ஒத்திசைவு:" : "APK Live Cloud Synchronization:"}</span>
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-bold text-[10px]">
-                      OTA ACTIVE
+                      LIVE CONNECTED
                     </span>
                   </div>
-                  <p className="text-stone-300 text-[11px] leading-relaxed">
-                    {lang === "ta"
-                      ? "ஏற்கனவே இந்த செயலியை ஏபிகே (APK) கோப்பாக பதிவிறக்கம் செய்து வைத்துள்ள அனைவருக்கும், நீங்கள் செய்யும் நிர்வாகிகள் நியமனம், உறுப்பினர் சேர்க்கை, சட்ட ஆலோசனைக் குழுவின் அவதூறு தடுப்பு உறுதிமொழி போன்ற அனைத்து மாற்றங்களும் தானாகவே உடனடியாகப் பிரதிபலிக்கும்."
-                      : "For all users who previously downloaded this app as an APK file, all database updates, new features, and legal undertakings sync live over-the-air automatically."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      forcePurgeCacheAndReload();
-                    }}
-                    className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>{lang === "ta" ? "செயலியை உடனே நேரலையாகப் புதுப்பிக்க (Force Sync APK)" : "Instant Force Update (Clear Cache & Reload)"}</span>
-                  </button>
+
+                  <div className="p-2.5 bg-stone-900/80 rounded-xl border border-stone-700/80 space-y-1.5 text-stone-300">
+                    <p className="font-bold text-amber-300 text-xs">
+                      {lang === "ta" 
+                        ? "📌 ஏபிகே (APK) மற்றும் ஸ்டுடியோ நேரலை விளக்கம்:" 
+                        : "📌 APK & Studio Real-time Sync Details:"}
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      {lang === "ta"
+                        ? "1. தரவுத்தளம் (Firestore Data): உறுப்பினர்கள், நிர்வாகிகள், அடையாள அட்டை விவரங்கள், விண்ணப்பங்கள் ஆகியவை உங்கள் கைபேசியில் உள்ள ஏபிகே-வில் நொடிக்குள் 100% தானாகவே ஒத்திசைக்கிறது."
+                        : "1. Database (Firestore Data): Members, executives, ID card data, and announcements sync 100% instantly to your installed APK."}
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      {lang === "ta"
+                        ? "2. புதிய பட்டன்கள் & இடைமுக மாற்றங்கள் (UI Design Updates): ஸ்டுடியோவில் சேர்க்கப்படும் புதிய பொத்தான்கள் உடனடியாக கைபேசியில் தெரிய கீழே உள்ள 'நேரலை கிளவுட் செயலியைத் திற' பொத்தானைப் பயன்படுத்தலாம் அல்லது நேரடி சர்வர் இணைக்கப்பட்ட புதிய ஏபிகே-வை நிறுவலாம்."
+                        : "2. New UI Buttons & Templates: To see newly added UI features instantly on your phone, tap 'Open Live Cloud App' below or install the live-server connected APK."}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <a
+                      href="https://ais-pre-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all text-center no-underline"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>{lang === "ta" ? "🌐 நேரலை கிளவுட் செயலியைத் திற (100% Live)" : "🌐 Open Live Cloud App"}</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        forcePurgeCacheAndReload();
+                      }}
+                      className="py-2.5 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>{lang === "ta" ? "🔄 கேச் அழித்து புதுப்பி (Sync APK)" : "🔄 Clear Cache & Reload"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-stone-400 text-[11px]">

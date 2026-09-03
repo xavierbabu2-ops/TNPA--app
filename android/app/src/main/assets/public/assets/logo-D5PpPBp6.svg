@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <!-- Definitions for text paths -->
+  <defs>
+    <!-- Top arc: semi-circle from 9 o'clock to 3 o'clock (radius 78) -->
+    <path id="top-text-path" d="M 22,100 A 78,78 0 0,1 178,100" fill="none" />
+    <!-- Bottom arc: semi-circle from 3 o'clock to 9 o'clock (radius 78) -->
+    <path id="bottom-text-path" d="M 178,100 A 78,78 0 0,1 22,100" fill="none" />
+  </defs>
+
+  <!-- Outer Ring Base (Red) -->
+  <circle cx="100" cy="100" r="95" fill="#e11d48" stroke="#f59e0b" strokeWidth="2.5" />
+  
+  <!-- Outer Gold Accent Ring -->
+  <circle cx="100" cy="100" r="91" fill="none" stroke="#fbbf24" strokeWidth="1" strokeDasharray="3 3" />
+
+  <!-- Top Curved Tamil Text: "தமிழ்நாடு பெயிண்டர்கள்" -->
+  <text fill="#ffffff" font-size="10.5" font-weight="900" font-family="'Noto Sans Tamil', 'Noto Sans', sans-serif" letter-spacing="1">
+    <textPath href="#top-text-path" startOffset="50%" text-anchor="middle">
+      தமிழ்நாடு பெயிண்டர்கள்
+    </textPath>
+  </text>
+
+  <!-- Bottom Curved Tamil Text: "ஓவியர்கள் முன்னேற்ற சங்கம்" -->
+  <text fill="#ffffff" font-size="10.5" font-weight="900" font-family="'Noto Sans Tamil', 'Noto Sans', sans-serif" letter-spacing="1">
+    <textPath href="#bottom-text-path" startOffset="50%" text-anchor="middle">
+      ஓவியர்கள் முன்னேற்ற சங்கம்
+    </textPath>
+  </text>
+
+  <!-- Side Decorative Elements (Yin-Yang or Painter Drops) -->
+  <!-- Left Side Dot -->
+  <circle cx="17" cy="100" r="3.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1" />
+  <!-- Right Side Dot -->
+  <circle cx="183" cy="100" r="3.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1" />
+
+  <!-- Inner White Circle -->
+  <circle cx="100" cy="100" r="63" fill="#ffffff" stroke="#f59e0b" strokeWidth="1.5" />
+
+  <!-- Central Artwork Group -->
+  <g id="central-artwork" transform="translate(100, 93)">
+    <!-- PAINT BRUSH (Slanted Left, behind the hand) -->
+    <g transform="rotate(-28)">
+      <!-- Handle -->
+      <path d="M -3,25 L 3,25 L 2.5,-15 L -2.5,-15 Z" fill="#b45309" />
+      <path d="M -2.5,-15 L 2.5,-15 L 3,-22 L -3,-22 Z" fill="#d97706" />
+      <!-- Silver Ferrule -->
+      <rect x="-6.5" y="-34" width="13" height="12" rx="1" fill="#9ca3af" stroke="#4b5563" strokeWidth="0.5" />
+      <line x1="-6.5" y1="-28" x2="6.5" y2="-28" stroke="#4b5563" strokeWidth="0.5" />
+      <!-- Bristles (Black/Dark Charcoal) -->
+      <path d="M -6.5,-34 C -7.5,-48 -5,-52 0,-52 C 5,-52 7.5,-48 6.5,-34 Z" fill="#1f2937" />
+      <!-- Paint tip on brush -->
+      <path d="M -4.5,-46 C -4.5,-49 -2,-52 0,-52 C 2,-52 4.5,-49 4.5,-46 C 4,-43 1,-42 0,-42 C -1,-42 -4,-43 -4.5,-46 Z" fill="#e11d48" />
+    </g>
+
+    <!-- PAINT ROLLER (Slanted Right, behind the hand) -->
+    <g transform="rotate(32)">
+      <!-- Steel Rod Frame -->
+      <path d="M 0,20 L 0,-10 C 0,-18 10,-20 18,-20 L 18,-35" fill="none" stroke="#4b5563" strokeWidth="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <!-- Roller Cylinder (Orange/Red with texture) -->
+      <rect x="7" y="-50" width="22" height="15" rx="2" fill="#ea580c" stroke="#1f2937" strokeWidth="1" />
+      <!-- Wet Paint texture on roller -->
+      <path d="M 11,-42 Q 13,-45 15,-42 Q 17,-39 19,-42 Q 21,-45 23,-42" fill="none" stroke="#ffffff" strokeWidth="1" />
+    </g>
+
+    <!-- RAISED FIST (In front of the tools) -->
+    <g id="raised-fist" transform="translate(0, 5)">
+      <!-- Wrist/Forearm -->
+      <path d="M -11,15 L 11,15 L 9,35 L -9,35 Z" fill="#111827" />
+      
+      <!-- Palm/Fist Base -->
+      <path d="M -14,-10 C -15,-2 -14,15 -14,15 L 14,15 C 14,15 15,-2 14,-10 C 14,-15 10,-17 0,-17 C -10,-17 -14,-15 -14,-10 Z" fill="#111827" stroke="#000000" strokeWidth="0.5" />
+      
+      <!-- Knuckles & Folded Fingers -->
+      <!-- Pinky -->
+      <path d="M -14,-9 C -14,-13 -10,-13 -10,-9 C -10,-5 -14,-5 -14,-9 Z" fill="#1f2937" stroke="#000000" strokeWidth="0.75" />
+      <!-- Ring Finger -->
+      <path d="M -10,-11 C -10,-15 -6,-15 -6,-11 C -6,-7 -10,-7 -10,-11 Z" fill="#1f2937" stroke="#000000" strokeWidth="0.75" />
+      <!-- Middle Finger -->
+      <path d="M -6,-12 C -6,-16 -2,-16 -2,-12 C -2,-8 -6,-8 -6,-12 Z" fill="#1f2937" stroke="#000000" strokeWidth="0.75" />
+      <!-- Index Finger -->
+      <path d="M -2,-11 C -2,-15 2,-15 2,-11 C 2,-7 -2,-7 -2,-11 Z" fill="#1f2937" stroke="#000000" strokeWidth="0.75" />
+      
+      <!-- Folded Thumb -->
+      <path d="M 1,-6 C 4,-6 10,-10 12,-10 C 14,-10 13,-6 9,-2 C 5,2 1,1 1,-6 Z" fill="#111827" stroke="#000000" strokeWidth="0.5" />
+    </g>
+  </g>
+
+  <!-- "TNPA²" Bold Association Text at Bottom -->
+  <g transform="translate(100, 148)">
+    <rect x="-36" y="-12" width="72" height="18" rx="9" fill="#111827" stroke="#fbbf24" stroke-width="1.2" />
+    <text x="0" y="1" fill="#fef08a" font-size="13" font-weight="900" font-family="'Arial Black', Impact, sans-serif" letter-spacing="1" text-anchor="middle" dominant-baseline="middle">
+      TNPA²
+    </text>
+  </g>
+</svg>

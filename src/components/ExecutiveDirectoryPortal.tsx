@@ -29,9 +29,13 @@ import {
   Scale,
   ShieldAlert,
   Gavel,
-  Printer
+  Printer,
+  Upload,
+  Image as ImageIcon,
+  Sparkles
 } from "lucide-react";
 import { ExecutiveMember, ExecutiveLevel, UserAccount } from "../types";
+import { getExecutivePhoto, DEFAULT_EXECUTIVE_PORTRAITS } from "../utils/executivePhotos";
 
 interface ExecutiveDirectoryPortalProps {
   lang: "ta" | "en";
@@ -106,6 +110,11 @@ export default function ExecutiveDirectoryPortal({
   const [formNotes, setFormNotes] = useState("");
   const [formLegalOathAccepted, setFormLegalOathAccepted] = useState(true);
   const [viewingOathExecutive, setViewingOathExecutive] = useState<ExecutiveMember | null>(null);
+
+  // Dedicated Executive Direct Photo Studio Modal State
+  const [photoModalExecutive, setPhotoModalExecutive] = useState<ExecutiveMember | null>(null);
+  const [photoModalUrl, setPhotoModalUrl] = useState<string>("");
+  const [photoUploadSuccessToast, setPhotoUploadSuccessToast] = useState<string | null>(null);
 
   // RBAC Evaluation:
   // 1. Super Admin: full authority across all levels (State, District, Zone, Area/Union).
@@ -225,7 +234,7 @@ export default function ExecutiveDirectoryPortal({
     setFormName("");
     setFormNameEn("");
     setFormPhone("");
-    setFormPhotoUrl("");
+    setFormPhotoUrl(DEFAULT_EXECUTIVE_PORTRAITS[Math.floor(Math.random() * DEFAULT_EXECUTIVE_PORTRAITS.length)]);
     setFormDistrict("சென்னை");
     setFormZone("வடக்கு மண்டலம் (North Zone)");
     setFormUnitType("union");
@@ -261,7 +270,7 @@ export default function ExecutiveDirectoryPortal({
     setFormRole(exec.role);
     setFormRoleEn(exec.roleEn || "");
     setFormPhone(exec.phone);
-    setFormPhotoUrl(exec.photoUrl || "");
+    setFormPhotoUrl(getExecutivePhoto(exec));
     setFormDistrict(exec.district || "சென்னை");
     setFormZone(exec.zone || "வடக்கு மண்டலம் (North Zone)");
     setFormUnitType(exec.unitType || "union");
@@ -350,12 +359,12 @@ export default function ExecutiveDirectoryPortal({
     setIsModalOpen(false);
   };
 
-  // Handle Photo File Upload
+  // Handle Photo File Upload for Edit/Appoint Modal
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 2 * 1024 * 1024) {
-        alert(lang === "ta" ? "கோப்பின் அளவு 2MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 2MB)" : "File size must be under 2MB.");
+      if (file.size > 3 * 1024 * 1024) {
+        alert(lang === "ta" ? "கோப்பின் அளவு 3MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 3MB)" : "File size must be under 3MB.");
         return;
       }
       const reader = new FileReader();
@@ -364,6 +373,72 @@ export default function ExecutiveDirectoryPortal({
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Open Dedicated Executive Photo Studio Modal
+  const handleOpenPhotoModal = (exec: ExecutiveMember) => {
+    setPhotoModalExecutive(exec);
+    setPhotoModalUrl(getExecutivePhoto(exec));
+  };
+
+  // Handle Photo File Upload in Dedicated Photo Modal
+  const handlePhotoModalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 3 * 1024 * 1024) {
+        alert(lang === "ta" ? "கோப்பின் அளவு 3MB-ஐ விட அதிகமாக இருக்கக்கூடாது (Max 3MB)" : "File size must be under 3MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotoModalUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Save New Photo from Dedicated Photo Modal
+  const handleSavePhotoModal = () => {
+    if (!photoModalExecutive) return;
+    if (!photoModalUrl.trim()) {
+      alert(lang === "ta" ? "செல்லுபடியாகும் புகைப்படத்தைத் தேர்ந்தெடுக்கவும் அல்லது பதிவேற்றவும்." : "Please select or upload a valid photograph.");
+      return;
+    }
+    const updated: ExecutiveMember = {
+      ...photoModalExecutive,
+      photoUrl: photoModalUrl.trim()
+    };
+    onSaveExecutive(updated);
+
+    // Sync with localStorage
+    try {
+      const stored = localStorage.getItem("tnpa_executives_v1");
+      if (stored) {
+        const list = JSON.parse(stored);
+        const idx = list.findIndex((e: any) => e.id === updated.id);
+        if (idx >= 0) {
+          list[idx] = updated;
+        } else {
+          list.push(updated);
+        }
+        localStorage.setItem("tnpa_executives_v1", JSON.stringify(list));
+      }
+    } catch (e) {}
+
+    onAddAuditLog(
+      lang === "ta" ? "நிர்வாகி புகைப்படம் மாற்றம்" : "Executive Photo Updated",
+      lang === "ta"
+        ? `${updated.name} (${updated.role}) அவர்களின் நேரடி புகைப்படம் வெற்றிகரமாக மாற்றப்பட்டது.`
+        : `Direct portrait photo updated for ${updated.nameEn || updated.name} (${updated.roleEn || updated.role}).`
+    );
+
+    setPhotoUploadSuccessToast(
+      lang === "ta"
+        ? `${updated.name} அவர்களின் நேரடி புகைப்படம் வெற்றிகரமாகப் புதுப்பிக்கப்பட்டது!`
+        : `Photo updated successfully for ${updated.nameEn || updated.name}!`
+    );
+    setTimeout(() => setPhotoUploadSuccessToast(null), 4000);
+    setPhotoModalExecutive(null);
   };
 
   // Execute Deletion
@@ -772,23 +847,31 @@ export default function ExecutiveDirectoryPortal({
                   </div>
 
                   {/* Profile & Identity */}
+                  {/* Profile & Identity - Authentic Direct Portrait Photo (Strictly No Icons) */}
                   <div className="flex items-center gap-3.5 mb-3">
-                    <div className="relative shrink-0">
-                      {exec.photoUrl ? (
-                        <img 
-                          src={exec.photoUrl} 
-                          alt={exec.name} 
-                          className="w-14 h-14 rounded-2xl object-cover shadow-sm border-2 border-stone-200 bg-stone-100"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/s_michael_alvin.svg";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 border-2 border-stone-200 flex items-center justify-center text-stone-600 font-black text-lg shadow-sm">
-                          {exec.name.charAt(0)}
-                        </div>
-                      )}
+                    <div className="relative shrink-0 group/photo">
+                      <img 
+                        src={getExecutivePhoto(exec)} 
+                        alt={exec.name} 
+                        className="w-14 h-14 rounded-2xl object-cover shadow-sm border-2 border-amber-300/80 bg-stone-100 ring-2 ring-stone-100"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = DEFAULT_EXECUTIVE_PORTRAITS[0];
+                        }}
+                      />
+
+                      {/* Direct Instant Photo Change/Upload Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenPhotoModal(exec);
+                        }}
+                        title={lang === "ta" ? "நேரடி புகைப்படம் மாற்ற / பதிவேற்ற" : "Change / Upload Direct Photo"}
+                        className="absolute -top-1.5 -right-1.5 bg-amber-500 hover:bg-amber-600 active:scale-90 text-white p-1 rounded-full shadow-md border-2 border-white transition-all cursor-pointer z-10"
+                      >
+                        <Camera className="w-3 h-3" />
+                      </button>
 
                       {/* Tier Badge Icon */}
                       <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-xs">
@@ -805,9 +888,20 @@ export default function ExecutiveDirectoryPortal({
                           {exec.nameEn}
                         </span>
                       )}
-                      <span className={`inline-block px-2 py-0.5 text-[10px] font-black rounded-md mt-1 ${badgeBg}`}>
-                        {exec.role}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`inline-block px-2 py-0.5 text-[10px] font-black rounded-md ${badgeBg}`}>
+                          {exec.role}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPhotoModal(exec)}
+                          className="text-[10px] text-amber-700 hover:text-amber-900 font-bold inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-md border border-amber-200/80 transition-colors cursor-pointer"
+                          title={lang === "ta" ? "புகைப்படம் மாற்றுக" : "Change Photo"}
+                        >
+                          <Camera className="w-2.5 h-2.5 text-amber-600" />
+                          <span>{lang === "ta" ? "படம்" : "Photo"}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -840,6 +934,17 @@ export default function ExecutiveDirectoryPortal({
                       <MessageCircle className="w-4 h-4" />
                     </a>
                   </div>
+
+                  {/* Direct Change / Upload Photo Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenPhotoModal(exec)}
+                    className="w-full py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100/90 text-amber-950 border border-amber-200 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                    title={lang === "ta" ? "நிர்வாகியின் புகைப்படத்தை மாற்றவும் அல்லது பதிவேற்றவும்" : "Change or Upload Executive Photo"}
+                  >
+                    <Camera className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                    <span>{lang === "ta" ? "புகைப்படம் மாற்ற / பதிவேற்ற" : "Change / Upload Photo"}</span>
+                  </button>
 
                   {/* Official Appointment Order Button */}
                   <button
@@ -1019,35 +1124,88 @@ export default function ExecutiveDirectoryPortal({
                 </div>
               </div>
 
-              {/* Phone & Photo */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-stone-700 font-bold mb-1">
-                    {lang === "ta" ? "தொடர்பு எண்: *" : "Phone Number: *"}
+              {/* Phone */}
+              <div>
+                <label className="block text-stone-700 font-bold mb-1">
+                  {lang === "ta" ? "தொடர்பு எண்: *" : "Phone Number: *"}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="+91 98400 12345"
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-900 focus:ring-2 focus:ring-[#b91c1c]"
+                />
+              </div>
+
+              {/* Executive Photo Studio Section (Strictly Real Photos Only - No Icons) */}
+              <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/90 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{lang === "ta" ? "நிர்வாகி நேரடி புகைப்படம் (ஐகான் கிடையாது): *" : "Executive Real Photo (No Icons Allowed): *"}</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+91 98400 12345"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-900 focus:ring-2 focus:ring-[#b91c1c]"
-                  />
+                  <span className="text-[10px] font-black text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                    {lang === "ta" ? "புகைப்படம் மட்டுமே" : "Photos Only"}
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-stone-700 font-bold mb-1">
-                    {lang === "ta" ? "புகைப்படம் (Upload Photo):" : "Photo Upload:"}
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="text-[10px] file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-stone-900 file:text-white file:font-bold hover:file:bg-[#b91c1c] cursor-pointer"
+
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <div className="relative shrink-0">
+                    <img 
+                      src={formPhotoUrl || DEFAULT_EXECUTIVE_PORTRAITS[0]} 
+                      alt="Executive Preview" 
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-md bg-stone-100"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = DEFAULT_EXECUTIVE_PORTRAITS[0];
+                      }}
                     />
-                    {formPhotoUrl && (
-                      <img src={formPhotoUrl} alt="Preview" className="w-8 h-8 rounded-lg object-cover border" />
-                    )}
+                    <div className="absolute -bottom-1 -right-1 bg-emerald-600 text-white p-0.5 rounded-full shadow-xs">
+                      <Check className="w-3 h-3" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 w-full space-y-2">
+                    <label className="w-full py-2 px-3 bg-stone-900 hover:bg-[#b91c1c] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs">
+                      <Upload className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{lang === "ta" ? "கேமரா / கேலரியில் இருந்து பதிவேற்றுக" : "Upload from Camera / Files"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <input
+                      type="url"
+                      placeholder={lang === "ta" ? "அல்லது நேரடி புகைப்பட URL..." : "Or paste Photo URL..."}
+                      value={formPhotoUrl}
+                      onChange={(e) => setFormPhotoUrl(e.target.value)}
+                      className="w-full text-xs p-2 bg-white border border-stone-200 rounded-xl text-stone-900 focus:ring-2 focus:ring-amber-500"
+                    />
+
+                    {/* Quick Preset Portraits */}
+                    <div>
+                      <span className="text-[10px] font-bold text-stone-500 block mb-1">
+                        {lang === "ta" ? "மாதிரி நிர்வாகி படத்திலிருந்து தேர்வு செய்க:" : "Or pick from dignified portraits:"}
+                      </span>
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                        {DEFAULT_EXECUTIVE_PORTRAITS.slice(0, 8).map((pUrl, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setFormPhotoUrl(pUrl)}
+                            className={`shrink-0 w-8 h-8 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                              formPhotoUrl === pUrl ? "border-amber-600 scale-110 shadow-sm ring-1 ring-amber-500" : "border-stone-200 opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            <img src={pUrl} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1302,17 +1460,14 @@ export default function ExecutiveDirectoryPortal({
 
               {/* Executive Profile Card */}
               <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row items-center sm:items-start gap-4 shadow-xs">
-                {viewingOathExecutive.photoUrl ? (
-                  <img
-                    src={viewingOathExecutive.photoUrl}
-                    alt={viewingOathExecutive.name}
-                    className="w-20 h-20 rounded-2xl object-cover border-2 border-stone-300 shrink-0 shadow-sm"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-100 to-amber-100 border-2 border-stone-300 flex items-center justify-center font-black text-2xl text-rose-900 shrink-0 shadow-sm">
-                    {viewingOathExecutive.name.charAt(0)}
-                  </div>
-                )}
+                <img
+                  src={getExecutivePhoto(viewingOathExecutive)}
+                  alt={viewingOathExecutive.name}
+                  className="w-20 h-20 rounded-2xl object-cover border-2 border-stone-300 shrink-0 shadow-sm"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_EXECUTIVE_PORTRAITS[0];
+                  }}
+                />
 
                 <div className="text-center sm:text-left space-y-1 flex-1">
                   <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
@@ -1436,6 +1591,193 @@ export default function ExecutiveDirectoryPortal({
                 {lang === "ta" ? "மூடுக" : "Close"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED EXECUTIVE PHOTO STUDIO MODAL (STRICTLY REAL PHOTOS - NO ICONS) */}
+      {photoModalExecutive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto animate-[fadeIn_0.15s_ease-out]">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-amber-300 space-y-4 my-8 animate-[scaleIn_0.2s_ease-out]">
+            {/* Modal Header */}
+            <div className="flex justify-between items-start border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-stone-900 text-base">
+                    {lang === "ta" ? "நிர்வாகி நேரடி புகைப்படம் மாற்றும் அரங்கம்" : "Executive Direct Photo Studio"}
+                  </h3>
+                  <p className="text-[11px] text-stone-500 font-bold">
+                    {lang === "ta" 
+                      ? "அனைத்து நிர்வாகிகளுக்கும் நேரடி புகைப்படம் மட்டுமே காட்டப்படும் (ஐகான் கிடையாது)" 
+                      : "Direct photos only for all executives (No icons allowed)"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setPhotoModalExecutive(null)}
+                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Target Executive Summary */}
+            <div className="p-3 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                  {lang === "ta" ? "நிர்வாகப் பொறுப்பாளர்" : "Executive Official"}
+                </span>
+                <h4 className="font-black text-stone-900 text-sm">
+                  {photoModalExecutive.name} {photoModalExecutive.nameEn ? `(${photoModalExecutive.nameEn})` : ""}
+                </h4>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs font-bold text-[#b91c1c]">
+                    {photoModalExecutive.role}
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-semibold">
+                    • {photoModalExecutive.district || photoModalExecutive.zone || photoModalExecutive.level}
+                  </span>
+                </div>
+              </div>
+
+              <span className="text-[10px] font-black px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full shrink-0">
+                {lang === "ta" ? "நேரடி படம்" : "Real Photo"}
+              </span>
+            </div>
+
+            {/* Photo Preview & Live Inspection */}
+            <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-b from-amber-50/50 to-stone-50 rounded-2xl border border-amber-200/80">
+              <div className="relative">
+                <img
+                  src={photoModalUrl || DEFAULT_EXECUTIVE_PORTRAITS[0]}
+                  alt="Executive"
+                  className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl object-cover border-4 border-white shadow-xl ring-4 ring-amber-400/80 bg-stone-200"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_EXECUTIVE_PORTRAITS[0];
+                  }}
+                />
+                <div className="absolute -bottom-2 -right-2 bg-emerald-600 text-white p-1 rounded-full shadow-md border-2 border-white">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div className="mt-3 text-center">
+                <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-800 bg-emerald-50 px-3 py-0.5 rounded-full border border-emerald-200">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  <span>{lang === "ta" ? "உறுதிப்படுத்தப்பட்ட நேரடி புகைப்படம்" : "Verified Direct Portrait Photo"}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Upload Options Tabs / Choices */}
+            <div className="space-y-3">
+              {/* Option A: Device Camera or Gallery */}
+              <div>
+                <label className="text-xs font-bold text-stone-800 block mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{lang === "ta" ? "விருப்பம் 1: கேமரா அல்லது கேலரியில் இருந்து தேர்வு செய்க:" : "Option 1: Camera or Device Gallery Upload:"}</span>
+                  </span>
+                  <span className="text-[10px] text-stone-400 font-semibold">Max 3MB</span>
+                </label>
+                <label className="w-full py-2.5 px-4 bg-stone-900 hover:bg-[#b91c1c] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs">
+                  <Upload className="w-4 h-4 text-amber-400" />
+                  <span>{lang === "ta" ? "கேமராவில் எடுக்க / படத்தை பதிவேற்ற கிளிக் செய்க" : "Choose File or Take Camera Photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoModalFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Option B: Direct Image URL */}
+              <div>
+                <label className="text-xs font-bold text-stone-800 block mb-1 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{lang === "ta" ? "விருப்பம் 2: ஆன்லைன் புகைப்பட இணைய முகவரி (URL):" : "Option 2: Direct Photo Web URL:"}</span>
+                </label>
+                <input
+                  type="url"
+                  placeholder={lang === "ta" ? "https://example.com/photo.jpg போன்ற நேரடி இணைப்பு..." : "https://example.com/photo.jpg"}
+                  value={photoModalUrl}
+                  onChange={(e) => setPhotoModalUrl(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+
+              {/* Option C: Dignified Preset Executive Portraits */}
+              <div>
+                <label className="text-xs font-bold text-stone-800 block mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{lang === "ta" ? "விருப்பம் 3: அதிகாரப்பூர்வ மாதிரி நிர்வாகி புகைப்படங்களிலிருந்து தேர்வு செய்க:" : "Option 3: Choose from Official Dignified Portraits:"}</span>
+                </label>
+                <div className="grid grid-cols-6 gap-2 p-2 bg-stone-50 border border-stone-200 rounded-xl max-h-36 overflow-y-auto">
+                  {DEFAULT_EXECUTIVE_PORTRAITS.map((pUrl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPhotoModalUrl(pUrl)}
+                      className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                        photoModalUrl === pUrl 
+                          ? "border-amber-600 ring-2 ring-amber-500 scale-105 shadow-md" 
+                          : "border-stone-200 opacity-75 hover:opacity-100 hover:border-amber-300"
+                      }`}
+                      title={`Portrait #${idx + 1}`}
+                    >
+                      <img src={pUrl} alt="" className="w-full h-full object-cover" />
+                      {photoModalUrl === pUrl && (
+                        <div className="absolute inset-0 bg-amber-600/30 flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white drop-shadow-md stroke-[3]" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPhotoModalExecutive(null)}
+                className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                {lang === "ta" ? "ரத்து" : "Cancel"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSavePhotoModal}
+                className="px-5 py-2.5 bg-[#b91c1c] hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{lang === "ta" ? "புகைப்படத்தை சேமித்து மாற்றுக" : "Save & Update Photo"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING SUCCESS TOAST */}
+      {photoUploadSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-stone-900 text-white px-4 py-3 rounded-2xl shadow-2xl border-2 border-emerald-500 flex items-center gap-3 animate-[slideUp_0.3s_ease-out]">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h5 className="font-bold text-xs text-white">
+              {lang === "ta" ? "வெற்றிகரமாக புதுப்பிக்கப்பட்டது" : "Successfully Updated"}
+            </h5>
+            <p className="text-[11px] text-stone-300">
+              {photoUploadSuccessToast}
+            </p>
           </div>
         </div>
       )}

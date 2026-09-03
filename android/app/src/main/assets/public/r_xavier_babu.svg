@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f1f5f9" />
+    </linearGradient>
+    <linearGradient id="ringGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="skinGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c6966d" />
+      <stop offset="100%" stop-color="#9d714b" />
+    </linearGradient>
+    <filter id="shadow2" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <circle cx="200" cy="200" r="190" fill="url(#bgGrad2)" stroke="url(#ringGrad2)" stroke-width="7" filter="url(#shadow2)"/>
+
+  <clipPath id="circleClip2">
+    <circle cx="200" cy="200" r="184" />
+  </clipPath>
+
+  <g clip-path="url(#circleClip2)">
+    <!-- White shirt & shoulders -->
+    <path d="M 50 400 Q 110 270 200 270 Q 290 270 350 400 Z" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+    <polygon points="145,270 200,315 165,330 125,285" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    <polygon points="255,270 200,315 235,330 275,285" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    
+    <!-- Neck -->
+    <rect x="165" y="195" width="70" height="75" rx="10" fill="#9d714b"/>
+
+    <!-- Ears -->
+    <ellipse cx="120" cy="172" rx="13" ry="22" fill="#9d714b"/>
+    <ellipse cx="280" cy="172" rx="13" ry="22" fill="#9d714b"/>
+
+    <!-- Face shape -->
+    <ellipse cx="200" cy="168" rx="70" ry="78" fill="url(#skinGrad2)"/>
+
+    <!-- Silver-Grey / Salt and Pepper Hair -->
+    <path d="M 125 142 C 120 75, 160 55, 200 55 C 240 55, 280 75, 275 142 C 265 95, 235 68, 200 68 C 165 68, 135 95, 125 142 Z" fill="#64748b"/>
+    <!-- Highlights in hair (silver gray) -->
+    <path d="M 140 100 Q 170 70 200 72 Q 230 70 260 100 C 245 82, 222 75, 200 78 C 178 75, 155 82, 140 100 Z" fill="#cbd5e1"/>
+
+    <!-- Eyebrows (Dark with grey specks) -->
+    <path d="M 142 138 Q 164 130 184 138" stroke="#475569" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <path d="M 216 138 Q 236 130 258 138" stroke="#475569" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Smiling Warm Eyes -->
+    <ellipse cx="162" cy="152" rx="10" ry="7" fill="#ffffff"/>
+    <circle cx="162" cy="152" r="5" fill="#1e293b"/>
+    <path d="M 150 144 Q 162 140 174 144" stroke="#64748b" stroke-width="1.5" fill="none"/>
+
+    <ellipse cx="238" cy="152" rx="10" ry="7" fill="#ffffff"/>
+    <circle cx="238" cy="152" r="5" fill="#1e293b"/>
+    <path d="M 226 144 Q 238 140 250 144" stroke="#64748b" stroke-width="1.5" fill="none"/>
+
+    <!-- Nose -->
+    <path d="M 200 148 L 204 176 Q 200 182 196 176 Z" fill="#885b37"/>
+
+    <!-- Silver-Grey Beard & Mustache (Characteristic R. Xavier Babu feature) -->
+    <!-- Silver mustache -->
+    <path d="M 152 188 Q 178 180 200 186 Q 222 180 248 188 Q 252 204 200 206 Q 148 204 152 188 Z" fill="#94a3b8"/>
+    <!-- Beard around chin -->
+    <path d="M 148 198 Q 140 220 162 238 Q 200 248 238 238 Q 260 220 252 198 Q 235 228 200 230 Q 165 228 148 198 Z" fill="#cbd5e1" opacity="0.95"/>
+    <path d="M 154 202 Q 150 218 166 232 Q 200 242 234 232 Q 250 218 246 202 Q 232 222 200 224 Q 168 222 154 202 Z" fill="#e2e8f0"/>
+
+    <!-- Big Warm Smile teeth -->
+    <path d="M 172 200 Q 200 215 228 200 Z" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+
+    <!-- Folded Hands (Namaste / Vanakkam Posture - கைகூப்பியது) -->
+    <!-- Arms in white sleeves -->
+    <path d="M 100 370 Q 150 310 185 280 L 200 290 L 170 370 Z" fill="#ffffff" stroke="#e2e8f0"/>
+    <path d="M 300 370 Q 250 310 215 280 L 200 290 L 230 370 Z" fill="#ffffff" stroke="#e2e8f0"/>
+    
+    <!-- Joined Palms / Hands in Namaste -->
+    <path d="M 182 275 C 180 240, 192 230, 200 230 C 208 230, 220 240, 218 275 C 215 300, 185 300, 182 275 Z" fill="#c6966d" stroke="#885b37" stroke-width="1.5"/>
+    <!-- Finger detail lines -->
+    <line x1="192" y1="235" x2="192" y2="270" stroke="#885b37" stroke-width="1"/>
+    <line x1="200" y1="232" x2="200" y2="272" stroke="#885b37" stroke-width="1.5"/>
+    <line x1="208" y1="235" x2="208" y2="270" stroke="#885b37" stroke-width="1"/>
+  </g>
+
+  <!-- Name & Role Badge -->
+  <rect x="30" y="332" width="340" height="46" rx="23" fill="#1e40af" stroke="#60a5fa" stroke-width="3" filter="url(#shadow2)"/>
+  <text x="200" y="352" text-anchor="middle" fill="#ffffff" font-family="system-ui, sans-serif" font-weight="900" font-size="13.5" letter-spacing="1">R. XAVIER BABU</text>
+  <text x="200" y="368" text-anchor="middle" fill="#bfdbfe" font-family="system-ui, sans-serif" font-weight="800" font-size="10" letter-spacing="0.5">STATE GENERAL SECRETARY | மாநில பொதுச்செயலாளர்</text>
+</svg>
