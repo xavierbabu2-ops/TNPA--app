@@ -77,6 +77,8 @@ export const TAMILNADU_DISTRICT_CODES: Record<string, string> = {
   "tiruvannamalai": "TVM",
   "நீலகிரி": "NLG",
   "nilgiris": "NLG",
+  "நாமக்கல்": "NMK",
+  "namakkal": "NMK",
   "தென்காசி": "TKS",
   "tenkasi": "TKS"
 };

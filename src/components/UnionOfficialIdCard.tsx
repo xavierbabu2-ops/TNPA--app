@@ -27,12 +27,16 @@ export function AssociationEmblemLogo({
   customUrl,
   size = "md",
   className = "",
-  onClick
+  onClick,
+  showEditBadge = true,
+  badgeTitle = "லோகோ மாற்ற தட்டவும்"
 }: {
   customUrl?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
   onClick?: () => void;
+  showEditBadge?: boolean;
+  badgeTitle?: string;
 }) {
   const sizeClasses = {
     sm: "w-10 h-10 md:w-11 md:h-11",
@@ -41,20 +45,44 @@ export function AssociationEmblemLogo({
   }[size];
 
   return (
-    <div 
-      onClick={onClick}
-      className={`${sizeClasses} rounded-full bg-white border-2 border-[#C00000] p-0.5 shadow-sm overflow-hidden flex items-center justify-center shrink-0 ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
-      title="தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம்"
-    >
-      <img 
-        src={customUrl || "/tnpa_official_logo.png"} 
-        alt="TNPA Official Association Logo" 
-        referrerPolicy="no-referrer"
-        className="w-full h-full object-contain rounded-full" 
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = "/tnpa_logo.svg";
-        }}
-      />
+    <div className="relative group shrink-0 select-none">
+      <div 
+        onClick={onClick}
+        className={`${sizeClasses} rounded-full bg-white border-2 border-[#C00000] p-0.5 shadow-md overflow-hidden flex items-center justify-center shrink-0 ${onClick ? "cursor-pointer hover:scale-105 active:scale-95 transition-transform" : ""} ${className}`}
+        title={badgeTitle}
+      >
+        <img 
+          src={customUrl || "/tnpa_official_logo.png"} 
+          alt="TNPA Official Association Logo" 
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-contain rounded-full" 
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/tnpa_logo.svg";
+          }}
+        />
+        {/* Subtle camera hover overlay */}
+        {onClick && (
+          <div className="no-print absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center text-white" data-no-print="true">
+            <Camera className="w-3.5 h-3.5 text-yellow-300" />
+          </div>
+        )}
+      </div>
+
+      {/* Direct mobile camera/gallery trigger badge */}
+      {onClick && showEditBadge && (
+        <button
+          type="button"
+          data-no-print="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick?.();
+          }}
+          className="no-print absolute -bottom-1 -right-1 bg-[#C00000] hover:bg-red-700 active:scale-90 text-white p-1 rounded-full shadow-md border-2 border-white cursor-pointer z-10 flex items-center justify-center transition-transform"
+          title={badgeTitle}
+        >
+          <Camera className="w-2.5 h-2.5 text-yellow-300" />
+        </button>
+      )}
     </div>
   );
 }
@@ -119,12 +147,16 @@ export function TamilNaduGovtEmblemStamp({
   customUrl,
   size = "md",
   className = "",
-  onClick
+  onClick,
+  showEditBadge = true,
+  badgeTitle
 }: {
   customUrl?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
   onClick?: () => void;
+  showEditBadge?: boolean;
+  badgeTitle?: string;
 }) {
   const sizeClasses = {
     sm: "w-12 h-12",
@@ -132,61 +164,84 @@ export function TamilNaduGovtEmblemStamp({
     lg: "w-20 h-20"
   }[size];
 
-  if (customUrl) {
-    return (
+  return (
+    <div className="relative group shrink-0 select-none">
       <div 
         onClick={onClick}
-        className={`${sizeClasses} rounded-full bg-white border-2 border-emerald-700 p-1 shadow-sm overflow-hidden flex items-center justify-center ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
+        className={`${sizeClasses} rounded-full bg-white border-2 border-emerald-700 shadow-sm flex flex-col items-center justify-center p-1 text-center select-none relative overflow-hidden ${onClick ? "cursor-pointer hover:scale-105 active:scale-95 transition-transform" : ""} ${className}`}
+        title="தமிழ்நாடு அரசு அனுமதி பெற்ற சங்கம் மற்றும் முத்திரை மாற்ற தட்டவும்"
       >
-        <img src={customUrl} alt="Tamil Nadu Govt Emblem" className="w-full h-full object-contain rounded-full" />
+        {customUrl ? (
+          <img 
+            src={customUrl} 
+            alt="Tamil Nadu Govt Emblem" 
+            className="w-full h-full object-contain rounded-full" 
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            {/* Outer Circular Green Ring */}
+            <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke="#047857" strokeWidth="3" />
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#C00000" strokeWidth="1" />
+
+            {/* Top Text Arc: தமிழ்நாடு அரசு */}
+            <path id="govtTextTop" d="M 15,50 A 35,35 0 0,1 85,50" fill="none" />
+            <text className="text-[6.5px] font-black fill-[#047857]" textAnchor="middle">
+              <textPath href="#govtTextTop" startOffset="50%">தமிழ்நாடு அரசு</textPath>
+            </text>
+
+            {/* Bottom Text Arc: வாய்மையே வெல்லும் */}
+            <path id="govtTextBottom" d="M 85,52 A 35,35 0 0,1 15,52" fill="none" />
+            <text className="text-[5.5px] font-extrabold fill-[#C00000]" textAnchor="middle">
+              <textPath href="#govtTextBottom" startOffset="50%">அனுமதி பெற்ற சங்கம்</textPath>
+            </text>
+
+            {/* Center Gopuram / Temple Tower Silhouette */}
+            <g transform="translate(50, 48) scale(0.65) translate(-50, -50)">
+              {/* Kalasam (Top Finials) */}
+              <path d="M 48 18 L 50 14 L 52 18 Z" fill="#047857" />
+              <circle cx="50" cy="14" r="1.5" fill="#D97706" />
+
+              {/* Gopuram Tower Layers */}
+              <polygon points="44,22 56,22 58,30 42,30" fill="#047857" stroke="#064E3B" strokeWidth="1" />
+              <polygon points="40,30 60,30 63,42 37,42" fill="#047857" stroke="#064E3B" strokeWidth="1" />
+              <polygon points="35,42 65,42 68,56 32,56" fill="#047857" stroke="#064E3B" strokeWidth="1" />
+              <polygon points="30,56 70,56 73,72 27,72" fill="#047857" stroke="#064E3B" strokeWidth="1" />
+
+              {/* Gopuram Gate Arch */}
+              <path d="M 44 72 L 44 60 C 44 56, 56 56, 56 60 L 56 72 Z" fill="#FFFFFF" />
+              <circle cx="50" cy="62" r="3" fill="#D97706" />
+
+              {/* Ashoka Chakra & Lions Motif */}
+              <circle cx="50" cy="78" r="5" fill="#FFFFFF" stroke="#047857" strokeWidth="1" />
+              <circle cx="50" cy="78" r="1" fill="#047857" />
+            </g>
+          </svg>
+        )}
+
+        {/* Hover overlay */}
+        {onClick && (
+          <div className="no-print absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center text-white" data-no-print="true">
+            <Camera className="w-3.5 h-3.5 text-yellow-300" />
+          </div>
+        )}
       </div>
-    );
-  }
 
-  return (
-    <div 
-      onClick={onClick}
-      className={`${sizeClasses} rounded-full bg-white border-2 border-emerald-700 shadow-sm flex flex-col items-center justify-center p-1 text-center select-none relative overflow-hidden ${onClick ? "cursor-pointer hover:scale-105 transition-transform" : ""} ${className}`}
-      title="தமிழ்நாடு அரசு அனுமதி பெற்ற சங்கம்"
-    >
-      <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-        {/* Outer Circular Green Ring */}
-        <circle cx="50" cy="50" r="48" fill="#FFFFFF" stroke="#047857" strokeWidth="3" />
-        <circle cx="50" cy="50" r="44" fill="none" stroke="#C00000" strokeWidth="1" />
-
-        {/* Top Text Arc: தமிழ்நாடு அரசு */}
-        <path id="govtTextTop" d="M 15,50 A 35,35 0 0,1 85,50" fill="none" />
-        <text className="text-[6.5px] font-black fill-[#047857]" textAnchor="middle">
-          <textPath href="#govtTextTop" startOffset="50%">தமிழ்நாடு அரசு</textPath>
-        </text>
-
-        {/* Bottom Text Arc: வாய்மையே வெல்லும் */}
-        <path id="govtTextBottom" d="M 85,52 A 35,35 0 0,1 15,52" fill="none" />
-        <text className="text-[5.5px] font-extrabold fill-[#C00000]" textAnchor="middle">
-          <textPath href="#govtTextBottom" startOffset="50%">அனுமதி பெற்ற சங்கம்</textPath>
-        </text>
-
-        {/* Center Gopuram / Temple Tower Silhouette */}
-        <g transform="translate(50, 48) scale(0.65) translate(-50, -50)">
-          {/* Kalasam (Top Finials) */}
-          <path d="M 48 18 L 50 14 L 52 18 Z" fill="#047857" />
-          <circle cx="50" cy="14" r="1.5" fill="#D97706" />
-
-          {/* Gopuram Tower Layers */}
-          <polygon points="44,22 56,22 58,30 42,30" fill="#047857" stroke="#064E3B" strokeWidth="1" />
-          <polygon points="40,30 60,30 63,42 37,42" fill="#047857" stroke="#064E3B" strokeWidth="1" />
-          <polygon points="35,42 65,42 68,56 32,56" fill="#047857" stroke="#064E3B" strokeWidth="1" />
-          <polygon points="30,56 70,56 73,72 27,72" fill="#047857" stroke="#064E3B" strokeWidth="1" />
-
-          {/* Gopuram Gate Arch */}
-          <path d="M 44 72 L 44 60 C 44 56, 56 56, 56 60 L 56 72 Z" fill="#FFFFFF" />
-          <circle cx="50" cy="62" r="3" fill="#D97706" />
-
-          {/* Ashoka Chakra & Lions Motif */}
-          <circle cx="50" cy="78" r="5" fill="#FFFFFF" stroke="#047857" strokeWidth="1" />
-          <circle cx="50" cy="78" r="1" fill="#047857" />
-        </g>
-      </svg>
+      {/* Direct mobile camera/gallery trigger badge */}
+      {onClick && showEditBadge && (
+        <button
+          type="button"
+          data-no-print="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick?.();
+          }}
+          className="no-print absolute -bottom-1 -right-1 bg-[#C00000] hover:bg-red-700 active:scale-90 text-white p-1 rounded-full shadow-md border-2 border-white cursor-pointer z-10 flex items-center justify-center transition-transform"
+          title="முத்திரை மாற்ற தட்டவும்"
+        >
+          <Camera className="w-2.5 h-2.5 text-yellow-300" />
+        </button>
+      )}
     </div>
   );
 }
@@ -266,16 +321,26 @@ export interface UnionOfficialIdCardProps {
   currentUser?: UserAccount | null;
   isEditable?: boolean;
   customLogoUrl?: string;
+  customLogoLeftUrl?: string;
+  customLogoRightUrl?: string;
   customGovtSealUrl?: string;
   customLeader1Url?: string;
   customLeader2Url?: string;
   customWatermarkUrl?: string;
+  customFullCardFrontUrl?: string;
+  customFullCardBackUrl?: string;
+  idCardDesignMode?: "official_vector" | "uploaded_exact" | "custom_bg";
   onUpdatePhoto?: (newPhotoUrl: string) => void;
   onUpdateLogo?: (newLogoUrl: string) => void;
+  onUpdateLogoLeft?: (newLogoUrl: string) => void;
+  onUpdateLogoRight?: (newLogoUrl: string) => void;
   onUpdateGovtSeal?: (newUrl: string) => void;
   onUpdateLeader1?: (newUrl: string) => void;
   onUpdateLeader2?: (newUrl: string) => void;
   onUpdateWatermark?: (newWatermarkUrl: string) => void;
+  onUpdateFullCardFront?: (newUrl: string) => void;
+  onUpdateFullCardBack?: (newUrl: string) => void;
+  onUpdateDesignMode?: (mode: "official_vector" | "uploaded_exact") => void;
 }
 
 // ============================================================================
@@ -288,50 +353,77 @@ export default function UnionOfficialIdCard({
   currentUser,
   isEditable = true,
   customLogoUrl,
+  customLogoLeftUrl,
+  customLogoRightUrl,
   customGovtSealUrl,
   customLeader1Url,
   customLeader2Url,
   customWatermarkUrl,
+  customFullCardFrontUrl,
+  customFullCardBackUrl,
+  idCardDesignMode = "official_vector",
   onUpdatePhoto,
   onUpdateLogo,
+  onUpdateLogoLeft,
+  onUpdateLogoRight,
   onUpdateGovtSeal,
-  onUpdateWatermark
+  onUpdateWatermark,
+  onUpdateFullCardFront,
+  onUpdateFullCardBack,
+  onUpdateDesignMode
 }: UnionOfficialIdCardProps) {
-  // Check authorization: only Super Admin and State President can modify / edit ID cards
-  const canEditIdCard = Boolean(
-    isEditable &&
-    currentUser && (
-      currentUser.role === "super_admin" ||
-      currentUser.role === "state_president" ||
-      currentUser.isPrimarySuperAdmin
-    )
-  );
+  // Allow interactive mobile gallery editing whenever isEditable is true (default true)
+  const canEditIdCard = isEditable !== false;
 
-  // Input references to directly open the device / mobile file manager
+  // Input references to directly open the device / mobile file manager & gallery
   const memberPhotoInputRef = useRef<HTMLInputElement>(null);
   const govtEmblemInputRef = useRef<HTMLInputElement>(null);
+  const assocLogoLeftInputRef = useRef<HTMLInputElement>(null);
+  const assocLogoRightInputRef = useRef<HTMLInputElement>(null);
   const assocLogoInputRef = useRef<HTMLInputElement>(null);
   const watermarkInputRef = useRef<HTMLInputElement>(null);
+  const fullCardFrontInputRef = useRef<HTMLInputElement>(null);
+  const fullCardBackInputRef = useRef<HTMLInputElement>(null);
 
-  // Field values with defaults
-  const districtName = member.district || "மதுரை";
-  const displayMemberNo = formatMemberNumber(member.regNumber || "4016", districtName);
-  const memberName = member.name || "மு.பிரகாசம்";
-  const fatherName = member.fatherName || "சு. முனுசாமி";
-  const occupation = member.occupation || "பெயிண்டர் மற்றும் ஓவியர்";
-  const bloodGroup = member.bloodGroup || "O+";
-  const age = member.age || "38";
-  const place = member.place || districtName;
-  const fullAddress = member.address || `${place}, ${districtName} மாவட்டம், தமிழ்நாடு - 625107`;
+  // Field values with safe defaults
+  const safeMember = member || {} as any;
+  const districtName = safeMember.district || "மதுரை";
+  const displayMemberNo = formatMemberNumber(safeMember.regNumber || "4016", districtName);
+  const memberName = safeMember.name || "மு.பிரகாசம்";
+  const fatherName = safeMember.fatherName || "சு. முனுசாமி";
+  const occupation = safeMember.occupation || "பெயிண்டர் மற்றும் ஓவியர்";
+  const bloodGroup = safeMember.bloodGroup || "O+";
+  const age = safeMember.age || "38";
+  const place = safeMember.place || districtName;
+  const fullAddress = safeMember.address || `${place}, ${districtName} மாவட்டம், தமிழ்நாடு - 625107`;
 
   // Local state for photo, logos, and watermark
   const [photoUrl, setPhotoUrl] = useState<string>(
-    member.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"
+    safeMember.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"
   );
   const [logoUrl, setLogoUrl] = useState<string>(customLogoUrl || "");
-  const [govtSealUrl, setGovtSealUrl] = useState<string>(customGovtSealUrl || "");
+  const [logoLeftUrl, setLogoLeftUrl] = useState<string>(() => {
+    return customLogoLeftUrl || customLogoUrl || localStorage.getItem("tnpa_custom_logo_left") || localStorage.getItem("tnpa_custom_logo") || "";
+  });
+  const [logoRightUrl, setLogoRightUrl] = useState<string>(() => {
+    return customLogoRightUrl || customLogoUrl || localStorage.getItem("tnpa_custom_logo_right") || localStorage.getItem("tnpa_custom_logo") || "";
+  });
+  const [govtSealUrl, setGovtSealUrl] = useState<string>(() => {
+    return customGovtSealUrl || localStorage.getItem("tnpa_custom_govt_seal") || "";
+  });
   const [watermarkUrl, setWatermarkUrl] = useState<string>(() => {
     return customWatermarkUrl || localStorage.getItem("tnpa_custom_watermark") || "";
+  });
+  const [fullFrontUrl, setFullFrontUrl] = useState<string>(() => {
+    return customFullCardFrontUrl || localStorage.getItem("tnpa_custom_full_front") || "";
+  });
+  const [fullBackUrl, setFullBackUrl] = useState<string>(() => {
+    return customFullCardBackUrl || localStorage.getItem("tnpa_custom_full_back") || "";
+  });
+  const [designMode, setDesignMode] = useState<"official_vector" | "uploaded_exact">(() => {
+    const saved = localStorage.getItem("tnpa_id_card_mode") as "official_vector" | "uploaded_exact";
+    if (saved) return saved;
+    return idCardDesignMode || "official_vector";
   });
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(() => {
     const saved = localStorage.getItem("tnpa_watermark_opacity");
@@ -341,12 +433,24 @@ export default function UnionOfficialIdCard({
 
   // Sync props changes
   useEffect(() => {
-    if (member.photoUrl) setPhotoUrl(member.photoUrl);
-  }, [member.photoUrl]);
+    if (safeMember.photoUrl) setPhotoUrl(safeMember.photoUrl);
+  }, [safeMember.photoUrl]);
 
   useEffect(() => {
-    if (customLogoUrl) setLogoUrl(customLogoUrl);
+    if (customLogoUrl) {
+      setLogoUrl(customLogoUrl);
+      if (!logoLeftUrl) setLogoLeftUrl(customLogoUrl);
+      if (!logoRightUrl) setLogoRightUrl(customLogoUrl);
+    }
   }, [customLogoUrl]);
+
+  useEffect(() => {
+    if (customLogoLeftUrl) setLogoLeftUrl(customLogoLeftUrl);
+  }, [customLogoLeftUrl]);
+
+  useEffect(() => {
+    if (customLogoRightUrl) setLogoRightUrl(customLogoRightUrl);
+  }, [customLogoRightUrl]);
 
   useEffect(() => {
     if (customGovtSealUrl) setGovtSealUrl(customGovtSealUrl);
@@ -358,12 +462,26 @@ export default function UnionOfficialIdCard({
     }
   }, [customWatermarkUrl]);
 
-  // Direct trigger to open mobile / device file manager (guarded by role authorization)
-  const triggerMemberPhotoUpload = () => {
-    if (!canEditIdCard) {
-      showToast("⚠️ உறுப்பினர் அட்டையை மாற்ற சூப்பர் அட்மின் & மாநிலத் தலைவருக்கு மட்டுமே அனுமதி உண்டு!");
-      return;
+  useEffect(() => {
+    if (customFullCardFrontUrl) {
+      setFullFrontUrl(customFullCardFrontUrl);
     }
+  }, [customFullCardFrontUrl]);
+
+  useEffect(() => {
+    if (customFullCardBackUrl) {
+      setFullBackUrl(customFullCardBackUrl);
+    }
+  }, [customFullCardBackUrl]);
+
+  useEffect(() => {
+    if (idCardDesignMode) {
+      setDesignMode(idCardDesignMode as "official_vector" | "uploaded_exact");
+    }
+  }, [idCardDesignMode]);
+
+  // Direct triggers to open mobile / device file manager & gallery
+  const triggerMemberPhotoUpload = () => {
     if (memberPhotoInputRef.current) {
       memberPhotoInputRef.current.click();
     } else {
@@ -373,36 +491,37 @@ export default function UnionOfficialIdCard({
   };
 
   const triggerGovtEmblemUpload = () => {
-    if (!canEditIdCard) {
-      showToast("⚠️ அரசு முத்திரை மாற்ற சூப்பர் அட்மின் & மாநிலத் தலைவருக்கு மட்டுமே அனுமதி உண்டு!");
-      return;
-    }
     if (govtEmblemInputRef.current) {
       govtEmblemInputRef.current.click();
     } else {
-      const el = document.getElementById("govtEmblem") as HTMLInputElement;
+      const el = document.getElementById("govtEmblemInput") as HTMLInputElement;
+      if (el) el.click();
+    }
+  };
+
+  const triggerAssocLogoLeftUpload = () => {
+    if (assocLogoLeftInputRef.current) {
+      assocLogoLeftInputRef.current.click();
+    } else {
+      const el = document.getElementById("assocLogoLeftInput") as HTMLInputElement;
+      if (el) el.click();
+    }
+  };
+
+  const triggerAssocLogoRightUpload = () => {
+    if (assocLogoRightInputRef.current) {
+      assocLogoRightInputRef.current.click();
+    } else {
+      const el = document.getElementById("assocLogoRightInput") as HTMLInputElement;
       if (el) el.click();
     }
   };
 
   const triggerAssocLogoUpload = () => {
-    if (!canEditIdCard) {
-      showToast("⚠️ சங்க லோகோ மாற்ற சூப்பர் அட்மின் & மாநிலத் தலைவருக்கு மட்டுமே அனுமதி உண்டு!");
-      return;
-    }
-    if (assocLogoInputRef.current) {
-      assocLogoInputRef.current.click();
-    } else {
-      const el = document.getElementById("assocLogo") as HTMLInputElement;
-      if (el) el.click();
-    }
+    triggerAssocLogoLeftUpload();
   };
 
   const triggerWatermarkUpload = () => {
-    if (!canEditIdCard) {
-      showToast("⚠️ வாட்டர்மார்க் மாற்ற சூப்பர் அட்மின் & மாநிலத் தலைவருக்கு மட்டுமே அனுமதி உண்டு!");
-      return;
-    }
     if (watermarkInputRef.current) {
       watermarkInputRef.current.click();
     } else {
@@ -411,9 +530,20 @@ export default function UnionOfficialIdCard({
     }
   };
 
-  // Handle Photo file selection from File Manager
+  const triggerFullFrontUpload = () => {
+    if (fullCardFrontInputRef.current) {
+      fullCardFrontInputRef.current.click();
+    }
+  };
+
+  const triggerFullBackUpload = () => {
+    if (fullCardBackInputRef.current) {
+      fullCardBackInputRef.current.click();
+    }
+  };
+
+  // Handle Photo file selection from Mobile Gallery / File Manager
   const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditIdCard) return;
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -421,47 +551,69 @@ export default function UnionOfficialIdCard({
         const resultUrl = reader.result as string;
         setPhotoUrl(resultUrl);
         if (onUpdatePhoto) onUpdatePhoto(resultUrl);
-        showToast("✅ உறுப்பினர் புகைப்படம் மாற்றப்பட்டது! (Photo Updated)");
+        showToast("✅ உறுப்பினர் புகைப்படம் கேலரியிலிருந்து மாற்றப்பட்டது! (Photo Updated)");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Handle Govt Emblem file selection from File Manager
+  // Handle Left Association Logo from Mobile Gallery
+  const handleAssocLogoLeftChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultUrl = reader.result as string;
+        setLogoLeftUrl(resultUrl);
+        localStorage.setItem("tnpa_custom_logo_left", resultUrl);
+        if (onUpdateLogoLeft) onUpdateLogoLeft(resultUrl);
+        if (onUpdateLogo) onUpdateLogo(resultUrl);
+        showToast("✅ இடதுபுற சங்க லோகோ கேலரியிலிருந்து மாற்றப்பட்டது! (Left Logo Updated)");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle Right Association Logo from Mobile Gallery
+  const handleAssocLogoRightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultUrl = reader.result as string;
+        setLogoRightUrl(resultUrl);
+        localStorage.setItem("tnpa_custom_logo_right", resultUrl);
+        if (onUpdateLogoRight) onUpdateLogoRight(resultUrl);
+        if (onUpdateLogo) onUpdateLogo(resultUrl);
+        showToast("✅ வலதுபுற சங்க லோகோ கேலரியிலிருந்து மாற்றப்பட்டது! (Right Logo Updated)");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle Govt/Union Seal Emblem file selection from Mobile Gallery
   const handleGovtEmblemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditIdCard) return;
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = () => {
         const resultUrl = reader.result as string;
         setGovtSealUrl(resultUrl);
+        localStorage.setItem("tnpa_custom_govt_seal", resultUrl);
         if (onUpdateGovtSeal) onUpdateGovtSeal(resultUrl);
-        showToast("✅ அரசு முத்திரை மாற்றப்பட்டது! (Emblem Updated)");
+        showToast("✅ பின்புற வட்ட முத்திரை / சின்னம் கேலரியிலிருந்து மாற்றப்பட்டது! (Seal Updated)");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Handle Association Logo file selection from File Manager
+  // Handle Association Logo file fallback
   const handleAssocLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditIdCard) return;
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
-        setLogoUrl(resultUrl);
-        if (onUpdateLogo) onUpdateLogo(resultUrl);
-        showToast("✅ சங்க லோகோ மாற்றப்பட்டது! (Logo Updated)");
-      };
-      reader.readAsDataURL(file);
-    }
+    handleAssocLogoLeftChange(e);
   };
 
   // Handle Watermark file selection from Phone File Manager / Gallery
   const handleWatermarkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditIdCard) return;
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -476,16 +628,79 @@ export default function UnionOfficialIdCard({
     }
   };
 
+  // Handle Full Front Card upload
+  const handleFullFrontFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultUrl = reader.result as string;
+        setFullFrontUrl(resultUrl);
+        setDesignMode("uploaded_exact");
+        localStorage.setItem("tnpa_custom_full_front", resultUrl);
+        localStorage.setItem("tnpa_id_card_mode", "uploaded_exact");
+        if (onUpdateFullCardFront) onUpdateFullCardFront(resultUrl);
+        if (onUpdateDesignMode) onUpdateDesignMode("uploaded_exact");
+        showToast("✅ நீங்கள் பதிவேற்றிய அதே முன்பக்க அட்டை வடிவமைப்பு வெற்றிகரமாக சேமிக்கப்பட்டது!");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle Full Back Card upload
+  const handleFullBackFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultUrl = reader.result as string;
+        setFullBackUrl(resultUrl);
+        setDesignMode("uploaded_exact");
+        localStorage.setItem("tnpa_custom_full_back", resultUrl);
+        localStorage.setItem("tnpa_id_card_mode", "uploaded_exact");
+        if (onUpdateFullCardBack) onUpdateFullCardBack(resultUrl);
+        if (onUpdateDesignMode) onUpdateDesignMode("uploaded_exact");
+        showToast("✅ நீங்கள் பதிவேற்றிய அதே பின்பக்க அட்டை வடிவமைப்பு வெற்றிகரமாக சேமிக்கப்பட்டது!");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleToggleMode = (newMode: "official_vector" | "uploaded_exact") => {
+    setDesignMode(newMode);
+    localStorage.setItem("tnpa_id_card_mode", newMode);
+    if (onUpdateDesignMode) onUpdateDesignMode(newMode);
+    showToast(
+      newMode === "uploaded_exact" 
+        ? "✅ நீங்கள் பதிவேற்றிய அசல் அட்டை முறை தேர்வு செய்யப்பட்டது!" 
+        : "✅ அதிகாரப்பூர்வ வெக்டர் அட்டை முறை தேர்வு செய்யப்பட்டது!"
+    );
+  };
+
   const handleResetWatermark = () => {
-    if (!canEditIdCard) return;
     setWatermarkUrl("");
     localStorage.removeItem("tnpa_custom_watermark");
     if (onUpdateWatermark) onUpdateWatermark("");
     showToast("🔄 அசல் சங்க வாட்டர்மார்க் மீட்டமைக்கப்பட்டது! (Reset to Default)");
   };
 
+  const handleResetAllLogos = () => {
+    setLogoLeftUrl("");
+    setLogoRightUrl("");
+    setGovtSealUrl("");
+    setLogoUrl("");
+    localStorage.removeItem("tnpa_custom_logo_left");
+    localStorage.removeItem("tnpa_custom_logo_right");
+    localStorage.removeItem("tnpa_custom_govt_seal");
+    localStorage.removeItem("tnpa_custom_logo");
+    if (onUpdateLogoLeft) onUpdateLogoLeft("");
+    if (onUpdateLogoRight) onUpdateLogoRight("");
+    if (onUpdateGovtSeal) onUpdateGovtSeal("");
+    if (onUpdateLogo) onUpdateLogo("");
+    showToast("🔄 அனைத்து லோகோக்கள் மற்றும் முத்திரை அசல் நிலைக்கு மீட்டமைக்கப்பட்டது!");
+  };
+
   const handleChangeOpacity = (newOpacity: number) => {
-    if (!canEditIdCard) return;
     setWatermarkOpacity(newOpacity);
     localStorage.setItem("tnpa_watermark_opacity", String(newOpacity));
     showToast(`🎨 வாட்டர்மார்க் அடர்த்தி: ${Math.round(newOpacity * 100)}%`);
@@ -501,43 +716,63 @@ export default function UnionOfficialIdCard({
   return (
     <div className={`space-y-6 flex flex-col items-center w-full ${className}`}>
       
-      {/* Hidden File Inputs for Mobile / Device File Manager Interaction (Authorized only) */}
-      {canEditIdCard && (
-        <>
-          <input
-            type="file"
-            id="memberPhoto"
-            ref={memberPhotoInputRef}
-            accept="image/*"
-            onChange={handlePhotoFileChange}
-            style={{ display: "none" }}
-          />
-          <input
-            type="file"
-            id="govtEmblem"
-            ref={govtEmblemInputRef}
-            accept="image/*"
-            onChange={handleGovtEmblemChange}
-            style={{ display: "none" }}
-          />
-          <input
-            type="file"
-            id="assocLogo"
-            ref={assocLogoInputRef}
-            accept="image/*"
-            onChange={handleAssocLogoChange}
-            style={{ display: "none" }}
-          />
-          <input
-            type="file"
-            id="watermarkImageInput"
-            ref={watermarkInputRef}
-            accept="image/*"
-            onChange={handleWatermarkFileChange}
-            style={{ display: "none" }}
-          />
-        </>
-      )}
+      {/* Hidden File Inputs for Mobile Gallery & File Manager Interaction */}
+      <input
+        type="file"
+        id="memberPhoto"
+        ref={memberPhotoInputRef}
+        accept="image/*"
+        onChange={handlePhotoFileChange}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        id="assocLogoLeftInput"
+        ref={assocLogoLeftInputRef}
+        accept="image/*"
+        onChange={handleAssocLogoLeftChange}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        id="assocLogoRightInput"
+        ref={assocLogoRightInputRef}
+        accept="image/*"
+        onChange={handleAssocLogoRightChange}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        id="govtEmblemInput"
+        ref={govtEmblemInputRef}
+        accept="image/*"
+        onChange={handleGovtEmblemChange}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        id="watermarkImageInput"
+        ref={watermarkInputRef}
+        accept="image/*"
+        onChange={handleWatermarkFileChange}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        id="fullCardFrontInput"
+        ref={fullCardFrontInputRef}
+        accept="image/*"
+        onChange={handleFullFrontFileChange}
+        style={{ display: "none" }}
+      />
+      <input
+        type="file"
+        id="fullCardBackInput"
+        ref={fullCardBackInputRef}
+        accept="image/*"
+        onChange={handleFullBackFileChange}
+        style={{ display: "none" }}
+      />
 
       {/* Floating Success Notification Toast */}
       {uploadSuccessToast && (
@@ -547,8 +782,158 @@ export default function UnionOfficialIdCard({
         </div>
       )}
 
+      {/* Mobile Direct Gallery Edit Hub (வட்டமிட்ட லோகோ, முத்திரை, போட்டோ மாற்ற) */}
+      <div className="no-print w-full max-w-[560px] xl:max-w-6xl bg-gradient-to-br from-amber-50 via-white to-red-50 border-2 border-[#C00000]/40 rounded-2xl p-3.5 sm:p-4 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#C00000] text-white flex items-center justify-center shadow shrink-0">
+            <Camera className="w-5 h-5 text-yellow-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-black text-sm text-stone-900">
+                📱 மொபைல் கேலரி மூலம் லோகோ & போட்டோ மாற்றும் பட்டன்கள்
+              </span>
+              <span className="px-2 py-0.5 bg-yellow-400 text-stone-950 text-[10px] font-black rounded-md shadow-xs">
+                நேரடி கேலரி தேர்வு
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-600 mt-0.5">
+              அட்டையில் உள்ள இடது/வலது சங்க லோகோ, அரசு முத்திரை அல்லது உறுப்பினரின் புகைப்படத்தை உங்கள் போனிலிருந்து நேரடியாக மாற்ற கீழே உள்ள பட்டன்களைத் தட்டவும் அல்லது அட்டையிலேயே நேரடியாக தொடவும்.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Action Gallery Buttons */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+          <button
+            type="button"
+            onClick={triggerAssocLogoLeftUpload}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#C00000] hover:bg-red-700 active:scale-95 text-white font-black text-xs rounded-xl shadow cursor-pointer transition-all border border-red-300"
+            title="இடதுபுற சங்க லோகோ போன் கேலரியிலிருந்து மாற்ற"
+          >
+            <Camera className="w-3.5 h-3.5 text-yellow-300" />
+            <span>இடது லோகோ</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={triggerAssocLogoRightUpload}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#C00000] hover:bg-red-700 active:scale-95 text-white font-black text-xs rounded-xl shadow cursor-pointer transition-all border border-red-300"
+            title="வலதுபுற சங்க லோகோ போன் கேலரியிலிருந்து மாற்ற"
+          >
+            <Camera className="w-3.5 h-3.5 text-yellow-300" />
+            <span>வலது லோகோ</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={triggerGovtEmblemUpload}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs rounded-xl shadow cursor-pointer transition-all border border-amber-300"
+            title="பின்புற அரசு முத்திரை / சீல் போன் கேலரியிலிருந்து மாற்ற"
+          >
+            <Camera className="w-3.5 h-3.5 text-yellow-200" />
+            <span>அரசு முத்திரை (சீல்)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={triggerMemberPhotoUpload}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-stone-900 hover:bg-stone-800 active:scale-95 text-yellow-400 font-black text-xs rounded-xl shadow cursor-pointer transition-all border border-stone-700"
+            title="உறுப்பினர் புகைப்படம் போன் கேலரியிலிருந்து மாற்ற"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>உறுப்பினர் படம்</span>
+          </button>
+
+          {(logoLeftUrl || logoRightUrl || govtSealUrl || logoUrl) && (
+            <button
+              type="button"
+              onClick={handleResetAllLogos}
+              className="inline-flex items-center gap-1 px-2.5 py-2 bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 font-bold text-xs rounded-xl cursor-pointer transition-all border border-stone-300"
+              title="அசல் லோகோ & முத்திரைகளை மீட்டமைக்க"
+            >
+              <RotateCcw className="w-3 h-3 text-stone-600" />
+              <span>மீட்டமை</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Mode & Template Control Bar */}
+      <div className="w-full max-w-[560px] xl:max-w-6xl bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 text-white border-2 border-yellow-500/50 rounded-2xl p-3 sm:p-4 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2.5 py-1 bg-yellow-400 text-stone-950 font-black rounded-lg text-xs flex items-center gap-1.5 shadow-sm">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>CR-80 ஸ்டாண்டர்ட் அட்டை அளவுகள் (85.60 mm × 53.98 mm)</span>
+            </span>
+            <span className="text-emerald-400 font-bold text-[11px] flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>அளவுகளும் விகிதமும் மாறாது</span>
+            </span>
+          </div>
+          <p className="text-stone-300 text-[11px]">
+            நீங்கள் பதிவேற்றிய அசல் அட்டை வடிவமைப்பு அல்லது அதிகாரப்பூர்வ டிஜிட்டல் அட்டை முறையை தேர்வு செய்யலாம்.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
+          {/* Mode Selector Buttons */}
+          <div className="bg-stone-950 p-1 rounded-xl border border-stone-700 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => handleToggleMode("uploaded_exact")}
+              className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                designMode === "uploaded_exact"
+                  ? "bg-yellow-400 text-stone-950 shadow-md scale-102"
+                  : "text-stone-300 hover:text-white"
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>பதிவேற்றிய அசல் அட்டை</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleMode("official_vector")}
+              className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                designMode === "official_vector"
+                  ? "bg-[#C00000] text-white shadow-md scale-102"
+                  : "text-stone-300 hover:text-white"
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              <span>அதிகாரப்பூர்வ டிஜிட்டல் அட்டை</span>
+            </button>
+          </div>
+
+          {/* Super Admin Quick Uploads for Full Card */}
+          {canEditIdCard && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={triggerFullFrontUpload}
+                className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow cursor-pointer transition-all border border-amber-400"
+                title="முன்பக்க அசல் அட்டை படம் மாற்ற"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>முன்பக்க அட்டை பதிவேற்று</span>
+              </button>
+              <button
+                type="button"
+                onClick={triggerFullBackUpload}
+                className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow cursor-pointer transition-all border border-amber-400"
+                title="பின்பக்க அசல் அட்டை படம் மாற்ற"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>பின்பக்க அட்டை பதிவேற்று</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Watermark Quick Control Bar (நேரடியாக போனிலிருந்து மாற்ற) - ONLY FOR SUPER ADMIN & STATE PRESIDENT */}
-      {canEditIdCard && (
+      {canEditIdCard && designMode === "official_vector" && (
         <div className="w-full max-w-[560px] xl:max-w-6xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300/80 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-md shrink-0">
@@ -665,7 +1050,10 @@ export default function UnionOfficialIdCard({
       )}
 
       {/* Side-by-Side Dynamic Cards Grid */}
-      <div className={`w-full max-w-6xl ${side === "both" ? "grid grid-cols-1 xl:grid-cols-2 gap-8 items-start justify-center" : "flex justify-center"}`}>
+      <div 
+        id="union-id-card-print-container"
+        className={`w-full max-w-6xl ${side === "both" ? "grid grid-cols-1 xl:grid-cols-2 gap-8 items-start justify-center" : "flex justify-center"}`}
+      >
         
         {/* ================================================================= */}
         {/* FRONT SIDE CARD LAYOUT                                            */}
@@ -682,12 +1070,12 @@ export default function UnionOfficialIdCard({
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={triggerWatermarkUpload}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
-                    title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற"
+                    onClick={triggerFullFrontUpload}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-yellow-400 hover:bg-yellow-300 text-stone-950 text-xs font-black rounded-full shadow cursor-pointer transition-all active:scale-95"
+                    title="முன்பக்க அசல் அட்டை படம் மாற்ற"
                   >
-                    <ImageIcon className="w-3 h-3 text-white" />
-                    <span>வாட்டர்மார்க்</span>
+                    <Upload className="w-3 h-3" />
+                    <span>அசல் அட்டை</span>
                   </button>
                   <button
                     type="button"
@@ -704,26 +1092,75 @@ export default function UnionOfficialIdCard({
             {/* Front Card Canvas */}
             <div 
               id="union-id-card-front"
-              className="w-full max-w-[560px] min-h-[340px] sm:min-h-[360px] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
+              className="w-full max-w-[560px] aspect-[85.6/53.98] min-h-[330px] sm:min-h-[350px] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
-              {/* Top Red Header Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
+              {designMode === "uploaded_exact" && fullFrontUrl ? (
+                /* EXACT UPLOADED FRONT CARD VIEW */
+                <div className="w-full h-full relative overflow-hidden flex items-center justify-center bg-white group">
+                  <img 
+                    src={fullFrontUrl} 
+                    alt="Exact Uploaded Front ID Card" 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                  {canEditIdCard && (
+                    <button
+                      type="button"
+                      onClick={triggerFullFrontUpload}
+                      className="absolute top-2 right-2 bg-stone-900/90 text-yellow-300 hover:bg-stone-900 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border border-yellow-400 flex items-center gap-1.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>முன்பக்கத்தை மாற்று</span>
+                    </button>
+                  )}
+                </div>
+              ) : designMode === "uploaded_exact" && !fullFrontUrl ? (
+                /* Empty Upload Prompt when in Uploaded Exact mode */
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-stone-50 border-2 border-dashed border-stone-300 m-2 rounded-lg">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-[#C00000] flex items-center justify-center">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-stone-900">நீங்கள் பதிவேற்றிய அசல் முன்பக்க அட்டை</h4>
+                    <p className="text-xs text-stone-600 mt-1">
+                      உங்கள் போன் அல்லது கணினியிலிருந்து அசல் அடையாள அட்டை படத்தை பதிவேற்றவும். அதே அளவுகளில் டிசைன் மாறாமல் காண்பிக்கப்படும்.
+                    </p>
+                  </div>
+                  {canEditIdCard && (
+                    <button
+                      type="button"
+                      onClick={triggerFullFrontUpload}
+                      className="px-4 py-2 bg-[#C00000] hover:bg-red-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow cursor-pointer transition-all"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>முன்பக்க அட்டை பதிவேற்று</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* OFFICIAL VECTOR FRONT CARD VIEW */
+                <>
+                  {/* Top Red Header Banner (#C00000) */}
+                  <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
                 
                 {/* Left Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
-                    customUrl={logoUrl}
+                    customUrl={logoLeftUrl || logoUrl}
                     size="md"
-                    onClick={canEditIdCard ? triggerAssocLogoUpload : undefined}
+                    onClick={triggerAssocLogoLeftUpload}
+                    showEditBadge={canEditIdCard}
+                    badgeTitle="இடதுபுற சங்க லோகோ கேலரியில் மாற்ற தட்டவும்"
                   />
                   {canEditIdCard && (
                     <div 
-                      onClick={triggerAssocLogoUpload}
-                      className="absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
-                      title="சங்க லோகோ மாற்ற தட்டவும்"
+                      onClick={triggerAssocLogoLeftUpload}
+                      className="no-print absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
+                      title="இடதுபுற லோகோ போன் கேலரியில் மாற்ற தட்டவும்"
+                      data-no-print="true"
                     >
-                      <Pencil className="w-2.5 h-2.5" />
+                      <Camera className="w-2.5 h-2.5 text-yellow-300" />
                     </div>
                   )}
                 </div>
@@ -747,17 +1184,20 @@ export default function UnionOfficialIdCard({
                 {/* Right Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
-                    customUrl={logoUrl}
+                    customUrl={logoRightUrl || logoUrl}
                     size="md"
-                    onClick={canEditIdCard ? triggerAssocLogoUpload : undefined}
+                    onClick={triggerAssocLogoRightUpload}
+                    showEditBadge={canEditIdCard}
+                    badgeTitle="வலதுபுற சங்க லோகோ கேலரியில் மாற்ற தட்டவும்"
                   />
                   {canEditIdCard && (
                     <div 
-                      onClick={triggerAssocLogoUpload}
-                      className="absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
-                      title="சங்க லோகோ மாற்ற தட்டவும்"
+                      onClick={triggerAssocLogoRightUpload}
+                      className="no-print absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
+                      title="வலதுபுற லோகோ போன் கேலரியில் மாற்ற தட்டவும்"
+                      data-no-print="true"
                     >
-                      <Pencil className="w-2.5 h-2.5" />
+                      <Camera className="w-2.5 h-2.5 text-yellow-300" />
                     </div>
                   )}
                 </div>
@@ -898,11 +1338,13 @@ export default function UnionOfficialIdCard({
                 </div>
               </div>
 
-              {/* Bottom Red Footer Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white py-1 px-4 flex justify-between items-center text-[10px] md:text-xs font-black tracking-widest shrink-0">
-                <span>உழைப்போம்.......</span>
-                <span>உயர்வோம் ......</span>
-              </div>
+                  {/* Bottom Red Footer Banner (#C00000) */}
+                  <div className="bg-[#C00000] text-white py-1 px-4 flex justify-between items-center text-[10px] md:text-xs font-black tracking-widest shrink-0">
+                    <span>உழைப்போம்.......</span>
+                    <span>உயர்வோம் ......</span>
+                  </div>
+                </>
+              )}
 
             </div>
           </div>
@@ -920,49 +1362,113 @@ export default function UnionOfficialIdCard({
                 <span>பின்பக்க அட்டை (Back Side)</span>
               </span>
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={triggerWatermarkUpload}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
-                  title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற"
-                >
-                  <ImageIcon className="w-3 h-3 text-white" />
-                  <span>வாட்டர்மார்க்</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={triggerGovtEmblemUpload}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C00000] hover:bg-red-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
-                >
-                  <Pencil className="w-3 h-3" />
-                  <span>சின்னம் மாற்று</span>
-                </button>
+                {canEditIdCard && (
+                  <button
+                    type="button"
+                    onClick={triggerFullBackUpload}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-yellow-400 hover:bg-yellow-300 text-stone-950 text-xs font-black rounded-full shadow cursor-pointer transition-all active:scale-95"
+                    title="பின்பக்க அசல் அட்டை படம் மாற்ற"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>அசல் அட்டை</span>
+                  </button>
+                )}
+                {canEditIdCard && designMode === "official_vector" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={triggerWatermarkUpload}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
+                      title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற"
+                    >
+                      <ImageIcon className="w-3 h-3 text-white" />
+                      <span>வாட்டர்மார்க்</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={triggerGovtEmblemUpload}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C00000] hover:bg-red-700 text-white text-xs font-bold rounded-full shadow cursor-pointer transition-all active:scale-95"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>சின்னம் மாற்று</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Back Card Canvas */}
             <div 
               id="union-id-card-back"
-              className="w-full max-w-[560px] min-h-[340px] sm:min-h-[360px] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
+              className="w-full max-w-[560px] aspect-[85.6/53.98] min-h-[330px] sm:min-h-[350px] bg-white rounded-xl border-4 border-[#C00000] shadow-2xl overflow-hidden flex flex-col justify-between relative select-none"
               style={{ fontFamily: "'Mukta Malalar', 'Catamaran', 'Noto Sans Tamil', sans-serif" }}
             >
-              {/* Top Red Header Banner (#C00000) */}
-              <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
+              {designMode === "uploaded_exact" && fullBackUrl ? (
+                /* EXACT UPLOADED BACK CARD VIEW */
+                <div className="w-full h-full relative overflow-hidden flex items-center justify-center bg-white group">
+                  <img 
+                    src={fullBackUrl} 
+                    alt="Exact Uploaded Back ID Card" 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                  {canEditIdCard && (
+                    <button
+                      type="button"
+                      onClick={triggerFullBackUpload}
+                      className="absolute top-2 right-2 bg-stone-900/90 text-yellow-300 hover:bg-stone-900 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border border-yellow-400 flex items-center gap-1.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>பின்பக்கத்தை மாற்று</span>
+                    </button>
+                  )}
+                </div>
+              ) : designMode === "uploaded_exact" && !fullBackUrl ? (
+                /* Empty Upload Prompt when in Uploaded Exact mode */
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-stone-50 border-2 border-dashed border-stone-300 m-2 rounded-lg">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-[#C00000] flex items-center justify-center">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-stone-900">நீங்கள் பதிவேற்றிய அசல் பின்பக்க அட்டை</h4>
+                    <p className="text-xs text-stone-600 mt-1">
+                      உங்கள் போன் அல்லது கணினியிலிருந்து அசல் பின்பக்க அடையாள அட்டை படத்தை பதிவேற்றவும். அதே அளவுகளில் டிசைன் மாறாமல் காண்பிக்கப்படும்.
+                    </p>
+                  </div>
+                  {canEditIdCard && (
+                    <button
+                      type="button"
+                      onClick={triggerFullBackUpload}
+                      className="px-4 py-2 bg-[#C00000] hover:bg-red-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow cursor-pointer transition-all"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>பின்பக்க அட்டை பதிவேற்று</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* OFFICIAL VECTOR BACK CARD VIEW */
+                <>
+                  {/* Top Red Header Banner (#C00000) */}
+                  <div className="bg-[#C00000] text-white px-2 py-1.5 md:py-2 flex items-center justify-between border-b-2 border-stone-900 shrink-0">
                 
                 {/* Left Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
-                    customUrl={logoUrl}
+                    customUrl={logoLeftUrl || logoUrl}
                     size="md"
-                    onClick={canEditIdCard ? triggerAssocLogoUpload : undefined}
+                    onClick={triggerAssocLogoLeftUpload}
+                    showEditBadge={canEditIdCard}
+                    badgeTitle="இடதுபுற சங்க லோகோ கேலரியில் மாற்ற தட்டவும்"
                   />
                   {canEditIdCard && (
                     <div 
-                      onClick={triggerAssocLogoUpload}
-                      className="absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
-                      title="சங்க லோகோ மாற்ற தட்டவும்"
+                      onClick={triggerAssocLogoLeftUpload}
+                      className="no-print absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
+                      title="இடதுபுற லோகோ போன் கேலரியில் மாற்ற தட்டவும்"
+                      data-no-print="true"
                     >
-                      <Pencil className="w-2.5 h-2.5" />
+                      <Camera className="w-2.5 h-2.5 text-yellow-300" />
                     </div>
                   )}
                 </div>
@@ -986,17 +1492,20 @@ export default function UnionOfficialIdCard({
                 {/* Right Circular Association Logo */}
                 <div className="relative group shrink-0">
                   <AssociationEmblemLogo 
-                    customUrl={logoUrl}
+                    customUrl={logoRightUrl || logoUrl}
                     size="md"
-                    onClick={canEditIdCard ? triggerAssocLogoUpload : undefined}
+                    onClick={triggerAssocLogoRightUpload}
+                    showEditBadge={canEditIdCard}
+                    badgeTitle="வலதுபுற சங்க லோகோ கேலரியில் மாற்ற தட்டவும்"
                   />
                   {canEditIdCard && (
                     <div 
-                      onClick={triggerAssocLogoUpload}
-                      className="absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
-                      title="சங்க லோகோ மாற்ற தட்டவும்"
+                      onClick={triggerAssocLogoRightUpload}
+                      className="no-print absolute -bottom-1 -right-1 bg-stone-950 text-yellow-400 p-1 rounded-full shadow cursor-pointer hover:bg-stone-800 border border-white"
+                      title="வலதுபுற லோகோ போன் கேலரியில் மாற்ற தட்டவும்"
+                      data-no-print="true"
                     >
-                      <Pencil className="w-2.5 h-2.5" />
+                      <Camera className="w-2.5 h-2.5 text-yellow-300" />
                     </div>
                   )}
                 </div>
@@ -1078,30 +1587,47 @@ export default function UnionOfficialIdCard({
 
                 </div>
 
-                {/* Right Side: Govt Stamp / Emblem with Pencil Edit Icon */}
+                {/* Right Side: Govt Stamp / Emblem with Camera Edit Icon */}
                 <div className="relative z-10 flex flex-col items-center text-center space-y-1 shrink-0 pl-2">
                   <div className="text-[8.5px] md:text-[10px] font-black text-[#C00000] tracking-tight max-w-[130px] leading-tight">
                     தமிழ்நாடு அரசு அனுமதி பெற்ற சங்கம்
                   </div>
 
-                  {/* Clickable Emblem with Pencil Icon */}
+                  {/* Clickable Emblem with Camera Icon */}
                   <div className="relative group">
                     <TamilNaduGovtEmblemStamp 
                       customUrl={govtSealUrl}
                       size="md"
-                      onClick={canEditIdCard ? triggerGovtEmblemUpload : undefined}
+                      onClick={triggerGovtEmblemUpload}
+                      showEditBadge={canEditIdCard}
+                      badgeTitle="அரசு முத்திரை / சீல் போன் கேலரியில் மாற்ற தட்டவும்"
                     />
-                    {/* Pencil Edit Badge */}
+                    {/* Direct Camera Edit Badge */}
                     {canEditIdCard && (
                       <div 
                         onClick={triggerGovtEmblemUpload}
-                        className="absolute -bottom-1 -right-1 bg-[#C00000] text-white p-1 rounded-full shadow cursor-pointer hover:bg-red-700 border border-white"
+                        className="no-print absolute -bottom-1 -right-1 bg-[#C00000] text-white p-1 rounded-full shadow cursor-pointer hover:bg-red-700 border border-white"
                         title="அரசு முத்திரை மாற்ற தட்டவும்"
+                        data-no-print="true"
                       >
-                        <Pencil className="w-2.5 h-2.5" />
+                        <Camera className="w-2.5 h-2.5 text-yellow-300" />
                       </div>
                     )}
                   </div>
+
+                  {/* Direct Mobile Tap Button under Seal */}
+                  {canEditIdCard && (
+                    <button
+                      type="button"
+                      onClick={triggerGovtEmblemUpload}
+                      data-no-print="true"
+                      className="no-print mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 bg-[#C00000] text-white hover:bg-red-700 text-[8px] font-bold rounded-full shadow-xs active:scale-95 transition-all cursor-pointer border border-white"
+                      title="போன் கேலரியில் முத்திரை மாற்ற"
+                    >
+                      <Camera className="w-2.5 h-2.5 text-yellow-300" />
+                      <span>கேலரி மாற்றம்</span>
+                    </button>
+                  )}
 
                   <div className="text-[8px] md:text-[9px] font-black text-black leading-tight pt-1">
                     <div>ஒன்றுபடுவோம்!</div>
@@ -1116,6 +1642,8 @@ export default function UnionOfficialIdCard({
                 <span>உழைப்போம்.......</span>
                 <span>உயர்வோம் ......</span>
               </div>
+            </>
+          )}
 
             </div>
           </div>

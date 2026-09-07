@@ -78,35 +78,17 @@ export const ROLE_AUTH_CONFIGS: Record<string, RoleAuthConfig> = {
       badgeBg: "bg-amber-500/20 text-amber-300 border-amber-500/30"
     }
   },
-  district_admin: {
-    role: "district_admin",
-    titleTa: "மாவட்ட அட்மின்",
-    titleEn: "District Admin Power",
-    badgeTa: "மாவட்ட கிளை ஒப்புதல்",
-    badgeEn: "District Branch Approval",
-    officerNameTa: "எஸ். ரமேஷ் குமார் (மாவட்ட செயலாளர்)",
-    officerNameEn: "S. Ramesh Kumar (District Secretary)",
-    validPhones: ["9840987654", "9710055443"],
-    account: defaultAccounts[3],
-    icon: <Building className="w-5 h-5 text-blue-400" />,
-    colorTheme: {
-      bg: "bg-blue-950/40",
-      border: "border-blue-500/50",
-      text: "text-blue-400",
-      badgeBg: "bg-blue-500/20 text-blue-300 border-blue-500/30"
-    }
-  },
-  member: {
-    role: "member",
-    titleTa: "சங்க உறுப்பினர்",
-    titleEn: "Union Active Member",
-    badgeTa: "டிஜிட்டல் அடையாள அட்டை",
-    badgeEn: "Digital Member ID & Welfare",
-    officerNameTa: "ரா. கார்த்திகேயன் (பதிவு பெற்ற உறுப்பினர்)",
-    officerNameEn: "R. Karthikeyan (Registered Painter)",
-    validPhones: ["9876543210"],
-    account: defaultAccounts[4],
-    icon: <User className="w-5 h-5 text-emerald-400" />,
+  state_treasurer: {
+    role: "state_treasurer",
+    titleTa: "மாநில பொருளாளர்",
+    titleEn: "State Treasurer Executive",
+    badgeTa: "மாநில நிதி மேலாண்மை",
+    badgeEn: "State Financial Control",
+    officerNameTa: "ஆர். சக்திவேல் (மாநில பொருளாளர்)",
+    officerNameEn: "R. Sakthivel (State Treasurer)",
+    validPhones: ["9443298765", "9842155667"],
+    account: defaultAccounts[2] || defaultAccounts[0],
+    icon: <Award className="w-5 h-5 text-emerald-400" />,
     colorTheme: {
       bg: "bg-emerald-950/40",
       border: "border-emerald-500/50",
@@ -251,14 +233,14 @@ export function getRegisteredRoleConfigs(executives: any[] = []): RoleAuthConfig
   if (districtExecs.length > 0) {
     // Pick the primary active district executive or first district admin
     const primaryDistExec = districtExecs.find(e => e.role?.includes("செயலாளர்") || e.role?.includes("தலைவர்")) || districtExecs[0];
-    const distPhone = primaryDistExec.phone ? primaryDistExec.phone.replace(/\D/g, "").slice(-10) : "9840987654";
+    const distPhone = primaryDistExec.phone ? primaryDistExec.phone.replace(/\D/g, "").slice(-10) : "";
     const allDistPhones = Array.from(
       new Set(
         districtExecs
           .map(d => d.phone.replace(/\D/g, "").slice(-10))
-          .concat(["9840987654", "9710055443"])
+          .filter(p => p.length === 10)
       )
-    ).filter(p => p.length === 10);
+    );
 
     configs.push({
       role: "district_admin",
@@ -270,13 +252,19 @@ export function getRegisteredRoleConfigs(executives: any[] = []): RoleAuthConfig
       officerNameEn: `${primaryDistExec.nameEn || primaryDistExec.name} (${primaryDistExec.roleEn || primaryDistExec.role} - ${primaryDistExec.districtEn || "District"})`,
       validPhones: allDistPhones.slice(0, 3), // Show clean top valid registered numbers
       account: {
-        ...defaultAccounts[3],
+        id: `usr_dist_${primaryDistExec.id}`,
+        role: "district_admin",
+        password: "admin",
+        email: `${primaryDistExec.districtEn?.toLowerCase().replace(/\s+/g, "") || "district"}@tnpainters.org`,
+        status: "approved",
+        regNumber: `TNP-DIST-${primaryDistExec.id.replace(/\D/g, "") || "001"}`,
+        joinedAt: primaryDistExec.appointedDate || "2024-01-01T10:00:00Z",
         phone: distPhone,
-        district: primaryDistExec.district || defaultAccounts[3].district,
-        districtEn: primaryDistExec.districtEn || defaultAccounts[3].districtEn,
+        district: primaryDistExec.district || "சென்னை",
+        districtEn: primaryDistExec.districtEn || "Chennai",
         name: primaryDistExec.name,
         nameEn: primaryDistExec.nameEn || primaryDistExec.name,
-        photoUrl: primaryDistExec.photoUrl || defaultAccounts[3].photoUrl
+        photoUrl: primaryDistExec.photoUrl || "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=200&h=200"
       },
       icon: <Building className="w-5 h-5 text-blue-400" />,
       colorTheme: {
@@ -286,9 +274,6 @@ export function getRegisteredRoleConfigs(executives: any[] = []): RoleAuthConfig
         badgeBg: "bg-blue-500/20 text-blue-300 border-blue-500/30"
       }
     });
-  } else {
-    // Fallback default district admin if no district execs in list
-    configs.push(ROLE_AUTH_CONFIGS.district_admin);
   }
 
   return configs;

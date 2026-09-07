@@ -238,59 +238,14 @@ export default function TnpaTvChannel({
   ];
 
   // Past Video Archive with Real-time Super Admin sync
-  const defaultArchive: TvVideoItem[] = [
-    {
-      id: "v1",
-      title: "மாநில பேரவைக் கூட்டம் 2026 - தலைவர்கள் சிறப்பு உரை",
-      titleEn: "State General Council 2026 - Executive Keynote Addresses",
-      duration: "42:15",
-      views: "18.5K",
-      date: "3 நாட்கள் முன்பு",
-      category: "மாநாடு",
-      thumbnailColor: "from-amber-700 to-rose-900",
-      speaker: "S. மைக்கேல் ஆல்வின் & ரா. சேவியர் பாபு"
-    },
-    {
-      id: "v2",
-      title: "பெயிண்டர் நலவாரிய அடையாள அட்டை பெறும் எளிய வழிமுறைகள்",
-      titleEn: "Easy Steps to Apply for Construction Welfare Board ID Card",
-      duration: "18:40",
-      views: "34.2K",
-      date: "1 வாரம் முன்பு",
-      category: "பயிற்சி",
-      thumbnailColor: "from-[#b91c1c] to-stone-900",
-      speaker: "R. சக்திவேல் (மாநில பொருளாளர்)"
-    },
-    {
-      id: "v3",
-      title: "உயர் கட்டடங்களில் பெயிண்டிங் செய்யும்போது பின்பற்ற வேண்டிய பாதுகாப்பு முறைகள்",
-      titleEn: "Safety & Harness Guidelines for High-Rise Painting Workers",
-      duration: "25:10",
-      views: "12.8K",
-      date: "2 வாரங்கள் முன்பு",
-      category: "பாதுகாப்பு",
-      thumbnailColor: "from-blue-800 to-indigo-950",
-      speaker: "பாதுகாப்புப் பிரிவு"
-    },
-    {
-      id: "v4",
-      title: "மதுரை & கோவை மாவட்ட மாபெரும் பெயிண்டர்கள் விழிப்புணர்வு பேரணி",
-      titleEn: "Madurai & Coimbatore Painters Mega Awareness Rally",
-      duration: "31:05",
-      views: "22.1K",
-      date: "3 வாரங்கள் முன்பு",
-      category: "பேரணி",
-      thumbnailColor: "from-emerald-800 to-teal-950",
-      speaker: "மாவட்ட நிர்வாகிகள்"
-    }
-  ];
+  const defaultArchive: TvVideoItem[] = [];
 
   const [videoArchive, setVideoArchive] = useState<TvVideoItem[]>(() => {
     try {
       const saved = localStorage.getItem("tnpa2_tv_custom_media");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error(e);
@@ -346,50 +301,7 @@ export default function TnpaTvChannel({
   // ==========================================
   // AI AUTO NEWS STUDIO STATES & ENGINE
   // ==========================================
-  const [sampleVideos, setSampleVideos] = useState([
-    {
-      id: "sample_1",
-      name: "மாநில செயற்குழு மாநாடு 2026 (State Executive Conference)",
-      location: "திருச்சிராப்பள்ளி (Tiruchirappalli)",
-      duration: "03:45",
-      previewBg: "from-rose-900 via-stone-900 to-amber-900",
-      detectedPeople: ["எஸ். மைக்கேல் ஆல்வின் (மாநில தலைவர்)", "ரா. சேவியர் பாபு (மாநில பொதுச் செயலாளர்)", "ஆர். சக்திவேல் (மாநில பொருளாளர்)"],
-      suggestedCategory: "Conference",
-      suggestedHeadline: "TNPA² மாநில மாநாடு திருச்சி மாநகரில் எழுச்சியுடன் துவக்கம் - 10,000 ஓவியர்கள் பங்கேற்பு!",
-      suggestedSummary: "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தின் மாநில செயற்குழு மாநாடு திருச்சியில் நடைபெற்றது. மாநில தலைவர் எஸ். மைக்கேல் ஆல்வின் தலைமையில் நடைபெற்ற இம்மாநாட்டில், மாநில பொதுச் செயலாளர் ரா. சேவியர் பாபு சிறப்புரையாற்றினார். ஓவியர் நலவாரிய ஓய்வூதியத்தை ₹2,000 ஆக உயர்த்தவும் விபத்து காப்பீட்டு தொகையை ₹5 லட்சமாக அதிகரிக்கவும் அரசை வலியுறுத்தி முக்கிய தீர்மானங்கள் நிறைவேற்றப்பட்டன.",
-      tickerText: "🔴 பிரேக்கிங் செய்தி: TNPA² மாநில மாநாட்டில் ஓவியர்களுக்கு ₹5 லட்சம் விபத்து காப்பீடு கோரி தீர்மானம் நிறைவேற்றம்!",
-      aiScript: "வணக்கம். TNPA² டிவி செய்திப் செய்திகளுக்காக AI செய்தி வாசிப்பாளர். திருச்சி மாநகரில் தமிழ்நாடு பெயிண்டர்கள் நலச் சங்கத்தின் மாநில மாநாடு மிக பிரம்மாண்டமாக நடைபெற்றது. இதில் மாநில தலைவர் எஸ். மைக்கேல் ஆல்வின் மற்றும் மாநில பொதுச்செயலாளர் ரா. சேவியர் பாபு ஆகியோர் உரையாற்றினர். 38 மாவட்டங்களில் இருந்து பல்லாயிரக்கணக்கான ஓவிய தோழர்கள் கலந்து கொண்டனர்.",
-      highlights: ["0:15 - கொடியேற்றம் & வரவேற்புரை", "1:20 - மாநில பொதுச் செயலாளர் ரா. சேவியர் பாபு உரை", "2:45 - நலவாரிய கோரிக்கை தீர்மானங்கள் வாசிப்பு"]
-    },
-    {
-      id: "sample_2",
-      name: "நலவாரிய ஓய்வூதிய கோரிக்கை மனு தாக்கல் (Welfare Pension Petition)",
-      location: "சென்னை தலைமைச் செயலகம் (Chennai Secretariat)",
-      duration: "02:10",
-      previewBg: "from-amber-900 via-[#b91c1c] to-stone-900",
-      detectedPeople: ["ரா. சேவியர் பாபு (மாநில பொதுச் செயலாளர்)", "ஆர். சக்திவேல் (மாநில பொருளாளர்)"],
-      suggestedCategory: "Welfare Scheme",
-      suggestedHeadline: "தொழிலாளர் நலத் துறை அமைச்சரிடம் TNPA² சார்பில் கோரிக்கை மனு கையளிப்பு!",
-      suggestedSummary: "தமிழ்நாடு தொழிலாளர் நலன் மற்றும் திறன் மேம்பாட்டுத் துறை அமைச்சரை நேரில் சந்தித்த TNPA² மாநில பொதுச் செயலாளர் ரா. சேவியர் பாபு மற்றும் மாநில பொருளாளர் ஆர். சக்திவேல் ஆகியோர், ஓய்வூதியத்தை ₹2,000 ஆக உயர்த்தக் கோரும் விரிவான மனுவை அளித்தனர்.",
-      tickerText: "அரசுக்கு கோரிக்கை மனு: கட்டுமான நலவாரிய ஓவியர்களுக்கு மாத ஓய்வூதியம் ₹2,000 உயர்த்த வலியுறுத்தல்!",
-      aiScript: "வணக்கம். சென்னை தலைமைச் செயலகத்தில் தொழிலாளர் நலத்துறை அமைச்சரை நேரில் சந்தித்த மாநில பொதுச்செயலாளர் ரா. சேவியர் பாபு, ஓவியர் நலவாரிய உறுப்பினர்களுக்கு உடனடியாக ஓய்வூதியம் வழங்கும் நடைமுறையை எளிமைப்படுத்த வலியுறுத்தினார்.",
-      highlights: ["0:10 - அமைச்சருடன் சந்திப்பு", "0:50 - கோரிக்கை மனு வாசிப்பு", "1:40 - மாநில பொதுச்செயலாளர் செய்தி அறிக்கை"]
-    },
-    {
-      id: "sample_3",
-      name: "உயர் கட்டட பெயிண்டிங் பாதுகாப்புப் பயிற்சி (Safety Harness Workshop)",
-      location: "கோவை (Coimbatore)",
-      duration: "04:12",
-      previewBg: "from-blue-900 via-indigo-950 to-stone-900",
-      detectedPeople: ["பாதுகாப்பு நிபுணர் குழு", "கோவை மாவட்ட நிர்வாகிகள்"],
-      suggestedCategory: "Training",
-      suggestedHeadline: "10 அடிக்கு மேல் உயரத்தில் வேலை செய்யும் ஓவியர்களுக்கு நவீன பாதுகாப்பு பெல்ட் பயிற்சி!",
-      suggestedSummary: "கோவையில் TNPA² சார்பில் ஏற்பாடு செய்யப்பட்டிருந்த உயர்கட்டட பெயிண்டிங் பாதுகாப்பு முகாமில் 300-க்கும் மேற்பட்ட பெயிண்டர்களுக்கு சர்வதேச தரத்திலான ஹெல்மெட் மற்றும் சேஃப்டி ஹார்னஸ் பயன்படுத்த செயல்முறைப் பயிற்சி அளிக்கப்பட்டது.",
-      tickerText: "பாதுகாப்பு முகாம்: 10 அடிக்கு மேல் பணிபுரியும் பெயிண்டர்களுக்கு கட்டாய சேஃப்டி பெல்ட் விழிப்புணர்வு!",
-      aiScript: "வணக்கம். கோவையில் நடைபெற்ற பெயிண்டிங் பாதுகாப்பு விழிப்புணர்வு முகாமில், பணியின்போது ஏற்படும் விபத்துகளை முற்றிலுமாக தவிர்க்கும் நவீன பாதுகாப்பு கருவிகள் குறித்து செயல்முறை விளக்கம் அளிக்கப்பட்டது.",
-      highlights: ["0:30 - சேஃப்டி பெல்ட் செயல்முறை", "2:00 - வேதிப்பொருள் சுவாசக் கவசம் விளக்கம்", "3:30 - சான்றிதழ் வழக்கம்"]
-    }
-  ]);
+  const [sampleVideos, setSampleVideos] = useState<any[]>([]);
 
   const categoriesList = [
     "Union News",
@@ -550,7 +462,7 @@ export default function TnpaTvChannel({
     setIsAnalyzed(false);
     setPublishedSuccess(false);
 
-    const targetVid = sampleVideos.find(v => v.id === selectedVideoId) || sampleVideos[0];
+    const videoName = uploadedFile ? uploadedFile.name : (customVideoName.trim() || "மாநில செயற்குழு கூட்டம்");
 
     setTimeout(() => setAnalysisProgressStep(2), 700);
     setTimeout(() => setAnalysisProgressStep(3), 1400);
@@ -559,17 +471,17 @@ export default function TnpaTvChannel({
     setTimeout(() => {
       setIsAnalyzing(false);
       setIsAnalyzed(true);
-      setAiHeadline(targetVid.suggestedHeadline);
-      setAiCategory(targetVid.suggestedCategory);
-      setAiSummary(targetVid.suggestedSummary);
-      setAiTickerText(targetVid.tickerText);
-      setAiScript(targetVid.aiScript);
-      setAiSpeaker(targetVid.detectedPeople[0] || "ரா. சேவியர் பாபு (மாநில பொதுச் செயலாளர்)");
-      setAiHighlights(targetVid.highlights);
+      setAiHeadline(`TNPA² ${videoName} - நேரலை செய்தி அறிக்கை`);
+      setAiCategory("Union News");
+      setAiSummary(`தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கத்தின் ${videoName} குறித்த அதிகாரப்பூர்வ அறிக்கை. மாநில தலைவர் S. மைக்கேல் ஆல்வின் மற்றும் மாநில பொதுச்செயலாளர் ரா. சேவியர் பாபு அவர்களின் வழிகாட்டுதலின்படி இச்செய்தி வெளியிடப்படுகிறது.`);
+      setAiTickerText(`🔴 பிரேக்கிங் செய்தி: TNPA² ${videoName} - அதிகாரப்பூர்வ அறிவிப்பு!`);
+      setAiScript(`வணக்கம். TNPA² டிவி செய்திப் பிரிவுக்காக AI செய்தி வாசிப்பாளர். தமிழ்நாடு பெயிண்டர்கள் நலச் சங்கத்தின் ${videoName} குறித்த முக்கிய நிகழ்வுகள் தற்போது பதிவேற்றப்பட்டுள்ளது.`);
+      setAiSpeaker("ரா. சேவியர் பாபு (மாநில பொதுச் செயலாளர்)");
+      setAiHighlights(["0:10 - தொடக்க உரை", "1:00 - முக்கிய தீர்மானங்கள்", "2:00 - நிறைவுரை"]);
       setAiQualityScore(98);
       setDuplicateChecked(true);
 
-      onAddAuditLog("AI News Studio Video Analysis", `Analyzed video '${targetVid.name}'. Auto-generated headline & TV assets.`);
+      onAddAuditLog("AI News Studio Video Analysis", `Analyzed video '${videoName}'. Auto-generated headline & TV assets.`);
     }, 2800);
   };
 
@@ -1091,36 +1003,18 @@ export default function TnpaTvChannel({
                   )}
                 </div>
 
-                {/* Sample Pre-loaded Videos */}
+                {/* Video Title / Topic */}
                 <div className="space-y-2">
                   <label className="block text-xs font-extrabold text-stone-700">
-                    {lang === "ta" ? "அல்லது மாதிரி சங்க நிகழ்வு வீடியோவைத் தேர்ந்தெடுக்கவும்:" : "Or pick a sample union recording:"}
+                    {lang === "ta" ? "வீடியோ தலைப்பு / நிகழ்வு பெயர்:" : "Video Title / Event Topic:"}
                   </label>
-                  
-                  <div className="space-y-2">
-                    {sampleVideos.map((sv) => (
-                      <button
-                        key={sv.id}
-                        onClick={() => handleSelectVideo(sv.id)}
-                        className={`w-full p-3 rounded-2xl border text-left transition-all flex items-center justify-between cursor-pointer ${
-                          selectedVideoId === sv.id
-                            ? "bg-amber-50 border-amber-500 shadow-sm"
-                            : "bg-stone-50 border-stone-200 hover:border-stone-300"
-                        }`}
-                      >
-                        <div className="space-y-1">
-                          <span className="font-extrabold text-xs text-stone-900 block">{sv.name}</span>
-                          <div className="flex items-center gap-2 text-[10px] text-stone-500">
-                            <span>📍 {sv.location}</span>
-                            <span>⏱️ {sv.duration}</span>
-                          </div>
-                        </div>
-                        {selectedVideoId === sv.id && (
-                          <CheckCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  <input
+                    type="text"
+                    value={customVideoName}
+                    onChange={(e) => setCustomVideoName(e.target.value)}
+                    placeholder={lang === "ta" ? "எ.கா: மதுரை மாவட்ட செயற்குழு கூட்டம் 2026" : "e.g., Madurai District Executive Meet 2026"}
+                    className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:border-amber-500"
+                  />
                 </div>
 
                 {/* AI ANALYZE TRIGGER BUTTON */}

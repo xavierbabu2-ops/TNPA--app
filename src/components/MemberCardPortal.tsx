@@ -15,7 +15,11 @@ import {
   Sparkles, 
   Info,
   PhoneCall,
-  Calendar
+  Calendar,
+  Download,
+  ImageIcon,
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { MemberCardRequest, MemberCardPaymentConfig } from '../types/memberCard';
@@ -24,6 +28,7 @@ import {
   getMemberCardRequestByMemberId, 
   saveMemberCardRequest 
 } from '../utils/memberCardStorage';
+import { exportIdCardAsPDF, exportIdCardAsImages } from '../utils/idCardPdfExport';
 
 interface MemberCardPortalProps {
   currentUser: UserAccount | null;
@@ -47,6 +52,9 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
+  const [generatedPdf, setGeneratedPdf] = useState<{ blobUrl: string; fileName: string } | null>(null);
 
   // Load existing member card request
   useEffect(() => {
@@ -61,6 +69,64 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
   useEffect(() => {
     setConfig(getMemberCardConfig());
   }, []);
+
+  const handleDownloadDigitalPdf = async () => {
+    setIsDownloading(true);
+    setDownloadMsg('PDF கோப்பு உருவாக்கப்படுகிறது...');
+    try {
+      const memberName = request?.memberName || currentUser?.name || 'Member';
+      const memberRegNo = request?.cardNumber || request?.memberId || currentUser?.regNumber || currentUser?.id || 'TNPA-MEM';
+      const memberDistrict = request?.district || currentUser?.district || 'Tamil Nadu';
+
+      const success = await exportIdCardAsPDF({
+        memberName,
+        memberId: memberRegNo,
+        district: memberDistrict,
+        singleElementId: 'printable-member-card',
+        onProgress: (msg) => setDownloadMsg(msg),
+        onSuccess: (result) => {
+          setGeneratedPdf({ blobUrl: result.blobUrl, fileName: result.fileName });
+        }
+      });
+      if (success) {
+        setTimeout(() => {
+          setIsDownloading(false);
+          setDownloadMsg('✅ PDF தயார்! உங்கள் போனில் தானாக பதிவிறக்கம் ஆகவில்லை எனில் கீழே உள்ள பொத்தானை அழுத்தவும்.');
+        }, 800);
+      } else {
+        setIsDownloading(false);
+        setDownloadMsg('❌ பிழை ஏற்பட்டது. அச்சிடு முறையைப் பயன்படுத்தவும்.');
+      }
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
+      setDownloadMsg('❌ பதிவிறக்கத்தில் பிழை.');
+    }
+  };
+
+  const handleDownloadDigitalPng = async () => {
+    setIsDownloading(true);
+    setDownloadMsg('PNG படம் உருவாக்கப்படுகிறது...');
+    try {
+      const memberName = request?.memberName || currentUser?.name || 'Member';
+      const memberRegNo = request?.cardNumber || request?.memberId || currentUser?.regNumber || currentUser?.id || 'TNPA-MEM';
+
+      await exportIdCardAsImages({
+        memberName,
+        memberId: memberRegNo,
+        singleElementId: 'printable-member-card',
+        onProgress: (msg) => setDownloadMsg(msg)
+      });
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadMsg(null);
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
+      setDownloadMsg('❌ படம் சேமிப்பதில் பிழை.');
+    }
+  };
 
   const upiNumberToDisplay = config.upiNumber || "7010131915";
 
@@ -193,7 +259,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
       {currentUser && (
         <>
           {/* STATE 1: APPROVED - DISPLAY OFFICIAL MEMBER CARD */}
-          {request?.status === 'approved' && (
+          {(request?.status === 'approved' || currentUser?.status === 'approved' || currentUser?.role === 'super_admin' || currentUser?.role === 'district_admin' || currentUser?.role === 'state_president' || currentUser?.role === 'state_treasurer') && (
             <div className="space-y-6">
               <div className="flex flex-col items-center justify-center space-y-6">
                 {/* Visual Smart Card */}
@@ -230,10 +296,10 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                     {/* Member Photo */}
                     <div className="col-span-1 flex flex-col items-center">
                       <div className="w-24 h-28 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-lg bg-slate-800 flex items-center justify-center">
-                        {request.photoUrl || currentUser.photoUrl ? (
+                        {(request?.photoUrl || currentUser?.photoUrl) ? (
                           <img
-                            src={request.photoUrl || currentUser.photoUrl}
-                            alt={request.memberName}
+                            src={request?.photoUrl || currentUser?.photoUrl}
+                            alt={request?.memberName || currentUser?.name || 'Member'}
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                           />
@@ -242,7 +308,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                         )}
                       </div>
                       <span className="text-[10px] font-bold text-amber-300 mt-1.5 uppercase">
-                        {request.bloodGroup || currentUser.bloodGroup || 'O+'} Group
+                        {request?.bloodGroup || currentUser?.bloodGroup || 'O+'} Group
                       </span>
                     </div>
 
@@ -251,11 +317,11 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                       <div>
                         <span className="text-[10px] text-slate-400 uppercase font-semibold">பெயர் / Name</span>
                         <h3 className="text-base font-extrabold text-white leading-tight">
-                          {request.memberName || currentUser.name}
+                          {request?.memberName || currentUser?.name || 'உறுப்பினர்'}
                         </h3>
-                        {(request.memberNameEn || currentUser.nameEn) && (
+                        {(request?.memberNameEn || currentUser?.nameEn) && (
                           <p className="text-xs text-slate-300 font-medium">
-                            {request.memberNameEn || currentUser.nameEn}
+                            {request?.memberNameEn || currentUser?.nameEn}
                           </p>
                         )}
                       </div>
@@ -264,13 +330,13 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                         <div>
                           <span className="text-[9px] text-slate-400 block uppercase font-semibold">உறுப்பினர் எண்</span>
                           <span className="font-bold text-amber-300 text-xs">
-                            {request.memberId}
+                            {request?.memberId || currentUser?.regNumber || currentUser?.id || 'TNPA-MEM'}
                           </span>
                         </div>
                         <div>
                           <span className="text-[9px] text-slate-400 block uppercase font-semibold">மாவட்டம்</span>
                           <span className="font-semibold text-slate-200 text-xs">
-                            {request.district || currentUser.district}
+                            {request?.district || currentUser?.district || 'தமிழ்நாடு'}
                           </span>
                         </div>
                       </div>
@@ -278,7 +344,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                       <div className="pt-1">
                         <span className="text-[9px] text-slate-400 block uppercase font-semibold">அட்டை எண் / Card ID</span>
                         <span className="font-mono text-indigo-300 text-xs font-bold">
-                          {request.cardNumber || 'TNPA-CARD-2026'}
+                          {request?.cardNumber || (currentUser?.regNumber ? `TNPA-${currentUser.regNumber}` : 'TNPA-CARD-2026')}
                         </span>
                       </div>
                     </div>
@@ -292,7 +358,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                         அங்கீகரிக்கப்பட்ட உறுப்பினர்
                       </div>
                       <p className="text-[9px] text-slate-400">
-                        செல்லுபடியாகும் காலம்: <span className="text-white font-semibold">{request.validUntil || '31-12-2027'}</span>
+                        செல்லுபடியாகும் காலம்: <span className="text-white font-semibold">{request?.validUntil || '31-12-2027'}</span>
                       </p>
                     </div>
                     <div className="text-right">
@@ -302,16 +368,69 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                   </div>
                 </div>
 
-                {/* Print Action */}
-                <div className="flex items-center justify-center pt-2">
-                  <button
-                    id="btn-print-member-card"
-                    onClick={handlePrintCard}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-md"
-                  >
-                    <Printer className="w-4 h-4" />
-                    அட்டையை அச்சிட / Print Member Card
-                  </button>
+                {/* Download & Print Actions Grid */}
+                <div className="space-y-3 pt-2">
+                  {downloadMsg && (
+                    <div className="p-3 bg-amber-500 text-white font-bold text-xs rounded-xl text-center shadow-md animate-pulse">
+                      {downloadMsg}
+                    </div>
+                  )}
+
+                  {generatedPdf && (
+                    <div className="p-3 bg-emerald-950/80 border-2 border-emerald-400 rounded-2xl flex flex-wrap items-center justify-between gap-2 shadow-lg">
+                      <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>PDF வெற்றிகரமாக உருவாக்கப்பட்டது!</span>
+                      </div>
+                      <a
+                        href={generatedPdf.blobUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={generatedPdf.fileName}
+                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-stone-950" />
+                        <span>📂 கோப்பைத் திறக்க / Open PDF</span>
+                      </a>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      id="btn-download-digital-pdf"
+                      disabled={isDownloading}
+                      onClick={handleDownloadDigitalPdf}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-[#C00000] hover:bg-red-700 text-white text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50"
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
+                      ) : (
+                        <Download className="w-4 h-4 text-yellow-300" />
+                      )}
+                      <span>📥 PDF டவுன்லோடு</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      id="btn-download-digital-png"
+                      disabled={isDownloading}
+                      onClick={handleDownloadDigitalPng}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-stone-900 hover:bg-stone-800 text-yellow-300 text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+                    >
+                      <ImageIcon className="w-4 h-4 text-yellow-300" />
+                      <span>🖼️ PNG படம்</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      id="btn-print-member-card"
+                      onClick={handlePrintCard}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-xl transition-all shadow-sm border border-slate-300 cursor-pointer active:scale-95"
+                    >
+                      <Printer className="w-4 h-4 text-[#C00000]" />
+                      <span>🖨️ அச்சிட / Print</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -345,15 +464,15 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
                     <span className="text-slate-500 text-xs block font-medium">தொகை</span>
-                    <span className="text-base font-bold text-slate-900">₹{request.amount}</span>
+                    <span className="text-base font-bold text-slate-900">₹{request?.amount || 100}</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
                     <span className="text-slate-500 text-xs block font-medium">UTR / Reference No</span>
-                    <span className="text-base font-mono font-bold text-indigo-600">{request.utrNumber}</span>
+                    <span className="text-base font-mono font-bold text-indigo-600">{request?.utrNumber || '-'}</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
                     <span className="text-slate-500 text-xs block font-medium">தேதி</span>
-                    <span className="text-sm font-semibold text-slate-800">{request.paymentDate}</span>
+                    <span className="text-sm font-semibold text-slate-800">{request?.paymentDate || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -388,7 +507,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                     கட்டணம் நிராகரிக்கப்பட்டது / Payment Rejected
                   </h2>
                   <p className="text-sm text-rose-700 font-medium">
-                    காரணம் / Reason: {request.rejectionReason || 'UTR எண் வங்கி கணக்கில் பொருந்தவில்லை.'}
+                    காரணம் / Reason: {request?.rejectionReason || 'UTR எண் வங்கி கணக்கில் பொருந்தவில்லை.'}
                   </p>
                 </div>
               </div>
@@ -404,7 +523,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
           )}
 
           {/* STATE 4: UNPAID - SIMPLE & DIRECT ₹100 PAYMENT FLOW */}
-          {(!request || request.status === 'unpaid') && (
+          {!(request?.status === 'approved' || currentUser?.status === 'approved' || currentUser?.role === 'super_admin' || currentUser?.role === 'district_admin' || currentUser?.role === 'state_president' || currentUser?.role === 'state_treasurer') && (!request || request.status === 'unpaid') && (
             <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
               {/* Header Display */}
               <div className="p-6 sm:p-8 bg-gradient-to-r from-indigo-50 via-slate-50 to-indigo-50 border-b border-indigo-100">

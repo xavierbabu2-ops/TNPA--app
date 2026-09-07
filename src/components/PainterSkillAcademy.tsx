@@ -77,7 +77,7 @@ export default function PainterSkillAcademy({
       duration: "50 நிமிடங்கள்",
       instructor: "ஸ்ரீனிவாசன் (Asian Paints Master Trainer)",
       category: "Luxury Emulsions",
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
       description: "ஏசியன் பெயிண்ட்ஸ் நிறுவனத்தின் பிரீமியம் ராயல் ஷைன் மற்றும் வெளிப்புற அபிகாக் கோட்டிங் பூசும் முறை மற்றும் தரம்."
     },
     {
@@ -88,7 +88,7 @@ export default function PainterSkillAcademy({
       duration: "45 நிமிடங்கள்",
       instructor: "கார்த்திகேயன் (Nippon Tech Expert)",
       category: "Waterproofing & Finishes",
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      videoUrl: "https://www.youtube.com/embed/y9e_VqZp8wE",
       description: "நிப்பான் மொமென்டோ ஸ்பெஷல் டெக்ஸ்சர் ஃபினிஷஸ் மற்றும் ஷீல்ட் வாட்டர்ப்ரூஃபிங் முறைகள்."
     },
     {
@@ -99,7 +99,7 @@ export default function PainterSkillAcademy({
       duration: "40 நிமிடங்கள்",
       instructor: "ரமேஷ் குமார் (Berger Senior Applicator)",
       category: "Budget & Economy",
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      videoUrl: "https://www.youtube.com/embed/7X8uGNojHzo",
       description: "குறைந்த செலவில் நீண்ட உழைப்பு தரும் பெஞ்சர் மற்றும் பட்ஜெட் பெயிண்ட் வகைகளின் பயன்பாடு."
     },
     {
@@ -110,7 +110,7 @@ export default function PainterSkillAcademy({
       duration: "50 நிமிடங்கள்",
       instructor: "அன்வர் பாஷா (Dulux Technical Advisor)",
       category: "Premium Emulsions",
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      videoUrl: "https://www.youtube.com/embed/y9e_VqZp8wE",
       description: "டுலக்ஸ் வெல்வெட் டச் உட்புற சுவர்களுக்கான சொகுசு பூச்சு மற்றும் வெதர்ஷீல்ட் வெளிப்புறப் பாதுகாப்பு."
     },
     {
@@ -119,9 +119,9 @@ export default function PainterSkillAcademy({
       titleEn: "JSW Paints - Halos & Plasti Dip Metal Protection Masterclass",
       brand: "JSW",
       duration: "45 நிமிடங்கள்",
-      instructor: "முருகேசன் (JSW Master Trainer)",
+      instructor: "கே. விஜயகுமார் (JSW Master Trainer)",
       category: "Eco-Friendly Paints",
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+      videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
       description: "வாசனை அற்ற மற்றும் சுற்றுச்சூழலுக்கு உகந்த ஜே.எஸ்.டபிள்யூ ஹாலோஸ் பெயிண்ட் அடிக்கும் நவீன முறைகள்."
     }
   ];

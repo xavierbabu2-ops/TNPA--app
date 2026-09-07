@@ -7,15 +7,13 @@
 
 // Dynamic Live Production Cloud Backend URL with robust fallback
 export function getCloudBackendUrl(): string {
-  if (typeof window !== "undefined" && window.location.origin) {
+  if (typeof window !== "undefined" && window.location && window.location.origin) {
     const origin = window.location.origin;
     if (origin.startsWith("http://") || origin.startsWith("https://")) {
-      if (!origin.includes("localhost") && !origin.includes("127.0.0.1")) {
-        return origin;
-      }
+      return origin;
     }
   }
-  return "https://ais-dev-6c2bmpmluha3hg6bmnyjtk-317246514518.asia-southeast1.run.app";
+  return "";
 }
 
 /**

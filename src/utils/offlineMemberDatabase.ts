@@ -53,49 +53,9 @@ export const TN_ALL_DISTRICTS = [
   "திருப்பத்தூர் (Tirupattur)"
 ];
 
-// Rich default members seed generator for Tamil Nadu districts
+// Members seed generator - starts completely clean without fake mock members
 function generateSeedMembers(): MemberRegistration[] {
-  const seed: MemberRegistration[] = [...sampleRegistrations];
-
-  const districtSeeds = [
-    { district: "சென்னை", name: "மு. ரவிக்குமார்", nameEn: "M. Ravikumar", phone: "9840112233", exp: 12, spec: "Exterior & Texture Painting", blood: "O+" },
-    { district: "கோயம்புத்தூர்", name: "கே. வேலுச்சாமி", nameEn: "K. Veluchamy", phone: "9842223344", exp: 15, spec: "Commercial Spray Coating", blood: "A+" },
-    { district: "மதுரை", name: "பி. அழகர்சாமி", nameEn: "P. Alagarsamy", phone: "9843334455", exp: 9, spec: "Traditional Artistic Murals", blood: "B+" },
-    { district: "திருச்சிராப்பள்ளி", name: "எஸ். முகமது அலி", nameEn: "S. Mohamed Ali", phone: "9844445566", exp: 14, spec: "Interior Luxury Painting & PU Polish", blood: "AB+" },
-    { district: "சேலம்", name: "வி. சண்முகம்", nameEn: "V. Shanmugam", phone: "9845556677", exp: 7, spec: "Waterproofing & Epoxy Coatings", blood: "O-" },
-    { district: "திருநெல்வேலி", name: "டி. இசக்கிபாண்டி", nameEn: "T. Isakkipandi", phone: "9846667788", exp: 11, spec: "Building Restoration & Exterior", blood: "A-" },
-    { district: "ஈரோடு", name: "ஆர். பழனிவேல்", nameEn: "R. Palanivel", phone: "9847778899", exp: 18, spec: "Industrial & Structural Steel Painting", blood: "B+" },
-    { district: "வேலூர்", name: "ஜி. பிரகாஷ்", nameEn: "G. Prakash", phone: "9848889900", exp: 6, spec: "Wood Polish & Duco Finish", blood: "O+" },
-    { district: "தஞ்சாவூர்", name: "எம். கலியபெருமாள்", nameEn: "M. Kaliyaperumal", phone: "9849990011", exp: 20, spec: "Temple Art, Gold Leafing & Heritage Painting", blood: "A+" },
-    { district: "திண்டுக்கல்", name: "என். சின்னையா", nameEn: "N. Chinnaiah", phone: "9840001122", exp: 10, spec: "Residential & Emulsion Painting", blood: "B-" },
-    { district: "திருப்பூர்", name: "கே. கார்த்திகேயன்", nameEn: "K. Karthikeyan", phone: "9841112233", exp: 8, spec: "Factory Floor Epoxy & Spraying", blood: "O+" },
-    { district: "கன்னியாகுமரி", name: "ஜெ. ஆரோக்கியராஜ்", nameEn: "J. Arokkiyaraj", phone: "9842223344", exp: 13, spec: "Weatherproof Exterior Coating", blood: "A+" }
-  ];
-
-  districtSeeds.forEach((item, index) => {
-    const num = (index + 36).toString().padStart(4, "0");
-    seed.push({
-      id: `reg_offline_${index + 3}`,
-      regNumber: `TNP-2026-${num}`,
-      name: item.name,
-      nameEn: item.nameEn,
-      fatherName: "சுப்பிரமணியன்",
-      dob: "1988-06-12",
-      gender: "ஆண் (Male)",
-      bloodGroup: item.blood,
-      phone: item.phone,
-      aadhaar: `XXXX-XXXX-${1000 + index}`,
-      district: item.district,
-      address: `${item.district} நகராட்சி பகுதி, தமிழ்நாடு`,
-      experienceYears: item.exp,
-      specialization: item.spec,
-      photoUrl: `https://images.unsplash.com/photo-${1500000000000 + index * 500000}?auto=format&fit=crop&q=80&w=150&h=150`,
-      status: "approved",
-      createdAt: "2026-08-01T00:00:00Z"
-    });
-  });
-
-  return seed;
+  return [];
 }
 
 let activeIDB: IDBDatabase | null = null;

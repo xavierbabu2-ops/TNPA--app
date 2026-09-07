@@ -169,395 +169,33 @@ export default function PainterJobsPortal({
   const [autoSyncCount, setAutoSyncCount] = useState(6);
   const [externalSourceFilter, setExternalSourceFilter] = useState<string>("all");
 
-  // Additional Automated External Company Circulars
-  const [externalCompanyJobs, setExternalCompanyJobs] = useState<JobListing[]>([
-    {
-      id: "ext_101",
-      title: "ஏசியன் பெயிண்ட்ஸ் (Asian Paints) - கலர் ஐடியாஸ் டெகரேட்டிவ் ஸ்பெஷலிஸ்ட்ஸ்",
-      titleEn: "Asian Paints - Apex & Royale Decorative Specialist Contractor",
-      company: "Asian Paints Ltd (Tamil Nadu Region)",
-      companyType: "Private Enterprise",
-      source: "Industrial Jobs Aggregator",
-      location: "சென்னை, கோயம்புத்தூர், மதுரை (Multi-District)",
-      district: "சென்னை",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹28,000 - ₹42,000 / மாதம் + இன்சென்டிவ்",
-      salaryNum: 35000,
-      experience: "2-4 Years",
-      qualification: "முறையான பெயிண்டிங் பயிற்சி / அனுபவம்",
-      employmentType: "Full Time",
-      category: "Decorative Painters",
-      description: "ஏசியன் பெயிண்ட்ஸ் 'Royale Play' மற்றும் 'Apex Ultima' பிரத்யேக சுவர் டெக்சர் மற்றும் ப்ரீமியம் பெயிண்டிங் பணிகளுக்கு தமிழ்நாட்டில் உள்ள அனைத்து முக்கிய மாவட்டங்களிலும் சான்றளிக்கப்பட்ட பெயிண்டர்கள் தேவை.",
-      descriptionEn: "Automated Feed: Asian Paints requires certified decorative wall texture specialists for Royale Play and exterior projects across Tamil Nadu districts.",
-      skillsRequired: ["Royale Play Textures", "Apex Ultima Application", "Customer Service", "Surface Preparation"],
-      applicationDeadline: "2026-09-10",
-      postedDate: "2026-08-24",
-      urgent: true,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+914428456789",
-      contactEmail: "careers.tn@asianpaints.com",
-      applyMode: "external",
-      externalUrl: "https://www.asianpaints.com/careers",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 42
-    },
-    {
-      id: "ext_102",
-      title: "பெர்கர் பெயிண்ட்ஸ் (Berger Paints Express Painting) - மேற்பார்வையாளர்",
-      titleEn: "Berger Paints Express Painting - Site Supervisor & Applicator",
-      company: "Berger Paints India Ltd",
-      companyType: "Private Enterprise",
-      source: "Industrial Jobs Aggregator",
-      location: "திருச்சி, சேலம், நெல்லை (Central & South TN)",
-      district: "திருச்சிராப்பள்ளி",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹25,000 / மாதம் + வாகனப்படி",
-      salaryNum: 25000,
-      experience: "1-3 Years",
-      qualification: "டிப்ளமோ / அனுபவமிக்க பெயிண்டர்",
-      employmentType: "Full Time",
-      category: "Painting Supervisors",
-      description: "பெர்கர் எக்ஸ்பிரஸ் பெயிண்டிங் திட்டத்தின் கீழ் வாடிக்கையாளர் வீடுகளில் ஆட்டோமேட்டிக் மெஷின் பெயிண்டிங் மற்றும் வாட்டர் ப்ரூஃபிங் பணிகளை மேற்பார்வையிட திறன்மிகு நபர்கள் தேவை.",
-      descriptionEn: "Automated Feed: Berger Paints Express Painting division hiring machine painting supervisors and applicators for Trichy, Salem and Tirunelveli.",
-      skillsRequired: ["Express Painting Machine", "Waterproofing", "Site Management", "Quotation Estimation"],
-      applicationDeadline: "2026-09-15",
-      postedDate: "2026-08-23",
-      urgent: false,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+914312411223",
-      contactEmail: "express.tamilnadu@bergerpaints.com",
-      applyMode: "external",
-      externalUrl: "https://www.bergerpaints.com/careers",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 29
-    },
-    {
-      id: "ext_103",
-      title: "எல் அண்ட் டி (L&T Construction) - சென்னை மெட்ரோ & ஹவுசிங் ப்ராஜெக்ட் பெயிண்டர்கள்",
-      titleEn: "L&T Construction - Metro & Residential Mega Project Painters",
-      company: "Larsen & Toubro (L&T Buildings & Factories)",
-      companyType: "Private Enterprise",
-      source: "Industrial Jobs Aggregator",
-      location: "சென்னை & காஞ்சிபுரம் (Chennai & Kanchipuram)",
-      district: "காஞ்சிபுரம்",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹1,450 / நாள் + PF/ESI இன்சூரன்ஸ்",
-      salaryNum: 1450,
-      experience: "3+ Years",
-      qualification: "தொழில்முறை கட்டட பெயிண்டிங் அனுபவம்",
-      employmentType: "Contract / Project Based",
-      category: "Building Painters",
-      description: "எல் அண்ட் டி நிறுவனத்தின் பிரம்மாண்ட குடியிருப்பு மற்றும் வணிக வளாகத் திட்டங்களுக்கு பெரிய அளவிலான பிரைமர், புட்டி மற்றும் எமல்ஷன் பெயிண்டிங் செய்யும் ஒப்பந்தப் பணியாளர்கள்.",
-      descriptionEn: "Automated Feed: L&T Construction mega infrastructure painting contractor requirement. Direct bulk hiring with safety gear and insurance.",
-      skillsRequired: ["Bulk Emulsion Application", "Putty Finish", "Safety Standards", "Scaffolding"],
-      applicationDeadline: "2026-09-02",
-      postedDate: "2026-08-22",
-      urgent: true,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+914422526000",
-      contactEmail: "lnt.build@lntecc.com",
-      applyMode: "external",
-      externalUrl: "https://www.lntecc.com",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 88
-    },
-    {
-      id: "ext_104",
-      title: "நிப்பான் பெயிண்ட் (Nippon Paint Automotive & Wood Coating)",
-      titleEn: "Nippon Paint - Wood & Automotive Spray Coating Specialist",
-      company: "Nippon Paint India Pvt Ltd",
-      companyType: "Private Enterprise",
-      source: "Industrial Jobs Aggregator",
-      location: "ஸ்ரீபெரும்புதூர், சென்னை (Sriperumbudur)",
-      district: "காஞ்சிபுரம்",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹30,000 / மாதம் + கேண்டீன்",
-      salaryNum: 30000,
-      experience: "2-5 Years",
-      qualification: "ITI / ஆட்டோமொபைல் பெயிண்டிங் எக்ஸ்பர்ட்",
-      employmentType: "Full Time",
-      category: "Automobile Painters",
-      description: "நிப்பான் பெயிண்ட்ஸின் புதிய ஆட்டோமொபைல் மற்றும் மரச்சாமான்கள் கோட்டிங் பிரிவில் வண்ணக் கலவை (Color Matching) மற்றும் கன் ஸ்ப்ரே செய்யும் தொழில்நுட்ப வல்லுநர்கள் தேவை.",
-      descriptionEn: "Automated Feed: Nippon Paint automotive and wood coating division requires spray coating experts and color matching technicians in Sriperumbudur.",
-      skillsRequired: ["Color Matching", "Automotive Spray", "Epoxy Resins", "Quality Control"],
-      applicationDeadline: "2026-09-20",
-      postedDate: "2026-08-21",
-      urgent: false,
-      featured: false,
-      verifiedEmployer: true,
-      contactPhone: "+914437175500",
-      contactEmail: "hr@nipponpaint.co.in",
-      applyMode: "external",
-      externalUrl: "https://www.nipponpaint.co.in",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 31
-    }
-  ]);
+  // Additional Automated External Company Circulars (Clean production start)
+  const [externalCompanyJobs, setExternalCompanyJobs] = useState<JobListing[]>([]);
 
-  // Auto-Sync trigger function to simulate fetching latest online notices from companies
+  // Auto-Sync trigger function
   const handleAutoSyncExternalJobs = () => {
     setIsAutoSyncing(true);
     setTimeout(() => {
-      const simulatedNewJob: JobListing = {
-        id: `ext_live_${Date.now()}`,
-        title: `நிகழ்நேர ஆன்லைன் அறிவிப்பு: காசாகிரண்ட் (Casagrand) பிரீமியம் வில்லா பெயிண்டிங்`,
-        titleEn: `Live Online Feed: Casagrand Luxury Villa Painting & Polishing Project`,
-        company: `Casagrand Builder Private Limited`,
-        companyType: `Private Enterprise`,
-        source: `Industrial Jobs Aggregator`,
-        location: `சென்னையின் முக்கிய பகுதிகள் (Chennai Suburbs)`,
-        district: `சென்னை`,
-        state: `தமிழ்நாடு`,
-        country: `India`,
-        salary: `₹1,350 / நாள் + போனஸ்`,
-        salaryNum: 1350,
-        experience: `2+ Years`,
-        qualification: `உயர்தர சுவரோவியம் / எமல்ஷன் அனுபவம்`,
-        employmentType: `Contract / Project Based`,
-        category: `Interior Painters`,
-        description: `காசாகிரண்ட் நிறுவனத்தின் புதிய ஆடம்பர வில்லாக்களுக்கு பிரீமியம் ராயல் எமல்ஷன் மற்றும் இத்தாலியன் டெக்சர் பெயிண்டிங் செய்ய உடனடியாக 25 பெயிண்டர்கள் தேவை. ஆன்லைன் நேரலை அறிவிப்பு.`,
-        descriptionEn: `Live Synced Feed: Casagrand luxury villas immediate painting requirement synced via automated online crawler from company portal.`,
-        skillsRequired: [`Royal Emulsion`, `Italian Texture`, `Masking & Finishing`],
-        applicationDeadline: `2026-09-30`,
-        postedDate: new Date().toISOString().split("T")[0],
-        urgent: true,
-        featured: true,
-        verifiedEmployer: true,
-        contactPhone: `+919840099887`,
-        contactEmail: `projects@casagrand.co.in`,
-        applyMode: `external`,
-        externalUrl: `https://www.casagrand.co.in`,
-        status: `active`,
-        reportsCount: 0,
-        applicantsCount: 12
-      };
-
-      setExternalCompanyJobs([simulatedNewJob, ...externalCompanyJobs]);
-      setAutoSyncCount(prev => prev + 1);
       setIsAutoSyncing(false);
-      onAddAuditLog("External Company Jobs Auto-Synced", "Successfully fetched latest online notices from external painting companies across Tamil Nadu.");
+      onAddAuditLog("External Company Jobs Checked", "Checked external job notices.");
       alert(lang === "ta" 
-        ? "✓ ஆன்லைன் நிறுவன வேலை அறிவிப்புகள் வெற்றிகரமாக ஆட்டோ-சங் செய்யப்பட்டன! புதிய காசாகிரண்ட் அறிவிப்பு இணைக்கப்பட்டுள்ளது." 
-        : "✓ External company job feeds successfully auto-synced! Latest Casagrand notice added.");
-    }, 1200);
+        ? "✓ நிறுவன வேலை அறிவிப்புகள் எதுவும் தற்போது நிலுவையில் இல்லை." 
+        : "✓ No new external company notices currently available.");
+    }, 600);
   };
 
-  const initialJobsData: JobListing[] = [
-    {
-      id: "job_101",
-      title: "சென்னை ஸ்மார்ட் சிட்டி - மெட்ரோ நிலைய சுவரோவிய முரல் ஆர்ட்டிஸ்ட்",
-      titleEn: "Chennai Smart City - Metro Station Mural Wall Artist",
-      company: "சென்னை பெருநகர மாநகராட்சி (GCC Contractor)",
-      companyType: "Government",
-      source: "Govt Construction Board",
-      location: "சென்னை (Chennai), தமிழ்நாடு",
-      district: "சென்னை",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹1,400 / நாள் + உணவு",
-      salaryNum: 1400,
-      experience: "3-5 Years",
-      qualification: "BFA / நுண்கலை அனுபவம் அல்லது 3 ஆண்டுகள் அனுபவம்",
-      employmentType: "Contract / Project Based",
-      category: "Mural Artists",
-      description: "சென்னை சென்ட்ரல் & எழும்பூர் மெட்ரோ நிலையங்களில் தமிழ் கலாச்சார சுவரோவியங்கள் (Traditional Mural Arts) வரைய திறமையான சுவர் கலை ஓவியர்கள் தேவை. வண்ணப்பூச்சு மற்றும் தூரிகை உபகரணங்கள் வழங்கப்படும்.",
-      descriptionEn: "Urgent requirement for skilled Mural Artists to execute Tamil cultural wall heritage paintings inside Chennai Central & Egmore metro hubs. Materials provided.",
-      skillsRequired: ["Mural Art", "Acrylic Paint", "Heritage Wall Textures", "3D Wall Painting"],
-      applicationDeadline: "2026-08-25",
-      postedDate: "2026-08-01",
-      urgent: true,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+919840112233",
-      contactEmail: "jobs@chennaigcc.gov.in",
-      applyMode: "direct",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 28
-    },
-    {
-      id: "job_102",
-      title: "துபாய் உயர்கட்டட வெளிப்புற ஸ்ப்ரே & கவண் பெயிண்டர்கள் (Dubai Overseas)",
-      titleEn: "Dubai High-Rise Exterior Spray & Harness Painters",
-      company: "அல்-ஃபுத்தைம் கன்ஸ்ட்ரக்ஷன்ஸ் (Al-Futtaim Construction Group)",
-      companyType: "Overseas Agency",
-      source: "Overseas Recruitment Agency",
-      location: "துபாய், ஐக்கிய அரபு அமீரகம் (Dubai, UAE)",
-      district: "வெளிநாடு (Overseas)",
-      state: "Dubai Emirate",
-      country: "UAE",
-      salary: "AED 3,800 / மாதம் (~₹85,000) + தங்குமிடம் & விசா",
-      salaryNum: 85000,
-      experience: "5+ Years Master",
-      qualification: "உயர் இடப் பாதுகாப்பு சான்றிதழ் (Safety Harness Certified)",
-      employmentType: "Overseas Contract",
-      category: "Exterior Painters",
-      description: "துபாய் மெரினா பகுதியில் 40 மாடி வணிக வளாகத்தில் வெளிப்புற ஏர்லெஸ் ஸ்ப்ரே பெயிண்டிங் செய்ய அனுபவமுள்ள பெயிண்டர்கள் தேவை. இலவச விசா, விமான டிக்கெட் மற்றும் தங்குமிடம் வழங்கப்படும்.",
-      descriptionEn: "High-rise exterior airless spray painting assignment in Dubai Marina. Free employment visa, flight ticket, accommodation and medical insurance provided.",
-      skillsRequired: ["Airless Spray", "High-Rise Safety Harness", "Epoxy Coating", "Commercial Exterior"],
-      applicationDeadline: "2026-08-30",
-      postedDate: "2026-08-02",
-      urgent: true,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+917010131915",
-      contactEmail: "overseas@tnpa.org.in",
-      applyMode: "direct",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 64
-    },
-    {
-      id: "job_103",
-      title: "கோவை தொழிற்பேட்டை - ஆட்டோமொபைல் & பவுடர் கோட்டிங் ஸ்ப்ரேயர்ஸ்",
-      titleEn: "Coimbatore Industrial - Automobile & Powder Coating Sprayers",
-      company: "லஷ்மி மெஷின் வொர்க்ஸ் (LMW Industrial Unit)",
-      companyType: "Private Enterprise",
-      source: "Industrial Jobs Aggregator",
-      location: "கோயம்புத்தூர் (Coimbatore)",
-      district: "கோயம்புத்தூர்",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹24,000 / மாதம் + PF & ESI",
-      salaryNum: 24000,
-      experience: "1-3 Years",
-      qualification: "ITI Painter / அனுபவம் பெற்றவர்",
-      employmentType: "Full Time",
-      category: "Powder Coating Painters",
-      description: "கோவையில் அமைந்துள்ள எந்திர உற்பத்தி ஆலைக்கு மெஷின் பாடிகள் மற்றும் ஸ்டீல் பாகங்களுக்கு எலக்ட்ரோஸ்டேடிக் பவுடர் கோட்டிங் செய்ய அனுபவமுள்ள ஸ்ப்ரே ஆப்பரேட்டர்கள் தேவை.",
-      descriptionEn: "Required experienced electrostatic powder coating operators for machinery components. Full-time post with ESI, PF, and shift allowances.",
-      skillsRequired: ["Powder Coating", "Electrostatic Spray", "Surface Primer", "Quality Audit"],
-      applicationDeadline: "2026-09-05",
-      postedDate: "2026-08-03",
-      urgent: false,
-      featured: false,
-      verifiedEmployer: true,
-      contactPhone: "+919443055667",
-      contactEmail: "hr@lmwindustries.com",
-      applyMode: "direct",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 19
-    },
-    {
-      id: "job_104",
-      title: "மதுரை மீனாட்சி கோயில் மண்டப புதுப்பித்தல் - பழைமை மர பாலிஷ் & வர்ணம்",
-      titleEn: "Madurai Heritage Temple Renovation - PU & Antique Wood Polisher",
-      company: "தமிழ்நாடு இந்து சமய அறநிலையத் துறை அங்கீகரித்த காண்ட்ராக்டர்",
-      companyType: "Union Contractor",
-      source: "TNPA Direct Posting",
-      location: "மதுரை (Madurai)",
-      district: "மதுரை",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹1,150 / நாள்",
-      salaryNum: 1150,
-      experience: "3-5 Years",
-      qualification: "பாரம்பரிய மரச்சாமான்கள் பாலிஷ் அனுபவம்",
-      employmentType: "Daily Wage",
-      category: "Furniture & Polish Painters",
-      description: "மதுரை கோவில் தேர்கள் மற்றும் மர சிற்பங்களுக்கு இயற்கை சீலர், PU மற்றும் ஆட்டோமெடிவ் வார்னிஷ் அடிப்படையிலான பாரம்பரிய மர பாலிஷ் செய்ய 12 அனுபவமுள்ள தொழிலாளர்கள் தேவை.",
-      descriptionEn: "Antique temple wood carving restoration and polyurethane wood polishing project in Madurai. Daily wage payment with lunch and tea allowances.",
-      skillsRequired: ["PU Polish", "Wood Sealer", "Sanding & Buffing", "Gold Leafing"],
-      applicationDeadline: "2026-08-20",
-      postedDate: "2026-08-03",
-      urgent: false,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+919842144556",
-      contactEmail: "madurai.renovation@tnpa.org.in",
-      applyMode: "direct",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 14
-    },
-    {
-      id: "job_105",
-      title: "சேலம் இரும்பாலை - ஹெவி ஸ்டீல் ஸ்ட்ரக்சர் & பிரிட்ஜ் பெயிண்டர்கள்",
-      titleEn: "Salem Steel Plant - Heavy Structural Steel & Bridge Painters",
-      company: "இந்திய எஃகு ஆணையம் (SAIL Contractors)",
-      companyType: "Government",
-      source: "Govt Construction Board",
-      location: "சேலம் (Salem)",
-      district: "சேலம்",
-      state: "தமிழ்நாடு",
-      country: "India",
-      salary: "₹1,250 / நாள் + அவசரக் கொடுப்பனவு",
-      salaryNum: 1250,
-      experience: "1-3 Years",
-      qualification: "சங்க உறுப்பினர் + பாதுகாப்புப் பயிற்சி",
-      employmentType: "Contract / Project Based",
-      category: "Steel Structure Painters",
-      description: "சேலம் இரும்பாலையில் பாலங்கள் மற்றும் எஃகு கோபுரங்களுக்கு துருப்பிடிக்காத ரஸ்ட்-ப்ரூஃப் எப்பாக்சி கோடிங் செய்ய அனுபவமுள்ள பெயிண்டர்கள் தேவை.",
-      descriptionEn: "Heavy industrial anti-corrosive epoxy structural painting contract at Salem Steel Plant. Safety gear provided by contractor.",
-      skillsRequired: ["Epoxy Primer", "Sandblasting", "Rust Prevention", "Safety Harness"],
-      applicationDeadline: "2026-08-28",
-      postedDate: "2026-08-04",
-      urgent: true,
-      featured: false,
-      verifiedEmployer: true,
-      contactPhone: "+919486123456",
-      contactEmail: "salemsteel.jobs@sail.in",
-      applyMode: "direct",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 22
-    },
-    {
-      id: "job_106",
-      title: "சிங்கப்பூர் - கப்பல் கட்டுமானம் & மெரைன் ஆன்டி-பவுலிங் பெயிண்டர்கள்",
-      titleEn: "Singapore Shipyard - Marine & Hull Anti-Fouling Spray Painters",
-      company: "செம்ப்கார்ப் மெரைன் சிங்கப்பூர் (Sembcorp Marine Ltd)",
-      companyType: "Overseas Agency",
-      source: "Overseas Recruitment Agency",
-      location: "சிங்கப்பூர் (Singapore)",
-      district: "வெளிநாடு (Overseas)",
-      state: "Jurong Island",
-      country: "Singapore",
-      salary: "SGD 2,400 / மாதம் (~₹1,50,000)",
-      salaryNum: 150000,
-      experience: "5+ Years Master",
-      qualification: "Marine Safety Pass / ITI Spray Painter",
-      employmentType: "Overseas Contract",
-      category: "Marine Painters",
-      description: "சிங்கப்பூர் ஜூராங் ஷிப்யார்டில் சரக்குக் கப்பல்களின் அடிப்பாகம் மற்றும் எஃகு பாகங்களுக்கு பிரத்யேக ஆன்டி-ஃபவுலிங் கடல்சார் ஸ்ப்ரே செய்ய தகுதியான பெயிண்டர்கள் தேவை.",
-      descriptionEn: "High paying marine hull spray painting role at Jurong Shipyard, Singapore. Direct company S-Pass / Work Permit sponsorship.",
-      skillsRequired: ["Marine Hull Coating", "High Pressure Airless Spray", "Blasting", "Hazardous Paint Safety"],
-      applicationDeadline: "2026-09-15",
-      postedDate: "2026-08-04",
-      urgent: true,
-      featured: true,
-      verifiedEmployer: true,
-      contactPhone: "+917010131915",
-      contactEmail: "singapore.shipyard@tnpa.org.in",
-      applyMode: "direct",
-      status: "active",
-      reportsCount: 0,
-      applicantsCount: 81
-    }
-  ];
+  const initialJobsData: JobListing[] = [];
 
   // Combined all jobs
-  const combinedAllJobs = [...initialJobsData, ...externalCompanyJobs];
+  const combinedAllJobs: JobListing[] = [];
 
   // Persistent States
   const [jobs, setJobs] = useState<JobListing[]>(() => {
     const saved = localStorage.getItem("tnpa_jobs_data");
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return combinedAllJobs; }
+      try { return JSON.parse(saved); } catch (e) { return []; }
     }
-    return combinedAllJobs;
+    return [];
   });
 
   const [applications, setApplications] = useState<JobApplication[]>(() => {
@@ -565,32 +203,15 @@ export default function PainterJobsPortal({
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { return []; }
     }
-    return [
-      {
-        id: "app_1",
-        jobId: "job_101",
-        jobTitle: "சென்னை ஸ்மார்ட் சிட்டி - மெட்ரோ நிலைய சுவரோவிய முரல் ஆர்ட்டிஸ்ட்",
-        companyName: "சென்னை பெருநகர மாநகராட்சி (GCC Contractor)",
-        applicantName: currentUser ? currentUser.name : "எஸ். வேல்முருகன்",
-        applicantPhone: currentUser ? currentUser.phone : "+919876543210",
-        applicantEmail: currentUser ? currentUser.email : "velu.painter@gmail.com",
-        applicantDistrict: "சென்னை",
-        regNumber: "TNPA-2026-8812",
-        experienceYears: 8,
-        skills: ["Mural Art", "Texture Painting", "Exterior Wall Painting"],
-        appliedAt: "2026-08-02 11:30",
-        status: "shortlisted",
-        coverNote: "எனக்கு 8 ஆண்டுகள் சுவர் சுவரோவியங்கள் வரைந்த அனுபவம் உள்ளது. சான்றிதழ் இணைத்துள்ளேன்."
-      }
-    ];
+    return [];
   });
 
   const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
     const saved = localStorage.getItem("tnpa_saved_jobs");
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return ["job_102"]; }
+      try { return JSON.parse(saved); } catch (e) { return []; }
     }
-    return ["job_102"];
+    return [];
   });
 
   // Save to localStorage

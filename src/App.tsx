@@ -82,7 +82,6 @@ import GallerySlider from "./components/GallerySlider";
 import AuthSystem, { defaultAccounts } from "./components/AuthSystem";
 import MemberDashboard from "./components/MemberDashboard";
 import WelfareBoard from "./components/WelfareBoard";
-import LiveCommunication from "./components/LiveCommunication";
 import DigitalServices from "./components/DigitalServices";
 import EnterpriseCommandCenter from "./components/EnterpriseCommandCenter";
 import SuperAdminBusinessConsole from "./components/SuperAdminBusinessConsole";
@@ -105,6 +104,7 @@ import PainterSkillAcademy from "./components/PainterSkillAcademy";
 import DistrictBroadcastPortal from "./components/DistrictBroadcastPortal";
 import GrievanceSupportDesk from "./components/GrievanceSupportDesk";
 import StateLegalAdvisoryBoard from "./components/StateLegalAdvisoryBoard";
+import DistrictPortalsManagement from "./components/DistrictPortalsManagement";
 import { AutoUpdatePrompt, forcePurgeCacheAndReload } from "./components/AutoUpdatePrompt";
 import { getCloudBackendUrl } from "./utils/apiClient";
 import RoleMobileAuthModal, { ROLE_AUTH_CONFIGS, RoleAuthConfig, getRegisteredRoleConfigs } from "./components/RoleMobileAuthModal";
@@ -153,7 +153,24 @@ export default function App() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((e: ExecutiveMember) => ({
+          const storedDistrictCount = parsed.filter((e: ExecutiveMember) => e.level === "district").length;
+          // If stored already has all 38 districts, use it
+          if (storedDistrictCount >= 38) {
+            return parsed.map((e: ExecutiveMember) => ({
+              ...e,
+              photoUrl: getExecutivePhoto(e)
+            }));
+          }
+          // Otherwise, merge so all 38 districts are guaranteed to be present
+          const existingIds = new Set(parsed.map((e: ExecutiveMember) => e.id));
+          const existingDistricts = new Set(
+            parsed.filter((e: ExecutiveMember) => e.level === "district" && e.district).map((e: ExecutiveMember) => e.district)
+          );
+          const missingDistricts = INITIAL_EXECUTIVE_MEMBERS.filter(
+            (e) => !existingIds.has(e.id) && (e.level !== "district" || !existingDistricts.has(e.district))
+          );
+          const merged = [...parsed, ...missingDistricts];
+          return merged.map((e: ExecutiveMember) => ({
             ...e,
             photoUrl: getExecutivePhoto(e)
           }));
@@ -263,26 +280,7 @@ export default function App() {
 
 
   // Welfare claims list (synced globally)
-  const [welfareApplications, setWelfareApplications] = useState<WelfareApplication[]>([
-    {
-      id: "w_claim_1",
-      memberId: "TNP-2026-0034",
-      memberName: "ரா. கார்த்திகேயன்",
-      memberPhone: "9876543210",
-      schemeId: "ws2",
-      schemeTitle: "விபத்து மரண மற்றும் ஊன நிவாரண உதவித் தொகை",
-      schemeTitleEn: "Accident Death & Disability Financial Assistance",
-      amount: "₹5,00,000 வரை (Up to ₹5,00,000)",
-      appliedAt: "2026-08-02",
-      status: "pending",
-      district: "சென்னை",
-      remarks: "பணி விபத்தின் காரணமாக வலது காலில் எலும்பு முறிவு ஏற்பட்டுள்ளது. அவசர நிவாரண நிதி கோரப்பட்டுள்ளது.",
-      declarationAccepted: true,
-      history: [
-        { status: "pending", date: "2026-08-02", remarks: "விண்ணப்பம் மாவட்ட கிளையில் சமர்ப்பிக்கப்பட்டது." }
-      ]
-    }
-  ]);
+  const [welfareApplications, setWelfareApplications] = useState<WelfareApplication[]>([]);
 
   // Security Audit logs list
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([
@@ -315,7 +313,7 @@ export default function App() {
   });
 
   // Active Main Navigation tab
-  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "executives" | "gallery" | "admin" | "live_comm" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control" | "legal_advisory" | "office_bearers" | "insurance" | "academy" | "broadcast" | "grievance">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "register" | "welfare_board" | "digital_services" | "jobs" | "advisor" | "payment" | "directory" | "executives" | "gallery" | "admin" | "command_center" | "business_console" | "tv_channel" | "id_card_portal" | "member_card" | "role_control" | "legal_advisory" | "office_bearers" | "insurance" | "academy" | "broadcast" | "grievance" | "district_portals">("home");
 
   // Public QR Code verification modal state
   const [verifyCardToken, setVerifyCardToken] = useState<string | null>(null);
@@ -837,11 +835,11 @@ export default function App() {
             { id: "welfare_board", label: "நலவாரியம்", labelEn: "Welfare Board" },
             { id: "jobs", label: "வேலைவாய்ப்பு 💼", labelEn: "Painter Jobs 💼" },
             { id: "digital_services", label: "டிஜிட்டல் சேவைகள் ✨", labelEn: "Digital Services ✨" },
+            { id: "district_portals", label: "38 மாவட்ட பக்கங்கள் & நியமனம் 🏛️", labelEn: "38 District Portals 🏛️" },
             { id: "command_center", label: "கட்டளை மையம் 🏛️", labelEn: "Command Center 🏛️" },
             { id: "tv_channel", label: "TNPA² TV 📺", labelEn: "TNPA² TV 📺" },
             { id: "member_card", label: "உறுப்பினர் அட்டை 🪪", labelEn: "Member Card 🪪" },
             { id: "id_card_portal", label: "அடையாள அட்டை & விண்ணப்பம்", labelEn: "ID Card & Application" },
-            { id: "live_comm", label: "நேரடித் தொடர்பு 🔴", labelEn: "Live Meetings 🔴" },
             { id: "advisor", label: "AI ஆலோசகர்", labelEn: "AI Welfare Advisor" },
             { id: "payment", label: "சந்தா & வளர்ச்சி நிதி 💳", labelEn: "Subscriptions & Funds 💳" },
             { id: "executives", label: "நிர்வாகிகள் பட்டியல் 🏛️", labelEn: "Executives Directory 🏛️" },
@@ -1037,7 +1035,7 @@ export default function App() {
                       </div>
                       
                       <button
-                        onClick={() => setActiveTab("live_comm")}
+                        onClick={() => setActiveTab("tv_channel")}
                         className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-[10px] rounded-lg transition-all"
                       >
                         {lang === "ta" ? "அரங்கில் நுழைய" : "Join Conference"}
@@ -1070,6 +1068,43 @@ export default function App() {
                   </span>
                 </div>
               ))}
+            </div>
+
+            {/* 38 DISTRICTS & IN-CHARGES PORTAL PROMINENT BANNER */}
+            <div className="bg-gradient-to-r from-stone-900 via-[#7f1d1d] to-stone-900 border-2 border-amber-400/50 rounded-2xl p-5 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 text-left">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center font-black text-2xl shadow-lg shrink-0 border-2 border-white">
+                  🏛️
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-amber-400 text-stone-950 font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase">
+                      38 மாவட்ட நிர்வாகம் & சூப்பர் கீ
+                    </span>
+                    <span className="bg-emerald-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full">
+                      நேரடி பக்கம்
+                    </span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-white mt-1">
+                    {lang === "ta" 
+                      ? "38 மாவட்ட பொறுப்பாளர்கள் & ஒன்றிய / நகர நியமனப் பக்கங்கள்" 
+                      : "38 District Executive Portals & Town / Union In-Charges"}
+                  </h4>
+                  <p className="text-xs text-amber-200/90 font-medium mt-0.5">
+                    {lang === "ta"
+                      ? "மாவட்ட தலைவர், செயலாளர், பொருளாளர் மற்றும் ஒன்றிய / நகரப் பொறுப்பாளர்கள் புகைப்படத்துடன் கூடிய பதிவு மற்றும் தனித்தனி சூப்பர் கீ வசதி."
+                      : "Each district has a dedicated page, Super Key authentication, and registered in-charges with photo & appointment order."}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setActiveTab("district_portals")}
+                className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap active:scale-95 shrink-0"
+              >
+                <span>{lang === "ta" ? "மாவட்ட பக்கங்கள் திறக்க 🏛️" : "Open District Portals 🏛️"}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
 
             {/* ROLE-BASED SECURE MOBILE AUTH & POWER ACCESS */}
@@ -1607,7 +1642,7 @@ export default function App() {
                   { title: "அரசு நலவாரியத் திட்டங்கள்", titleEn: "Welfare Schemes & Claims", desc: "அரசு நலவாரிய நிதி உதவி, விபத்து காப்பீடு & கல்வி உதவித்தொகை விண்ணப்பங்கள்.", descEn: "Government Welfare Board pension, accident relief & educational grant portal.", tab: "welfare_board", icon: <HeartHandshake className="w-5 h-5 text-rose-700" />, badge: "முக்கியம் / Core" },
                   { title: "டிஜிட்டல் சேவைகள் & QR", titleEn: "Digital Services & ID Verifier", desc: "QR அட்டை சரிபார்ப்பு, சுற்றறிக்கை பதிவிறக்கம் மற்றும் சான்றிதழ் கருவிகள்.", descEn: "Instant QR card verification, circular downloads and digital verification portal.", tab: "digital_services", icon: <ShieldCheck className="w-5 h-5 text-emerald-700" />, badge: "சரிபார்ப்பு / QR" },
                   { title: "மாநில கட்டளை மையம்", titleEn: "State Command Center", desc: "சங்கத்தின் மாநில/மாவட்ட நிர்வாக அறிவிப்புகள், திட்டங்கள் மற்றும் சுற்றறிக்கைகள்.", descEn: "Union state/district administration desk, projects and circular repository.", tab: "command_center", icon: <Award className="w-5 h-5 text-amber-700" />, badge: "நிர்வாகம் / Desk" },
-                  { title: "நேரடித் தொடர்பு & குறைதீர்ப்பு", titleEn: "Live Communication & Grievance", desc: "மாநில தலைவர்களுடன் நேரலை கூட்டங்கள், குரல் பதிவுகள் மற்றும் குறைதீர்ப்பு.", descEn: "Live meeting broadcasts, audio voice notes & direct grievance reporting system.", tab: "live_comm", icon: <Volume2 className="w-5 h-5 text-red-700" />, badge: "நேரலை / Live" },
+                  { title: "மாவட்ட நேரலை அறிவிப்புகள்", titleEn: "District Live Broadcasts", desc: "சங்கத்தின் மாநில/மாவட்ட நேரலை அறிவிப்புகள், சுற்றறிக்கைகள்.", descEn: "Live meeting broadcasts, audio voice notes & official circulars.", tab: "broadcast", icon: <Volume2 className="w-5 h-5 text-red-700" />, badge: "நேரலை / Live" },
                   { title: "AI நலவாரிய ஆலோசகர்", titleEn: "AI Tamil Welfare Advisor", desc: "நலவாரியத் திட்டங்கள், ஓய்வூதியம் மற்றும் விண்ணப்ப சந்தேகங்களுக்கு AI உதவி.", descEn: "Ask our automated AI Chatbot in Tamil/English about pensions, marriage grants, etc.", tab: "advisor", icon: <MessageSquare className="w-5 h-5 text-[#b91c1c]" />, badge: "AI Smart" },
                   { title: "சந்தா செலுத்த", titleEn: "Online Subscription & Receipts", desc: "மாதாந்திர/ஆண்டு சந்தா தொகையை UPI/QR மூலம் செலுத்தி ரசீது பெறுக.", descEn: "Pay monthly union subscription fees via UPI & download official payment receipts.", tab: "payment", icon: <CreditCard className="w-5 h-5 text-blue-700" />, badge: "ரசீது / Receipt" },
                   { title: "மாவட்ட தொடர்புகள்", titleEn: "Districts Leadership Directory", desc: "38 மாவட்ட தலைவர்கள் & நிர்வாகிகளின் நேரடி தொலைபேசி எண்கள்.", descEn: "Direct contact numbers, executive list and office addresses for all 38 districts.", tab: "directory", icon: <MapPin className="w-5 h-5 text-indigo-700" />, badge: "38 மாவட்டங்கள்" },
@@ -2232,17 +2267,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 9: LIVE DIGITAL UNION COMMUNICATION SYSTEM */}
-        {activeTab === "live_comm" && (
-          <div className="animate-[fadeIn_0.5s_ease-out]">
-            <LiveCommunication 
-              lang={lang} 
-              currentUser={currentUser} 
-              onAddAuditLog={handleAddAuditLog} 
-            />
-          </div>
-        )}
-
         {/* TAB 11: TNPA ENTERPRISE COMMAND CENTER - VERSION 12.0 */}
         {activeTab === "command_center" && (
           <div className="animate-[fadeIn_0.5s_ease-out]">
@@ -2421,6 +2445,18 @@ export default function App() {
               currentUser={currentUser}
               onNavigateToAuth={() => setActiveTab("admin")}
               onNavigateToRegister={() => setActiveTab("register")}
+            />
+          </div>
+        )}
+
+        {/* TAB: 38 DISTRICT PORTALS & IN-CHARGES (38 மாவட்ட பொறுப்பாளர்கள் மற்றும் நிர்வாக பக்கங்கள்) */}
+        {activeTab === "district_portals" && (
+          <div className="animate-[fadeIn_0.5s_ease-out]">
+            <DistrictPortalsManagement
+              lang={lang}
+              currentUser={currentUser}
+              isSuperAdmin={isSuperAdmin}
+              onAddAuditLog={handleAddAuditLog}
             />
           </div>
         )}
@@ -2681,9 +2717,13 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        const targetUrl = getCloudBackendUrl();
-                        if (typeof window !== "undefined") {
-                          window.open(targetUrl, "_blank", "noopener,noreferrer");
+                        const targetUrl = (typeof window !== "undefined" && window.location.href) ? window.location.href : getCloudBackendUrl();
+                        if (targetUrl) {
+                          try {
+                            window.open(targetUrl, "_blank", "noopener,noreferrer");
+                          } catch {
+                            window.location.reload();
+                          }
                         }
                       }}
                       className="py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all text-center cursor-pointer"

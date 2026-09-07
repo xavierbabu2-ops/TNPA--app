@@ -26,6 +26,8 @@ import {
   Shield,
   Lock,
   AlertCircle,
+  AlertTriangle,
+  RefreshCw,
   Scale,
   ShieldAlert,
   Gavel,
@@ -91,7 +93,11 @@ export default function ExecutiveDirectoryPortal({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExecutive, setEditingExecutive] = useState<ExecutiveMember | null>(null);
 
-  // Delete Confirm Modal State
+  // Security Confirmation Dialog States for Appointing & Removing Officials
+  const [pendingAppointExecutive, setPendingAppointExecutive] = useState<ExecutiveMember | null>(null);
+  const [pendingDeleteExecutive, setPendingDeleteExecutive] = useState<ExecutiveMember | null>(null);
+  const [confirmDeleteSafetyCheckbox, setConfirmDeleteSafetyCheckbox] = useState(false);
+  const [isActionProcessing, setIsActionProcessing] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Form State
@@ -117,16 +123,17 @@ export default function ExecutiveDirectoryPortal({
   const [photoUploadSuccessToast, setPhotoUploadSuccessToast] = useState<string | null>(null);
 
   // RBAC Evaluation:
-  // 1. Super Admin: full authority across all levels (State, District, Zone, Area/Union).
-  // 2. State President:
-  //    - Can edit other State Executives (excluding Super Admin).
-  //    - Has full rights to appoint, edit, and reassign all District, Zonal, and Area/Union executives.
+  // User Directive: Super Admin and State President have full authority to edit, change, delete, and appoint
+  // across all 38 District In-charges, Town In-charges, Union In-charges, Zonal In-charges, and State In-charges.
   const isEffectiveStatePresident = Boolean(
     isStatePresident ||
     currentUser?.role === "state_president" ||
     currentUser?.id === "usr_president" ||
+    (currentUser?.phone && (currentUser.phone.includes("9789331681") || currentUser.phone.includes("97893 31681"))) ||
     (currentUser?.name && currentUser.name.includes("மைக்கேல் ஆல்வின்"))
   );
+
+  const hasCentralAuthority = isSuperAdmin || isEffectiveStatePresident;
 
   // Helper to identify Super Admin's executive record
   const isSuperAdminExecutive = (exec: ExecutiveMember) => {
@@ -140,45 +147,22 @@ export default function ExecutiveDirectoryPortal({
   };
 
   // Can the current user edit this specific executive?
-  const canEditExecutive = (exec: ExecutiveMember): boolean => {
-    if (isSuperAdmin) return true;
-    if (isEffectiveStatePresident) {
-      if (exec.level === "state") {
-        // State President can edit other state executives, but CANNOT edit Super Admin
-        return !isSuperAdminExecutive(exec);
-      }
-      // Full editing rights for district, zone, union_area
-      return true;
-    }
-    return false;
+  const canEditExecutive = (_exec: ExecutiveMember): boolean => {
+    return hasCentralAuthority;
   };
 
   // Can the current user delete/remove this specific executive?
-  const canDeleteExecutive = (exec: ExecutiveMember): boolean => {
-    if (isSuperAdmin) return true;
-    if (isEffectiveStatePresident) {
-      // State tier: State President has edit rights ONLY ("திருத்துவது மட்டும்"), no deletion rights
-      if (exec.level === "state") return false;
-      // District, zone, union_area: Full rights to delete/remove ("மாற்றுவது போன்ற உரிமைகள்")
-      return true;
-    }
-    return false;
+  const canDeleteExecutive = (_exec: ExecutiveMember): boolean => {
+    return hasCentralAuthority;
   };
 
   // Can the current user appoint new executives in this tier?
-  const canAppointAtTier = (level: ExecutiveLevel): boolean => {
-    if (isSuperAdmin) return true;
-    if (isEffectiveStatePresident) {
-      // State tier appointments are restricted to Super Admin
-      if (level === "state") return false;
-      // District, zone, union_area: State President can appoint
-      return true;
-    }
-    return false;
+  const canAppointAtTier = (_level: ExecutiveLevel): boolean => {
+    return hasCentralAuthority;
   };
 
   // Can appoint in general (for top banner "+ புதிய நிர்வாகி நியமனம்" button)
-  const canAppointGeneral = isSuperAdmin || isEffectiveStatePresident;
+  const canAppointGeneral = hasCentralAuthority;
 
   // Counts
   const counts = useMemo(() => {
@@ -224,11 +208,7 @@ export default function ExecutiveDirectoryPortal({
 
   // Open Appoint Modal
   const handleOpenAppointModal = (defaultLevel?: ExecutiveLevel) => {
-    let targetLevel = defaultLevel || activeLevel;
-    // If state president tries to appoint at state level, redirect default to district tier
-    if (isEffectiveStatePresident && !isSuperAdmin && targetLevel === "state") {
-      targetLevel = "district";
-    }
+    const targetLevel = defaultLevel || activeLevel;
     setEditingExecutive(null);
     setFormLevel(targetLevel);
     setFormName("");
@@ -306,19 +286,10 @@ export default function ExecutiveDirectoryPortal({
       return;
     }
 
-    // RBAC validation:
-    if (isEffectiveStatePresident && !isSuperAdmin) {
-      if (editingExecutive) {
-        if (editingExecutive.level === "state" && isSuperAdminExecutive(editingExecutive)) {
-          alert(lang === "ta" ? "சூப்பர் அட்மின் விவரங்களை மாநில தலைவர் திருத்த முடியாது." : "State President cannot edit Super Admin details.");
-          return;
-        }
-      } else {
-        if (formLevel === "state") {
-          alert(lang === "ta" ? "மாநில நிர்வாகிகள் நியமனம் சூப்பர் அட்மின் ஒப்புதலுடன் மட்டுமே செய்ய முடியும்." : "State executive appointments are restricted to Super Admin.");
-          return;
-        }
-      }
+    // RBAC validation: Both Super Admin and State President have full authority across all levels.
+    if (!hasCentralAuthority) {
+      alert(lang === "ta" ? "நிர்வாகிகளை மாற்ற அல்லது நியமிக்க அனுமதி இல்லை." : "Unauthorized to modify or appoint executives.");
+      return;
     }
 
     const roleActorTitle = isSuperAdmin 
@@ -349,14 +320,73 @@ export default function ExecutiveDirectoryPortal({
       legalOathRef: editingExecutive?.legalOathRef || "TNPA/LEGAL-NOT/2026/044"
     };
 
-    onSaveExecutive(newOrUpdated);
-    const actorLabel = isSuperAdmin ? "சூப்பர் அட்மின்" : "மாநில தலைவர்";
-    onAddAuditLog(
-      editingExecutive ? `${actorLabel} நிர்வாகப் பொறுப்பாளர் திருத்தம்` : `${actorLabel} புதிய நிர்வாகி நியமனம்`,
-      `${actorLabel} ${editingExecutive ? "திருத்தியுள்ளார்" : "நியமித்துள்ளார்"}: ${newOrUpdated.name} - ${newOrUpdated.role} (${newOrUpdated.level})`
-    );
+    // Open Security Confirmation Dialog before committing
+    setPendingAppointExecutive(newOrUpdated);
+  };
 
-    setIsModalOpen(false);
+  // Confirm and Commit Appointment / Update (பாதுகாப்பு உறுதிப்படுத்தல்)
+  const handleConfirmAppoint = () => {
+    if (!pendingAppointExecutive) return;
+    setIsActionProcessing(true);
+    try {
+      onSaveExecutive(pendingAppointExecutive);
+      const actorLabel = isSuperAdmin ? "சூப்பர் அட்மின்" : "மாநில தலைவர்";
+      onAddAuditLog(
+        editingExecutive ? `${actorLabel} நிர்வாகப் பொறுப்பாளர் திருத்தம்` : `${actorLabel} புதிய நிர்வாகி நியமனம்`,
+        `${actorLabel} ${editingExecutive ? "திருத்தியுள்ளார்" : "நியமித்துள்ளார்"}: ${pendingAppointExecutive.name} - ${pendingAppointExecutive.role} (${pendingAppointExecutive.level})`
+      );
+
+      setPhotoUploadSuccessToast(
+        lang === "ta"
+          ? `✅ ${pendingAppointExecutive.name} (${pendingAppointExecutive.role}) ${editingExecutive ? "விவரங்கள் வெற்றிகரமாக மாற்றப்பட்டது!" : "வெற்றிகரமாக நியமிக்கப்பட்டார்!"}`
+          : `✅ ${pendingAppointExecutive.nameEn || pendingAppointExecutive.name} successfully updated/appointed!`
+      );
+      setTimeout(() => setPhotoUploadSuccessToast(null), 4000);
+      setPendingAppointExecutive(null);
+      setIsModalOpen(false);
+      setEditingExecutive(null);
+    } finally {
+      setIsActionProcessing(false);
+    }
+  };
+
+  // Open Security Removal Confirmation Dialog for Official
+  const handleOpenDeleteConfirm = (exec: ExecutiveMember) => {
+    if (!hasCentralAuthority) {
+      alert(lang === "ta" ? "நீக்குவதற்கு சூப்பர் அட்மின் அல்லது மாநில தலைவர் அனுமதி தேவை." : "Super Admin or State President authority required.");
+      return;
+    }
+    setPendingDeleteExecutive(exec);
+    setConfirmDeleteSafetyCheckbox(false);
+  };
+
+  // Confirm and Execute Deletion of Official
+  const handleConfirmDelete = () => {
+    if (!pendingDeleteExecutive) return;
+    if (!hasCentralAuthority) {
+      alert(lang === "ta" ? "நீக்குவதற்கு சூப்பர் அட்மின் அல்லது மாநில தலைவர் அனுமதி தேவை." : "Super Admin or State President authority required.");
+      setPendingDeleteExecutive(null);
+      return;
+    }
+    setIsActionProcessing(true);
+    try {
+      onDeleteExecutive(pendingDeleteExecutive.id);
+      const actorLabel = isSuperAdmin ? "சூப்பர் அட்மின்" : "மாநில தலைவர்";
+      onAddAuditLog(
+        `${actorLabel} நிர்வாகி நீக்கம்`, 
+        `${actorLabel} நீக்கியுள்ளார்: ${pendingDeleteExecutive.name} (${pendingDeleteExecutive.role} - ${pendingDeleteExecutive.level})`
+      );
+      setPhotoUploadSuccessToast(
+        lang === "ta"
+          ? `🗑️ ${pendingDeleteExecutive.name} (${pendingDeleteExecutive.role}) பொறுப்பிலிருந்து வெற்றிகரமாக நீக்கப்பட்டார்.`
+          : `🗑️ ${pendingDeleteExecutive.nameEn || pendingDeleteExecutive.name} removed from duties.`
+      );
+      setTimeout(() => setPhotoUploadSuccessToast(null), 4000);
+      setPendingDeleteExecutive(null);
+      setDeleteConfirmId(null);
+    } finally {
+      setIsActionProcessing(false);
+    }
   };
 
   // Handle Photo File Upload for Edit/Appoint Modal
@@ -445,8 +475,8 @@ export default function ExecutiveDirectoryPortal({
   const handleExecuteDelete = () => {
     if (!deleteConfirmId) return;
     const target = executives.find(e => e.id === deleteConfirmId);
-    if (target && isEffectiveStatePresident && !isSuperAdmin && target.level === "state") {
-      alert(lang === "ta" ? "மாநில நிர்வாகிகளை மாநில தலைவரால் நீக்க முடியாது; திருத்த மட்டுமே முடியும்." : "State executives cannot be deleted by State President.");
+    if (!hasCentralAuthority) {
+      alert(lang === "ta" ? "நீக்குவதற்கு சூப்பர் அட்மின் அல்லது மாநில தலைவர் அனுமதி தேவை." : "Super Admin or State President authority required.");
       setDeleteConfirmId(null);
       return;
     }
@@ -498,18 +528,18 @@ export default function ExecutiveDirectoryPortal({
                 : "Comprehensive directories across State, District, Zonal, and Area/Union tiers."}
             </p>
 
-            {/* State President Authority Scope Explanatory Notice */}
-            {isEffectiveStatePresident && !isSuperAdmin && (
+            {/* Super Admin & State President Authority Scope Explanatory Notice */}
+            {hasCentralAuthority && (
               <div className="mt-3 p-3 bg-emerald-950/70 border border-emerald-500/40 rounded-2xl text-emerald-200 text-xs flex items-start gap-2.5 shadow-sm">
                 <Award className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block text-emerald-300 font-bold mb-0.5">
-                    {lang === "ta" ? "மாநில தலைவர் அதிகார வரம்பு (President Authority):" : "State President Authority Scope:"}
+                    {lang === "ta" ? "சூப்பர் அட்மின் & மாநில தலைவர் அதிகார வரம்பு (Central Leadership Authority):" : "Super Admin & State President Authority Scope:"}
                   </strong>
                   <p className="text-[11px] text-emerald-100/90 leading-relaxed">
                     {lang === "ta" 
-                      ? "மாவட்ட, மண்டலம், பகுதி ஒன்றிய நிர்வாகிகளை நியமிக்கவும், திருத்தவும், மாற்றவும் முழு அதிகாரம் உண்டு. மாநில நிர்வாகிகள் பட்டியலில் சூப்பர் அட்மினைத் தவிர மற்ற மாநில நிர்வாகிகளைத் திருத்தும் அதிகாரம் வழங்கப்பட்டுள்ளது."
-                      : "Full rights to appoint, edit, and reassign District, Zonal, and Area/Union executives. State executives can be edited (excluding Super Admin)."}
+                      ? "38 மாவட்ட பொறுப்பாளர்கள், நகரப் பொறுப்பாளர்கள், ஒன்றியப் பொறுப்பாளர்கள், மண்டலப் பொறுப்பாளர்கள் மற்றும் மாநிலப் பொறுப்பாளர்களை மாற்ற, நீக்க, எடிட் செய்ய சூப்பர் அட்மினுக்கும் மற்றும் மாநில தலைவருக்கும் முழு அதிகாரம் மற்றும் அனுமதி வழங்கப்பட்டுள்ளது."
+                      : "Super Admin and State President have complete authority to change, delete, and edit all 38 District In-charges, Town In-charges, Union In-charges, Zonal In-charges, and State In-charges."}
                   </p>
                 </div>
               </div>
@@ -960,16 +990,6 @@ export default function ExecutiveDirectoryPortal({
                   {(() => {
                     const canEdit = canEditExecutive(exec);
                     const canDelete = canDeleteExecutive(exec);
-                    const isProtectedSuperAdmin = exec.level === "state" && isSuperAdminExecutive(exec);
-
-                    if (isEffectiveStatePresident && !isSuperAdmin && isProtectedSuperAdmin) {
-                      return (
-                        <div className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-stone-100 border border-stone-200 rounded-xl text-[10px] text-stone-600 font-bold w-full">
-                          <Lock className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                          <span>{lang === "ta" ? "சூப்பர் அட்மின் பதிவு - திருத்த இயலாது" : "Super Admin - Protected"}</span>
-                        </div>
-                      );
-                    }
 
                     if (!canEdit && !canDelete) return null;
 
@@ -982,16 +1002,14 @@ export default function ExecutiveDirectoryPortal({
                           >
                             <Edit3 className="w-3 h-3 text-amber-700" />
                             <span>
-                              {exec.level === "state" && isEffectiveStatePresident && !isSuperAdmin
-                                ? (lang === "ta" ? "மாற்று / திருத்து (தலைவர்)" : "Edit (President)")
-                                : (lang === "ta" ? "மாற்று / திருத்து" : "Edit / Change")}
+                              {lang === "ta" ? "மாற்று / எடிட்" : "Edit / Change"}
                             </span>
                           </button>
                         )}
 
                         {canDelete && (
                           <button
-                            onClick={() => setDeleteConfirmId(exec.id)}
+                            onClick={() => handleOpenDeleteConfirm(exec)}
                             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
                             title={lang === "ta" ? "பதவி நீக்கம்" : "Remove"}
                           >
@@ -1039,27 +1057,16 @@ export default function ExecutiveDirectoryPortal({
                 <label className="block text-stone-700 font-bold mb-1">
                   {lang === "ta" ? "நிர்வாகப் பிரிவு (Hierarchy Level):" : "Hierarchy Level:"}
                 </label>
-                {isEffectiveStatePresident && !isSuperAdmin && editingExecutive && editingExecutive.level === "state" ? (
-                  <div className="p-2.5 bg-stone-100 border border-stone-200 rounded-xl font-bold text-stone-800 text-xs flex items-center justify-between">
-                    <span>{lang === "ta" ? "1. மாநில நிர்வாகிகள் பட்டியல் (State Executives)" : "1. State Executives"}</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-bold">
-                      {lang === "ta" ? "திருத்துவது மட்டும்" : "Edit Only"}
-                    </span>
-                  </div>
-                ) : (
-                  <select
-                    value={formLevel}
-                    onChange={(e) => setFormLevel(e.target.value as ExecutiveLevel)}
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-800 focus:ring-2 focus:ring-[#b91c1c]"
-                  >
-                    {isSuperAdmin && (
-                      <option value="state">{lang === "ta" ? "1. மாநில நிர்வாகிகள் பட்டியல் (State Executives)" : "State Executives"}</option>
-                    )}
-                    <option value="district">{lang === "ta" ? "2. மாவட்ட நிர்வாகிகள் பட்டியல் (District Executives)" : "District Executives"}</option>
-                    <option value="zone">{lang === "ta" ? "3. மண்டல நிர்வாகிகள் பட்டியல் (Zonal Executives)" : "Zonal Executives"}</option>
-                    <option value="union_area">{lang === "ta" ? "4. பகுதி / ஒன்றிய நிர்வாகிகள் பட்டியல் (Area & Union)" : "Area & Union Executives"}</option>
-                  </select>
-                )}
+                <select
+                  value={formLevel}
+                  onChange={(e) => setFormLevel(e.target.value as ExecutiveLevel)}
+                  className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-800 focus:ring-2 focus:ring-[#b91c1c]"
+                >
+                  <option value="state">{lang === "ta" ? "1. மாநில நிர்வாகிகள் பட்டியல் (State Executives)" : "1. State Executives"}</option>
+                  <option value="district">{lang === "ta" ? "2. மாவட்ட நிர்வாகிகள் பட்டியல் (District Executives)" : "2. District Executives"}</option>
+                  <option value="zone">{lang === "ta" ? "3. மண்டல நிர்வாகிகள் பட்டியல் (Zonal Executives)" : "3. Zonal Executives"}</option>
+                  <option value="union_area">{lang === "ta" ? "4. பகுதி / ஒன்றிய நிர்வாகிகள் பட்டியல் (Area & Union)" : "4. Area & Union Executives"}</option>
+                </select>
               </div>
 
               {/* Name (Ta & En) */}
@@ -1359,42 +1366,348 @@ export default function ExecutiveDirectoryPortal({
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-[scaleIn_0.2s_ease-out]">
-            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-              <Trash2 className="w-6 h-6" />
-            </div>
+      {/* ========================================================================= */}
+      {/* CONFIRMATION DIALOG: APPOINT / UPDATE EXECUTIVE (நிர்வாகி நியமன உறுதிப்படுத்தல்) */}
+      {/* ========================================================================= */}
+      {pendingAppointExecutive && (
+        <div 
+          id="executive-appoint-confirm-dialog-backdrop"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+        >
+          <div 
+            id="executive-appoint-confirm-dialog-card"
+            className="bg-white rounded-3xl max-w-lg w-full border border-stone-200 shadow-2xl overflow-hidden my-6 animate-[scaleIn_0.2s_ease-out]"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-amber-950 p-5 text-white flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-400 text-stone-900 flex items-center justify-center shrink-0 shadow">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-amber-400 text-stone-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      {lang === "ta" ? "பாதுகாப்பு சரிபார்ப்பு" : "Security Verification"}
+                    </span>
+                    <span className="text-stone-300 text-xs font-semibold">
+                      {editingExecutive 
+                        ? (lang === "ta" ? "பொறுப்பாளர் திருத்தம்" : "Update Official") 
+                        : (lang === "ta" ? "புதிய நியமனம்" : "New Appointment")}
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black mt-0.5 text-white">
+                    {editingExecutive 
+                      ? (lang === "ta" ? "நிர்வாகப் பொறுப்பாளர் மாற்றத்தை உறுதி செய்க" : "Confirm Executive Update") 
+                      : (lang === "ta" ? "புதிய நிர்வாகி நியமனத்தை உறுதி செய்க" : "Confirm Executive Appointment")}
+                  </h3>
+                </div>
+              </div>
 
-            <div>
-              <h3 className="font-extrabold text-stone-900 text-base">
-                {lang === "ta" ? "நிர்வாகப் பொறுப்பிலிருந்து நீக்கவா?" : "Confirm Removal of Executive"}
-              </h3>
-              <p className="text-stone-500 text-xs mt-1">
-                {lang === "ta" 
-                  ? "இவரை நிர்வாகப் பொறுப்பாளர் பட்டியலில் இருந்து நீக்க உறுதி செய்கிறீர்களா? இது உடனடியாக பதிவேடுகளில் புதுப்பிக்கப்படும்."
-                  : "Are you sure you want to remove this official from the executive hierarchy?"}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-2 pt-2">
               <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                type="button"
+                onClick={() => setPendingAppointExecutive(null)}
+                disabled={isActionProcessing}
+                className="text-stone-400 hover:text-white p-1 rounded-xl hover:bg-white/10 transition cursor-pointer"
+                title={lang === "ta" ? "மூடு" : "Close"}
               >
-                {lang === "ta" ? "இல்லை, ரத்து" : "Cancel"}
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto text-xs text-stone-700">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <p className="text-amber-900 leading-relaxed font-medium">
+                  {lang === "ta"
+                    ? "கீழ்க்கண்ட நிர்வாகப் பொறுப்பாளர் விவரங்கள் சங்கத்தின் அதிகாரப்பூர்வ பதிவேட்டில் நிரந்தரமாகப் புதுப்பிக்கப்படும். நியமனத்தை உறுதிப்படுத்துவதற்கு முன் விவரங்களைச் சரிபார்க்கவும்."
+                    : "The following executive details will be officially recorded in union archives. Please verify all information before confirming appointment."}
+                </p>
+              </div>
+
+              {/* In-Charge Details Review Card */}
+              <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 space-y-3">
+                <div className="flex items-center gap-3.5 pb-3 border-b border-stone-200">
+                  <img
+                    src={getExecutivePhoto(pendingAppointExecutive)}
+                    alt={pendingAppointExecutive.name}
+                    className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-sm shrink-0"
+                  />
+                  <div>
+                    <h4 className="text-sm font-black text-stone-900">{pendingAppointExecutive.name}</h4>
+                    {pendingAppointExecutive.nameEn && (
+                      <p className="text-stone-500 font-semibold">{pendingAppointExecutive.nameEn}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#b91c1c] text-white font-black text-[10px]">
+                        {pendingAppointExecutive.role}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-stone-200 text-stone-800 font-bold text-[10px]">
+                        {pendingAppointExecutive.level === "state"
+                          ? (lang === "ta" ? "மாநில தலைமை" : "State Level")
+                          : pendingAppointExecutive.level === "zone"
+                          ? (lang === "ta" ? "மண்டலப் பிரிவு" : "Zone Level")
+                          : pendingAppointExecutive.level === "district"
+                          ? (lang === "ta" ? "மாவட்டப் பிரிவு" : "District Level")
+                          : (lang === "ta" ? "பகுதி / யூனியன் / பேரூர்" : "Union / Area Level")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-stone-400 block font-semibold">
+                      {lang === "ta" ? "நிர்வாக அடுக்கு:" : "Tier / Level:"}
+                    </span>
+                    <span className="font-bold text-stone-800 uppercase font-mono text-[10px]">
+                      {pendingAppointExecutive.level}
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-stone-400 block font-semibold">
+                      {lang === "ta" ? "தொடர்பு எண்:" : "Phone:"}
+                    </span>
+                    <span className="font-bold text-stone-900">{pendingAppointExecutive.phone}</span>
+                  </div>
+
+                  {pendingAppointExecutive.district && (
+                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                      <span className="text-stone-400 block font-semibold">
+                        {lang === "ta" ? "மாவட்டம்:" : "District:"}
+                      </span>
+                      <span className="font-bold text-stone-800">{pendingAppointExecutive.district}</span>
+                    </div>
+                  )}
+
+                  {pendingAppointExecutive.zone && (
+                    <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                      <span className="text-stone-400 block font-semibold">
+                        {lang === "ta" ? "மண்டலம்:" : "Zone:"}
+                      </span>
+                      <span className="font-bold text-stone-800">{pendingAppointExecutive.zone}</span>
+                    </div>
+                  )}
+
+                  {pendingAppointExecutive.unitName && (
+                    <div className="bg-white p-2.5 rounded-xl border border-stone-200 col-span-2">
+                      <span className="text-stone-400 block font-semibold">
+                        {lang === "ta" ? "கிளை / பிரிவு பெயர்:" : "Unit / Branch Name:"}
+                      </span>
+                      <span className="font-bold text-stone-800">{pendingAppointExecutive.unitName}</span>
+                    </div>
+                  )}
+
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200 col-span-2">
+                    <span className="text-stone-400 block font-semibold">
+                      {lang === "ta" ? "நியமன அதிகாரி:" : "Appointed By:"}
+                    </span>
+                    <span className="font-medium text-stone-800">{pendingAppointExecutive.appointedBy || (isSuperAdmin ? "Super Admin" : "மாநில தலைவர்")}</span>
+                  </div>
+                </div>
+
+                {/* Legal Loyalty Oath Verification Check */}
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <p className="text-[11px] text-emerald-900 font-medium">
+                    {lang === "ta"
+                      ? "சங்கத்தின் ஒழுங்கு நெறிமுறை மற்றும் விசுவாச உறுதிமொழி ஏற்றுக்கொள்ளப்பட்டு சான்றளிக்கப்பட்டது."
+                      : "Union constitutional bylaws and leadership fidelity oath verified."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 bg-stone-100 border-t border-stone-200 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingAppointExecutive(null)}
+                disabled={isActionProcessing}
+                className="px-4 py-2.5 bg-white hover:bg-stone-200 text-stone-700 font-bold text-xs rounded-xl border border-stone-300 transition cursor-pointer"
+              >
+                {lang === "ta" ? "திரும்பச் சரிபார் (Back)" : "Back / Review"}
               </button>
               <button
-                onClick={handleExecuteDelete}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer"
+                type="button"
+                id="btn-confirm-executive-appoint"
+                onClick={handleConfirmAppoint}
+                disabled={isActionProcessing}
+                className="px-5 py-2.5 bg-[#b91c1c] hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
               >
-                {lang === "ta" ? "ஆம், நீக்கு" : "Yes, Remove"}
+                {isActionProcessing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
+                    <span>{lang === "ta" ? "பதிவாகிறது..." : "Processing..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                    <span>
+                      {editingExecutive 
+                        ? (lang === "ta" ? "ஆம், உறுதி செய்து மாற்று" : "Confirm & Update") 
+                        : (lang === "ta" ? "ஆம், உறுதி செய்து நியமி" : "Confirm & Appoint")}
+                    </span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* CONFIRMATION DIALOG: DELETE / REMOVE EXECUTIVE (நீக்கல் உறுதிப்படுத்தல்) */}
+      {/* ========================================================================= */}
+      {(pendingDeleteExecutive || deleteConfirmId) && (() => {
+        const target = pendingDeleteExecutive || executives.find(e => e.id === deleteConfirmId);
+        if (!target) return null;
+
+        return (
+          <div 
+            id="executive-delete-confirm-dialog-backdrop"
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+          >
+            <div 
+              id="executive-delete-confirm-dialog-card"
+              className="bg-white rounded-3xl max-w-md w-full border border-rose-200 shadow-2xl overflow-hidden my-6 animate-[scaleIn_0.2s_ease-out]"
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-rose-950 via-rose-900 to-stone-950 p-5 text-white flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-rose-400 text-stone-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {lang === "ta" ? "பாதுகாப்பு எச்சரிக்கை" : "Security Alert"}
+                      </span>
+                      <span className="text-rose-200 text-xs font-semibold">
+                        {lang === "ta" ? "பொறுப்பு நீக்கம்" : "Removal of Official"}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black mt-0.5 text-white">
+                      {lang === "ta" ? "நிர்வாகப் பொறுப்பிலிருந்து நீக்கவா?" : "Confirm Removal of Executive"}
+                    </h3>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingDeleteExecutive(null);
+                    setDeleteConfirmId(null);
+                    setConfirmDeleteSafetyCheckbox(false);
+                  }}
+                  disabled={isActionProcessing}
+                  className="text-rose-200 hover:text-white p-1 rounded-xl hover:bg-white/10 transition cursor-pointer"
+                  title={lang === "ta" ? "மூடு" : "Close"}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 text-xs text-stone-700">
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 space-y-1.5 font-medium">
+                  <p className="font-bold flex items-center gap-1.5 text-rose-950">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{lang === "ta" ? "கவனம்: இப்பொறுப்பாளர் உடனடியாக நீக்கப்படுவார்!" : "Warning: Official will be removed immediately!"}</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-rose-800">
+                    {lang === "ta" 
+                      ? "இவரை நீக்கினால், மாநில மற்றும் மாவட்ட நிர்வாகப் பொறுப்பாளர்கள் பட்டியலிலிருந்து இவரது விபரம் மற்றும் அதிகாரப்பூர்வ பொறுப்புரிமைகள் அகற்றப்படும்."
+                      : "Removing this official will immediately revoke their administrative role and remove their listing from directory and certificates."}
+                  </p>
+                </div>
+
+                {/* Target Official Summary */}
+                <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 flex items-center gap-3.5">
+                  <img
+                    src={getExecutivePhoto(target)}
+                    alt={target.name}
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-rose-300 shadow-sm shrink-0"
+                  />
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-black text-stone-900">{target.name}</h4>
+                    {target.nameEn && (
+                      <p className="text-stone-500 font-semibold text-[11px]">{target.nameEn}</p>
+                    )}
+                    <div className="inline-block px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
+                      {target.role}
+                    </div>
+                    <p className="text-stone-500 text-[11px]">
+                      {target.district || target.zone || (target.level === "state" ? "மாநில தலைமை" : "")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Safety Checkbox */}
+                <label 
+                  id="lbl-confirm-executive-delete-checkbox"
+                  className="flex items-start gap-3 p-3 bg-amber-50/80 border border-amber-200 rounded-2xl cursor-pointer hover:bg-amber-100/60 transition"
+                >
+                  <input
+                    type="checkbox"
+                    id="confirm-executive-delete-checkbox"
+                    checked={confirmDeleteSafetyCheckbox}
+                    onChange={(e) => setConfirmDeleteSafetyCheckbox(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                  />
+                  <span className="text-[11px] font-bold text-amber-950 leading-snug">
+                    {lang === "ta" 
+                      ? "இவரை சங்க நிர்வாகப் பொறுப்பிலிருந்து முழுமையாக நீக்க உறுதி செய்கிறேன்."
+                      : "I confirm the official removal of this executive from association duties."}
+                  </span>
+                </label>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="p-4 bg-stone-100 border-t border-stone-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingDeleteExecutive(null);
+                    setDeleteConfirmId(null);
+                    setConfirmDeleteSafetyCheckbox(false);
+                  }}
+                  disabled={isActionProcessing}
+                  className="px-4 py-2.5 bg-white hover:bg-stone-200 text-stone-700 font-bold text-xs rounded-xl border border-stone-300 transition cursor-pointer"
+                >
+                  {lang === "ta" ? "இல்லை, ரத்து" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  id="btn-confirm-executive-delete"
+                  onClick={() => {
+                    if (pendingDeleteExecutive) {
+                      handleConfirmDelete();
+                    } else if (deleteConfirmId) {
+                      handleExecuteDelete();
+                    }
+                  }}
+                  disabled={!confirmDeleteSafetyCheckbox || isActionProcessing}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                >
+                  {isActionProcessing ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                      <span>{lang === "ta" ? "நீக்கப்படுகிறது..." : "Removing..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>{lang === "ta" ? "ஆம், பொறுப்பிலிருந்து நீக்கு" : "Yes, Remove Official"}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* OFFICIAL APPOINTMENT ORDER MODAL */}
       {viewingOathExecutive && (

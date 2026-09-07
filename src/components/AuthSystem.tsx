@@ -23,6 +23,7 @@ import {
 import { UserAccount, UserRole } from "../types";
 import { auth } from "../lib/firebase";
 import SuperAdminOtpAuth from "./SuperAdminOtpAuth";
+import { ALL_38_TAMILNADU_DISTRICTS } from "../data/initialExecutives";
 import { dispatchSmsOtp, verifySmsOtp } from "../utils/apiClient";
 
 interface AuthSystemProps {
@@ -79,42 +80,6 @@ export const defaultAccounts: UserAccount[] = [
     photoUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200",
     password: "treasurer",
     joinedAt: "2020-01-01T10:00:00Z"
-  },
-  {
-    id: "usr_dist_admin",
-    role: "district_admin",
-    name: "எஸ். ரமேஷ் குமார்",
-    nameEn: "S. Ramesh Kumar",
-    phone: "9840987654",
-    email: "chennai@tnpainters.org",
-    district: "சென்னை",
-    districtEn: "Chennai",
-    status: "approved",
-    regNumber: "TNP-DIST-004",
-    photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=200&h=200",
-    password: "chennai",
-    joinedAt: "2021-03-12T10:00:00Z"
-  },
-  {
-    id: "usr_member_active",
-    role: "member",
-    name: "ரா. கார்த்திகேயன்",
-    nameEn: "R. Karthikeyan",
-    phone: "9876543210",
-    email: "member@tnpainters.org",
-    district: "சென்னை",
-    districtEn: "Chennai",
-    status: "approved",
-    regNumber: "TNP-2026-0034",
-    photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150&h=150",
-    password: "member",
-    joinedAt: "2026-08-01T10:30:00Z",
-    aadhaar: "1234-5678-9012",
-    dob: "1992-05-15",
-    gender: "ஆண் (Male)",
-    bloodGroup: "O+",
-    address: "கண்ணகி நகர், துரைப்பாக்கம், சென்னை - 600097",
-    experienceYears: 8
   }
 ];
 
@@ -1114,11 +1079,11 @@ export default function AuthSystem({
                   onChange={(e) => setSignUpDistrict(e.target.value)}
                   className="w-full px-3 py-2 border rounded-xl bg-white"
                 >
-                  <option value="சென்னை">சென்னை (Chennai)</option>
-                  <option value="மதுரை">மதுரை (Madurai)</option>
-                  <option value="கோயம்புத்தூர்">கோயம்புத்தூர் (Coimbatore)</option>
-                  <option value="திருச்சிராப்பள்ளி">திருச்சிராப்பள்ளி (Tiruchirappalli)</option>
-                  <option value="சேலம்">சேலம் (Salem)</option>
+                  {ALL_38_TAMILNADU_DISTRICTS.map((d) => (
+                    <option key={d.code} value={d.ta}>
+                      {d.ta} ({d.en})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

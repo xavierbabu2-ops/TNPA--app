@@ -61,26 +61,6 @@ export default function RoleBasedControlPortal({
       status: "active",
       assignedTo: "Adv. K. Senthil Nathan",
       adminPhone: "9841012345"
-    },
-    {
-      id: "key_4",
-      keyValue: "TNPA-DISTKEY-2026-RAMESH-9710055443",
-      targetRole: "district_admin",
-      issuedBy: "R. Xavier Babu (Super Admin)",
-      createdAt: "2026-03-15",
-      status: "active",
-      assignedTo: "S. Ramesh Kumar",
-      adminPhone: "9710055443"
-    },
-    {
-      id: "key_5",
-      keyValue: "TNPA-UNIONKEY-2026-MURUGAN-9625544110",
-      targetRole: "union_admin",
-      issuedBy: "R. Xavier Babu (Super Admin)",
-      createdAt: "2026-04-01",
-      status: "active",
-      assignedTo: "M. Murugan",
-      adminPhone: "9625544110"
     }
   ]);
 

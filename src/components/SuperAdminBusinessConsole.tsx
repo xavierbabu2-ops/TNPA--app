@@ -144,63 +144,14 @@ export default function SuperAdminBusinessConsole({
   const [secSubTab, setSecSubTab] = useState<"telemetry" | "admins" | "policies" | "ledger" | "firebase" | "disaster" | "tv_media">("telemetry");
 
   // --- TNPA2 TV MEDIA STUDIO MANAGEMENT STATES (SUPER ADMIN ONLY) ---
-  const defaultTvMedia = [
-    {
-      id: "v1",
-      title: "மாநில பேரவைக் கூட்டம் 2026 - தலைவர்கள் சிறப்பு உரை",
-      titleEn: "State General Council 2026 - Executive Keynote Addresses",
-      duration: "42:15",
-      views: "18.5K",
-      date: "3 நாட்கள் முன்பு",
-      category: "மாநாடு",
-      thumbnailColor: "from-amber-700 to-rose-900",
-      speaker: "S. மைக்கேல் ஆல்வின் & ரா. சேவியர் பாபு",
-      videoUrl: ""
-    },
-    {
-      id: "v2",
-      title: "பெயிண்டர் நலவாரிய அடையாள அட்டை பெறும் எளிய வழிமுறைகள்",
-      titleEn: "Easy Steps to Apply for Construction Welfare Board ID Card",
-      duration: "18:40",
-      views: "34.2K",
-      date: "1 வாரம் முன்பு",
-      category: "பயிற்சி",
-      thumbnailColor: "from-[#b91c1c] to-stone-900",
-      speaker: "R. சக்திவேல் (மாநில பொருளாளர்)",
-      videoUrl: ""
-    },
-    {
-      id: "v3",
-      title: "உயர் கட்டடங்களில் பெயிண்டிங் செய்யும்போது பின்பற்ற வேண்டிய பாதுகாப்பு முறைகள்",
-      titleEn: "Safety & Harness Guidelines for High-Rise Painting Workers",
-      duration: "25:10",
-      views: "12.8K",
-      date: "2 வாரங்கள் முன்பு",
-      category: "பாதுகாப்பு",
-      thumbnailColor: "from-blue-800 to-indigo-950",
-      speaker: "பாதுகாப்புப் பிரிவு",
-      videoUrl: ""
-    },
-    {
-      id: "v4",
-      title: "மதுரை & கோவை மாவட்ட மாபெரும் பெயிண்டர்கள் விழிப்புணர்வு பேரணி",
-      titleEn: "Madurai & Coimbatore Painters Mega Awareness Rally",
-      duration: "31:05",
-      views: "22.1K",
-      date: "3 வாரங்கள் முன்பு",
-      category: "பேரணி",
-      thumbnailColor: "from-emerald-700 to-stone-900",
-      speaker: "மாவட்ட செயலாளர்கள்",
-      videoUrl: ""
-    }
-  ];
+  const defaultTvMedia: any[] = [];
 
   const [tvMediaItems, setTvMediaItems] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem("tnpa2_tv_custom_media");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error(e);

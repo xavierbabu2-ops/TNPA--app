@@ -1,4 +1,4 @@
-export type MemberCardPaymentStatus = 'unpaid' | 'pending' | 'approved' | 'rejected';
+export type MemberCardPaymentStatus = 'unpaid' | 'pending' | 'district_approved' | 'approved' | 'rejected';
 
 export interface MemberCardRequest {
   id: string;
@@ -19,9 +19,17 @@ export interface MemberCardRequest {
   paymentDate: string;
   paymentProofUrl?: string;
   
-  // Verification lifecycle
+  // Verification lifecycle with Dual-Approval (District + Super Admin)
   status: MemberCardPaymentStatus;
   rejectionReason?: string;
+  
+  // District Admin Approval stage
+  districtApprovedBy?: string;
+  districtApprovedAt?: string;
+  
+  // Super Admin / State President Final Approval stage (Mandatory for card generation)
+  superAdminApprovedBy?: string;
+  superAdminApprovedAt?: string;
   approvedBy?: string;
   approvedAt?: string;
   

@@ -38,34 +38,7 @@ interface GrievanceSupportDeskProps {
   onAddAuditLog: (action: string, details: string) => void;
 }
 
-const defaultGrievanceTickets: GrievanceItem[] = [
-  {
-    id: "g_1",
-    ticketNo: "TNPA-GRV-2026-0104",
-    category: "insurance",
-    subject: "விபத்து காப்பீட்டு தொகை தாமதம்",
-    description: "கடந்த மாதம் சமர்ப்பிக்கப்பட்ட விபத்து நிவாரண கோரிக்கை இன்னும் சரிபார்க்கப்படவில்லை.",
-    district: "சென்னை",
-    memberName: "ஆர். முருகன்",
-    memberPhone: "9840012345",
-    status: "in_review",
-    createdAt: "2026-08-20",
-    response: "மாவட்ட செயலாளர் மூலம் மருத்துவ சான்றிதழ் சரிபார்க்கப்பட்டு வருகிறது."
-  },
-  {
-    id: "g_2",
-    ticketNo: "TNPA-GRV-2026-0089",
-    category: "membership",
-    subject: "அடையாள அட்டை டிஜிட்டல் மாற்றம்",
-    description: "புதிய அடையாள அட்டையில் மாவட்டம் தவறாக உள்ளது.",
-    district: "கோயம்புத்தூர்",
-    memberName: "கார்த்திகேயன்",
-    memberPhone: "9790011223",
-    status: "resolved",
-    createdAt: "2026-08-15",
-    response: "தவறு திருத்தப்பட்டு புதிய டிஜிட்டல் அட்டை வழங்கப்பட்டது."
-  }
-];
+const defaultGrievanceTickets: GrievanceItem[] = [];
 
 export default function GrievanceSupportDesk({
   lang,

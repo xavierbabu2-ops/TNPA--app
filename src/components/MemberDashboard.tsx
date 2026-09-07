@@ -14,10 +14,15 @@ import {
   BadgeAlert,
   Send,
   Sparkles,
-  Search
+  Search,
+  ImageIcon,
+  Loader2,
+  ExternalLink,
+  CheckCircle2
 } from "lucide-react";
 import { UserAccount, WelfareApplication, PaymentRecord, WelfareScheme } from "../types";
 import { initialWelfareSchemes } from "../mockData";
+import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
 
 interface MemberDashboardProps {
   lang: "ta" | "en";
@@ -60,6 +65,60 @@ export default function MemberDashboard({
 
   // Subscription Pay state
   const [isPayingSub, setIsPayingSub] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
+  const [dashboardPdfResult, setDashboardPdfResult] = useState<{ blobUrl: string; fileName: string } | null>(null);
+
+  const handleDownloadDashboardPdf = async () => {
+    setIsDownloading(true);
+    setDownloadMsg("PDF உருவாக்கப்படுகிறது...");
+    try {
+      const success = await exportIdCardAsPDF({
+        memberName: member.name,
+        memberId: member.regNumber || member.id || "TNPA-MEM",
+        district: member.district,
+        singleElementId: "dashboard-digital-member-card",
+        onProgress: (msg) => setDownloadMsg(msg),
+        onSuccess: (result) => {
+          setDashboardPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName });
+        }
+      });
+      if (success) {
+        setTimeout(() => {
+          setIsDownloading(false);
+          setDownloadMsg("✅ PDF தயார்! போனில் தானாக திறக்கப்படவில்லை எனில் கீழே உள்ள பொத்தானைப் பயன்படுத்தவும்.");
+        }, 800);
+      } else {
+        setIsDownloading(false);
+        setDownloadMsg("❌ PDF பிழை. அச்சிடு முறையைப் பயன்படுத்தவும்.");
+      }
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
+      setDownloadMsg("❌ பதிவிறக்கத்தில் பிழை.");
+    }
+  };
+
+  const handleDownloadDashboardPng = async () => {
+    setIsDownloading(true);
+    setDownloadMsg("PNG படம் உருவாக்கப்படுகிறது...");
+    try {
+      await exportIdCardAsImages({
+        memberName: member.name,
+        memberId: member.regNumber || member.id || "TNPA-MEM",
+        singleElementId: "dashboard-digital-member-card",
+        onProgress: (msg) => setDownloadMsg(msg)
+      });
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadMsg(null);
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
+      setDownloadMsg("❌ படம் பதிவிறக்கத்தில் பிழை.");
+    }
+  };
 
   // Save profile changes
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -306,7 +365,10 @@ export default function MemberDashboard({
             </div>
 
             {/* Red / Gold ID Card */}
-            <div className="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-amber-500 shadow-2xl bg-gradient-to-b from-[#b91c1c] via-[#991b1b] to-[#1e1b4b] text-white p-5 flex flex-col relative">
+            <div 
+              id="dashboard-digital-member-card"
+              className="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-amber-500 shadow-2xl bg-gradient-to-b from-[#b91c1c] via-[#991b1b] to-[#1e1b4b] text-white p-5 flex flex-col relative"
+            >
               <div className="flex items-center gap-2 border-b border-white/20 pb-2 mb-3">
                 <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center relative p-0.5 shrink-0">
                   <div className="absolute inset-0 border border-dotted border-amber-400 rounded-full animate-spin [animation-duration:15s]" />
@@ -371,13 +433,68 @@ export default function MemberDashboard({
               </div>
             </div>
 
-            <button
-              onClick={() => window.print()}
-              className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow"
-            >
-              <Printer className="w-4 h-4 text-amber-500" />
-              <span>{lang === "ta" ? "அடையாள அட்டை அச்சிடு" : "Print ID Card"}</span>
-            </button>
+            {/* Download Progress Message */}
+            {downloadMsg && (
+              <div className="w-full max-w-sm p-3 bg-amber-500 text-white font-bold text-xs rounded-xl text-center shadow-md animate-pulse">
+                {downloadMsg}
+              </div>
+            )}
+
+            {/* Persistent Open PDF Card Banner */}
+            {dashboardPdfResult && (
+              <div className="w-full max-w-sm p-3 bg-emerald-950/90 border border-emerald-400 text-white rounded-xl shadow-md flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>PDF தயார்!</span>
+                </div>
+                <a
+                  href={dashboardPdfResult.blobUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download={dashboardPdfResult.fileName}
+                  className="px-3 py-1 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1 cursor-pointer active:scale-95"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-stone-950" />
+                  <span>📂 திறக்க / Open</span>
+                </a>
+              </div>
+            )}
+
+            {/* Download & Print Action Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleDownloadDashboardPdf}
+                disabled={isDownloading}
+                className="px-4 py-2.5 bg-[#C00000] hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50"
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
+                ) : (
+                  <Download className="w-4 h-4 text-yellow-300" />
+                )}
+                <span>{lang === "ta" ? "📥 PDF பதிவிறக்கம்" : "📥 Download PDF"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadDashboardPng}
+                disabled={isDownloading}
+                className="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+              >
+                <ImageIcon className="w-4 h-4 text-yellow-300" />
+                <span>{lang === "ta" ? "🖼️ PNG படம்" : "🖼️ Download PNG"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2.5 bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm active:scale-95"
+              >
+                <Printer className="w-4 h-4 text-[#C00000]" />
+                <span>{lang === "ta" ? "அச்சிடு" : "Print"}</span>
+              </button>
+            </div>
           </div>
         )}
 

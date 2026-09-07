@@ -462,31 +462,6 @@ export default function AdminLiveBroadcastControl({
                   </p>
                   <p className="text-[10px] text-stone-400">Max size 500MB • HD 1080p supported</p>
                 </div>
-
-                {/* Sample Selection */}
-                <div className="space-y-1.5 pt-2">
-                  <span className="text-[11px] font-bold text-stone-600 block">
-                    {lang === "ta" ? "அல்லது மாதிரி வீடியோவை பயன்படுத்தவும்:" : "Or use sample union clip:"}
-                  </span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: "sample_1", name: "State Conference 2026" },
-                      { id: "sample_2", name: "Welfare Pension Seminar" }
-                    ].map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => setSelectedSampleVideo(s.id)}
-                        className={`p-2.5 rounded-xl border text-xs font-bold text-left cursor-pointer transition-all ${
-                          selectedSampleVideo === s.id
-                            ? "bg-amber-50 border-amber-500 text-stone-950 shadow-sm"
-                            : "bg-white border-stone-200 text-stone-700"
-                        }`}
-                      >
-                        📹 {s.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* AI Design Overlays Toggle & Customization */}

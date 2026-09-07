@@ -83,13 +83,9 @@ export default function UnionConferenceStudio({
   ]);
   const [chatInput, setChatInput] = useState<string>("");
 
-  // Participants list simulation
+  // Participants list - Starts with current logged-in user only (Real live attendees)
   const [participants, setParticipants] = useState<Participant[]>([
-    { id: "p1", name: currentUser?.name || "செல்லப்பாண்டியன் (Super Admin)", role: "Super Admin", district: "தலைமை அலுவலகம் (HQ)", isMuted: false, isVideoOn: true, isSpeaking: true, isHandRaised: false },
-    { id: "p2", name: "ஆர். ராஜேஷ் (District Sec)", role: "District Admin", district: "மதுரை", isMuted: true, isVideoOn: true, isSpeaking: false, isHandRaised: false },
-    { id: "p3", name: "மு. பாண்டி செல்வம் (State Sec)", role: "State Admin", district: "சென்னை", isMuted: false, isVideoOn: true, isSpeaking: false, isHandRaised: true },
-    { id: "p4", name: "க. சக்திவேல் (Treasurer)", role: "State Treasurer", district: "கோயம்புத்தூர்", isMuted: true, isVideoOn: false, isSpeaking: false, isHandRaised: false },
-    { id: "p5", name: "ச. முருகேசன் (Leader)", role: "District Admin", district: "திருச்சி", isMuted: true, isVideoOn: true, isSpeaking: false, isHandRaised: false }
+    { id: "p1", name: currentUser?.name || "நிர்வாகி (Admin)", role: currentUser?.role || "Super Admin", district: currentUser?.district || "தலைமை அலுவலகம் (HQ)", isMuted: false, isVideoOn: true, isSpeaking: true, isHandRaised: false }
   ]);
 
   // Scheduled Meetings list

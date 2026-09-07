@@ -41,56 +41,11 @@ export default function OfficeBearerPortal({
 }: OfficeBearerPortalProps) {
   const [activeSubTab, setActiveSubTab] = useState<"announcements" | "apply" | "certificate" | "manage_applications">("announcements");
 
-  // Initial dummy announcements
-  const [announcements, setAnnouncements] = useState<OfficeBearerAnnouncement[]>([
-    {
-      id: "ann_1",
-      title: "சென்னை மாவட்ட தலைவர் மற்றும் செயலாளர் பதவிக்கான திறந்த அறிவிப்பு",
-      titleEn: "Open Announcement for Chennai District President & Secretary Posts",
-      position: "மாவட்ட தலைவர் / செயலாளர் (District President / Secretary)",
-      district: "சென்னை",
-      districtEn: "Chennai",
-      description: "தமிழ்நாடு பெயிண்டர்கள் சங்கத்தின் சென்னை மாவட்ட கிளைக்கான புதிய நிர்வாகிகளைத் தேர்ந்தெடுக்க தகுதியான உறுப்பினர்களிடமிருந்து விண்ணப்பங்கள் வரவேற்கப்படுகின்றன. குறைந்தபட்சம் 5 ஆண்டுகள் உறுப்பினராக இருக்க வேண்டும்.",
-      descriptionEn: "Applications are invited from eligible members for the post of District President & Secretary for Chennai District. Minimum 5 years membership required.",
-      lastDate: "2026-09-30",
-      status: "active",
-      createdAt: "2026-08-20"
-    },
-    {
-      id: "ann_2",
-      title: "கோயம்புத்தூர் மாவட்ட இணைச் செயலாளர் பதவி",
-      titleEn: "Coimbatore District Joint Secretary Post Announcement",
-      position: "மாவட்ட இணைச் செயலாளர் (District Joint Secretary)",
-      district: "கோயம்புத்தூர்",
-      districtEn: "Coimbatore",
-      description: "கோயம்புத்தூர் வட்டார பெயிண்டர்கள் நலனுக்காகவும் சங்க வளர்ச்சிப் பணிகளுக்காகவும் அர்ப்பணிப்புடன் பணியாற்ற புதிய இணைச் செயலாளர் பதவிக்கு விண்ணப்பிக்கலாம்.",
-      descriptionEn: "Applications invited for Coimbatore District Joint Secretary to lead welfare and union growth.",
-      lastDate: "2026-10-15",
-      status: "active",
-      createdAt: "2026-08-22"
-    }
-  ]);
+  // Real announcements created by Super Admin (Starts Clean)
+  const [announcements, setAnnouncements] = useState<OfficeBearerAnnouncement[]>([]);
 
-  // Initial sample applications
-  const [applications, setApplications] = useState<OfficeBearerApplication[]>([
-    {
-      id: "app_1",
-      announcementId: "ann_1",
-      applicantName: "ஆர். கார்த்திகேயன்",
-      applicantPhone: "9840012345",
-      district: "சென்னை",
-      districtEn: "Chennai",
-      targetPosition: "சென்னை மாவட்ட தலைவர்",
-      membershipYears: 7,
-      districtAchievements: "சென்னையில் கடந்த 5 ஆண்டுகளாக 450+ பெயிண்டர்களை சங்கத்தில் இணைத்துள்ளேன். விபத்து நிவாரணம் மற்றும் கல்வி உதவித்தொகை பெற்றுத் தர தீவிரமாக உழைத்துள்ளேன்.",
-      memberRegNumber: "TNP-2026-0042",
-      appliedAt: "2026-08-21",
-      status: "pending",
-      legalOathAccepted: true,
-      legalOathAcceptedAt: "2026-08-21T10:00:00.000Z",
-      legalOathRef: "TNPA/LEGAL-NOT/2026/044"
-    }
-  ]);
+  // Real applications submitted by members (Starts Clean)
+  const [applications, setApplications] = useState<OfficeBearerApplication[]>([]);
 
   // New Announcement form state (for Super Admin)
   const [newAnnTitle, setNewAnnTitle] = useState("");

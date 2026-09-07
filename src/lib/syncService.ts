@@ -11,7 +11,7 @@ import {
   getDocs,
   getDoc
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, handleFirestoreError, OperationType } from "./firebase";
 import { 
   MemberRegistration, 
   Leader, 
@@ -52,6 +52,13 @@ export interface GlobalUnionConfig {
   customLogoUrl?: string;
   customEmblemUrl?: string;
   customFlagUrl?: string;
+  customFullCardFrontUrl?: string;
+  customFullCardBackUrl?: string;
+  customCardBgUrl?: string;
+  customWatermarkUrl?: string;
+  watermarkOpacity?: number;
+  customGovtSealUrl?: string;
+  idCardDesignMode?: "official_vector" | "uploaded_exact" | "custom_bg";
   emergencyAlert?: string | null;
   presidentName?: string;
   secretaryName?: string;
@@ -647,7 +654,7 @@ export async function seedInitialFirestoreData(
     const regsSnap = await getDocs(collection(db, "registrations"));
     if (regsSnap.empty) {
       for (const reg of initialRegs) {
-        await setDoc(doc(db, "registrations", reg.id), reg, { merge: true });
+        await setDoc(doc(db, "registrations", reg.id), cleanForFirestore(reg), { merge: true });
       }
     }
 
@@ -655,7 +662,7 @@ export async function seedInitialFirestoreData(
     const leadersSnap = await getDocs(collection(db, "leaders"));
     if (leadersSnap.empty) {
       for (const leader of initialLeadersList) {
-        await setDoc(doc(db, "leaders", leader.id), leader, { merge: true });
+        await setDoc(doc(db, "leaders", leader.id), cleanForFirestore(leader), { merge: true });
       }
     }
 
@@ -663,7 +670,7 @@ export async function seedInitialFirestoreData(
     const newsSnap = await getDocs(collection(db, "news"));
     if (newsSnap.empty) {
       for (const item of initialNewsList) {
-        await setDoc(doc(db, "news", item.id), item, { merge: true });
+        await setDoc(doc(db, "news", item.id), cleanForFirestore(item), { merge: true });
       }
     }
 

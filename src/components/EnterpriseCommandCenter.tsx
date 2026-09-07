@@ -86,12 +86,7 @@ const TN_DISTRICTS = [
 ];
 
 // Seed initial tasks
-const initialProjectTasks = [
-  { id: "proj_1", title: "ஆதார் இணைப்பு முகாம்", titleEn: "Aadhaar Seeding Campaign", assignedTo: "District Admin Chennai", dueDate: "2026-08-15", priority: "high", status: "in_progress", district: "சென்னை" },
-  { id: "proj_2", title: "புதிய காப்பீடு திட்ட விழிப்புணர்வு", titleEn: "New Insurance Scheme Awareness", assignedTo: "District Admin Madurai", dueDate: "2026-08-20", priority: "medium", status: "todo", district: "மதுரை" },
-  { id: "proj_3", title: "ஆண்டு உறுப்பினர் சந்தா தணிக்கை", titleEn: "Annual Membership Subscription Audit", assignedTo: "State Treasurer", dueDate: "2026-08-10", priority: "high", status: "completed", district: "all" },
-  { id: "proj_4", title: "பாதுகாப்பு உபகரணங்கள் விநியோகம்", titleEn: "Safety Gears Distribution Drive", assignedTo: "District Admin Coimbatore", dueDate: "2026-08-25", priority: "high", status: "todo", district: "கோயம்புத்தூர்" }
-];
+const initialProjectTasks: any[] = [];
 
 // Seed digital library
 const libraryDocuments = [

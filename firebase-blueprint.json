@@ -147,9 +147,57 @@
         "appointedDate": { "type": "string" }
       },
       "required": ["id", "name", "level", "role", "phone", "status"]
+    },
+    "DistrictInChargePerson": {
+      "title": "DistrictInChargePerson",
+      "description": "Tamil Nadu 38 Districts, Towns, and Unions appointed in-charges and office bearers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "category": { "type": "string", "enum": ["district_leader", "district_executive", "town_incharge", "union_incharge"] },
+        "role": { "type": "string" },
+        "roleEn": { "type": "string" },
+        "districtTa": { "type": "string" },
+        "districtEn": { "type": "string" },
+        "districtCode": { "type": "string" },
+        "unitName": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "appointedDate": { "type": "string" },
+        "appointedBy": { "type": "string" },
+        "appointmentOrderNo": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["id", "name", "category", "role", "districtTa", "districtCode", "phone", "address", "photoUrl", "appointedDate", "status"]
+    },
+    "DistrictSuperKey": {
+      "title": "DistrictSuperKey",
+      "description": "District authorization Super Key credentials for District President, Secretary, and Treasurer.",
+      "type": "object",
+      "properties": {
+        "districtCode": { "type": "string" },
+        "districtTa": { "type": "string" },
+        "districtEn": { "type": "string" },
+        "superKey": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "revoked"] },
+        "generatedAt": { "type": "string" }
+      },
+      "required": ["districtCode", "districtTa", "superKey", "status", "generatedAt"]
     }
   },
   "firestore": {
+    "/district_executives/{execId}": {
+      "schema": { "$ref": "#/entities/DistrictInChargePerson" },
+      "description": "In-charges for all 38 districts, towns, and unions."
+    },
+    "/district_super_keys/{keyId}": {
+      "schema": { "$ref": "#/entities/DistrictSuperKey" },
+      "description": "Super Key records for all 38 districts."
+    },
     "/registrations/{registrationId}": {
       "schema": { "$ref": "#/entities/MemberRegistration" },
       "description": "Registration database for union membership applicants."

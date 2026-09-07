@@ -22,10 +22,21 @@ import {
   Share2,
   RefreshCw,
   Globe,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FileText,
+  Clock,
+  X,
+  Camera,
+  Save,
+  ExternalLink
 } from "lucide-react";
 import { MemberRegistration, UserAccount } from "../types";
 import UnionOfficialIdCard from "./UnionOfficialIdCard";
+import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
+import EditMemberIdCardModal, { MemberCardEditableData } from "./EditMemberIdCardModal";
+import { ALL_38_TAMILNADU_DISTRICTS } from "../data/initialExecutives";
+import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
+import { getMemberCardRequestByMemberId } from "../utils/memberCardStorage";
 import { formatMemberNumber, generateDistrictRegNumber } from "../utils/districtCodes";
 import { storage, db } from "../lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -76,6 +87,12 @@ export default function MemberIdCardPortal({
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
 
+  // PDF Export & Payment Modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfStatusMessage, setPdfStatusMessage] = useState<string | null>(null);
+  const [generatedPdfResult, setGeneratedPdfResult] = useState<{ blobUrl: string; fileName: string } | null>(null);
+
   // Dynamic Editable state for instant interactive testing
   const [customName, setCustomName] = useState(currentUser?.name || "மு.பிரகாசம்");
   const [customFather, setCustomFather] = useState("சு. முனுசாமி");
@@ -93,6 +110,23 @@ export default function MemberIdCardPortal({
   const [customEmblemUrl, setCustomEmblemUrl] = useState<string>("");
   const [customLogoUrl, setCustomLogoUrl] = useState<string>("");
   const [customWatermarkUrl, setCustomWatermarkUrl] = useState<string>(() => localStorage.getItem("tnpa_custom_watermark") || "");
+
+  // Dedicated Edit Member Card Modal State (New Option)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSavingCardEdit, setIsSavingCardEdit] = useState(false);
+  const [editSuccessMsg, setEditSuccessMsg] = useState<string | null>(null);
+  const [editModalData, setEditModalData] = useState<MemberCardEditableData>({
+    name: currentUser?.name || "மு.பிரகாசம்",
+    fatherName: "சு. முனுசாமி",
+    regNumber: currentUser?.regNumber || "4016",
+    district: currentUser?.district || "மதுரை",
+    phone: currentUser?.phone || "9842189420",
+    bloodGroup: currentUser?.bloodGroup || "O+",
+    age: "38",
+    occupation: "பெயிண்டர் மற்றும் ஓவியர்",
+    address: "1/14 அம்பலக்காரன் பட்டி உத்தங்குடி மதுரை 625107",
+    photoUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"
+  });
 
   // Subscribe to global union config on mount to pull latest Super Admin logos and emblem
   useEffect(() => {
@@ -169,6 +203,122 @@ export default function MemberIdCardPortal({
     setCustomPhotoUrl("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500");
     setCustomEmblemUrl("");
     setCustomLogoUrl("");
+  };
+
+  // ============================================================================
+  // NEW OPTION: OPEN EDIT MEMBER ID CARD MODAL
+  // ============================================================================
+  const handleOpenEditModal = (memberToEdit?: MemberRegistration) => {
+    if (memberToEdit) {
+      setSelectedMemberId(memberToEdit.id);
+      handleMemberSelect(memberToEdit.id);
+      setEditModalData({
+        name: memberToEdit.name || "",
+        fatherName: memberToEdit.fatherName || "",
+        regNumber: memberToEdit.regNumber || "",
+        district: memberToEdit.district || "மதுரை",
+        phone: memberToEdit.phone || "",
+        bloodGroup: memberToEdit.bloodGroup || "O+",
+        age: String(memberToEdit.age || "38"),
+        occupation: memberToEdit.occupation || "பெயிண்டர் மற்றும் ஓவியர்",
+        address: memberToEdit.address || "",
+        photoUrl: memberToEdit.photoUrl || customPhotoUrl
+      });
+    } else {
+      setEditModalData({
+        name: memberName,
+        fatherName: memberFather,
+        regNumber: rawRegNo,
+        district: memberDistrict,
+        phone: memberPhone,
+        bloodGroup: memberBlood,
+        age: String(memberAge),
+        occupation: memberOccupation,
+        address: memberAddress,
+        photoUrl: memberPhoto
+      });
+    }
+    setIsEditModalOpen(true);
+  };
+
+  // ============================================================================
+  // NEW OPTION: SAVE EDITED MEMBER ID CARD DETAILS
+  // ============================================================================
+  const handleSaveMemberCardEdit = async (updatedData: MemberCardEditableData) => {
+    setIsSavingCardEdit(true);
+    try {
+      // 1. Update local custom state
+      setCustomName(updatedData.name);
+      setCustomFather(updatedData.fatherName);
+      setCustomRegNo(updatedData.regNumber);
+      setCustomDistrict(updatedData.district);
+      setCustomPhone(updatedData.phone);
+      setCustomBlood(updatedData.bloodGroup);
+      setCustomAge(updatedData.age);
+      setCustomOccupation(updatedData.occupation);
+      setCustomAddress(updatedData.address);
+      setCustomPlace(updatedData.address);
+      setCustomPhotoUrl(updatedData.photoUrl);
+
+      // 2. If editing registered member, update registration in state and Firestore
+      const targetMember = currentMember || safeRegistrations.find(r => r && r.id === selectedMemberId);
+      if (targetMember) {
+        const updatedMem: MemberRegistration = {
+          ...targetMember,
+          name: updatedData.name,
+          fatherName: updatedData.fatherName,
+          regNumber: updatedData.regNumber,
+          district: updatedData.district,
+          phone: updatedData.phone,
+          bloodGroup: updatedData.bloodGroup,
+          age: String(updatedData.age),
+          occupation: updatedData.occupation,
+          address: updatedData.address,
+          photoUrl: updatedData.photoUrl
+        };
+        if (onUpdateRegistration) {
+          onUpdateRegistration(updatedMem);
+        }
+        await saveRegistrationToFirestore(updatedMem);
+      }
+
+      // 3. Update global union config sample data so changes persist across devices
+      await saveUnionConfigToFirestore({
+        customLogoUrl,
+        customEmblemUrl,
+        sampleIdCardData: {
+          name: updatedData.name,
+          fatherName: updatedData.fatherName,
+          occupation: updatedData.occupation,
+          district: updatedData.district,
+          phone: updatedData.phone,
+          bloodGroup: updatedData.bloodGroup,
+          regNumber: updatedData.regNumber,
+          age: updatedData.age,
+          address: updatedData.address,
+          photoUrl: updatedData.photoUrl
+        },
+        updatedBy: currentUser?.name || "Admin"
+      });
+
+      onAddAuditLog(
+        "Edit Member ID Card",
+        `Successfully edited ID card details for: ${updatedData.name} (${updatedData.regNumber}, ${updatedData.district})`
+      );
+
+      setIsEditModalOpen(false);
+      setEditSuccessMsg(
+        lang === "ta"
+          ? "✅ உறுப்பினர் அடையாள அட்டை விவரங்கள் வெற்றிகரமாக திருத்தப்பட்டு அட்டையில் மாற்றப்பட்டது!"
+          : "✅ Member ID card details successfully updated on the card!"
+      );
+      setTimeout(() => setEditSuccessMsg(null), 6000);
+    } catch (error) {
+      console.error("Error saving member card edit:", error);
+      alert(lang === "ta" ? "சேமிப்பதில் பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்." : "Error saving updates. Please try again.");
+    } finally {
+      setIsSavingCardEdit(false);
+    }
   };
 
   // BROADCAST & PUBLISH ALL CHANGES LIVE TO EVERY USER DOWNLOADING THE APP
@@ -293,6 +443,101 @@ export default function MemberIdCardPortal({
     onAddAuditLog("Print Member ID Card", `Printed official ID card for: ${memberName}`);
   };
 
+  // Check payment approval status
+  const currentMemberKey = currentMember?.regNumber || currentMember?.id || customRegNo || "custom";
+  const existingPaymentRequest =
+    getMemberCardRequestByMemberId(currentMemberKey) ||
+    (currentMember?.regNumber ? getMemberCardRequestByMemberId(currentMember.regNumber) : null) ||
+    (currentMember?.id ? getMemberCardRequestByMemberId(currentMember.id) : null);
+
+  // Payment / authorization status - All registered members and officials can download their official ID cards directly
+  const isPaymentApproved = true;
+
+  const handleDownloadPdf = async () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    setPdfStatusMessage("அடையாள அட்டை PDF தயார் செய்யப்படுகிறது...");
+
+    const originalSide = cardSide;
+    if (cardSide !== "both") {
+      setCardSide("both");
+      // Wait for DOM to render both sides properly
+      await new Promise((r) => setTimeout(r, 250));
+    }
+
+    try {
+      const success = await exportIdCardAsPDF({
+        memberName: memberName,
+        memberId: memberRegNo,
+        district: memberDistrict,
+        frontElementId: "union-id-card-front",
+        backElementId: "union-id-card-back",
+        onProgress: (msg) => setPdfStatusMessage(msg),
+        onSuccess: (result) => {
+          setGeneratedPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName });
+        }
+      });
+
+      if (success) {
+        onAddAuditLog("Download ID Card PDF", `Downloaded high-res PDF for ${memberName} (${memberRegNo})`);
+        setTimeout(() => {
+          setIsGeneratingPdf(false);
+          setPdfStatusMessage("✅ PDF தயார்! போனில் தானாக திறக்கப்படவில்லை எனில் கீழே உள்ள பொத்தானைப் பயன்படுத்தவும்.");
+        }, 800);
+      } else {
+        setIsGeneratingPdf(false);
+        setPdfStatusMessage("❌ PDF உருவாக்கத்தில் பிழை. நேரடியாக அச்சிடவும்.");
+      }
+    } catch (err) {
+      console.error("PDF export error:", err);
+      setIsGeneratingPdf(false);
+      setPdfStatusMessage("❌ பிழை ஏற்பட்டது.");
+    } finally {
+      if (originalSide !== "both") {
+        setCardSide(originalSide);
+      }
+    }
+  };
+
+  const handleDownloadPngs = async () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    setPdfStatusMessage("PNG படங்கள் தயார் செய்யப்படுகிறது...");
+
+    const originalSide = cardSide;
+    if (cardSide !== "both") {
+      setCardSide("both");
+      await new Promise((r) => setTimeout(r, 150));
+    }
+
+    try {
+      await exportIdCardAsImages({
+        memberName: memberName,
+        memberId: memberRegNo,
+        frontElementId: "union-id-card-front",
+        backElementId: "union-id-card-back",
+        onProgress: (msg) => setPdfStatusMessage(msg)
+      });
+      onAddAuditLog("Download ID Card PNGs", `Downloaded Front & Back PNGs for ${memberName}`);
+    } catch (err) {
+      console.error("PNG export error:", err);
+    } finally {
+      setIsGeneratingPdf(false);
+      setPdfStatusMessage(null);
+      if (originalSide !== "both") {
+        setCardSide(originalSide);
+      }
+    }
+  };
+
   return (
     <div className="space-y-8 pb-24 max-w-7xl mx-auto px-2 sm:px-4">
       
@@ -337,6 +582,13 @@ export default function MemberIdCardPortal({
               ? "✅ சூப்பர் அட்வின் மாற்றங்கள் வெற்றிகரமாக சேமிக்கப்பட்டு இந்த ஆப்பை பயன்படுத்தும் அனைவருக்கும் உடனே தெரிவுபடுத்தப்பட்டது!" 
               : "✅ Updates published globally! Visible immediately to all users downloading/using this app."}
           </span>
+        </div>
+      )}
+
+      {editSuccessMsg && (
+        <div className="bg-emerald-700 text-white p-4 rounded-2xl font-black text-xs sm:text-sm flex items-center gap-3 shadow-xl border-2 border-emerald-400 animate-pulse">
+          <CheckCircle2 className="w-6 h-6 text-yellow-300 shrink-0" />
+          <span>{editSuccessMsg}</span>
         </div>
       )}
 
@@ -434,6 +686,18 @@ export default function MemberIdCardPortal({
 
             {/* View Mode Switcher (Both / Front / Back) */}
             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+              
+              {/* NEW OPTION: DEDICATED EDIT MEMBER ID CARD BUTTON */}
+              <button
+                id="btn-edit-member-id-card"
+                onClick={() => handleOpenEditModal()}
+                className="px-4 py-2 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-stone-950 font-black text-xs rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border-2 border-yellow-300 active:scale-95 shrink-0"
+                title={lang === "ta" ? "உறுப்பினர் அடையாள அட்டை விவரங்களைத் திருத்த புதிய ஆப்ஷன்" : "New option to edit member ID card details"}
+              >
+                <Pencil className="w-4 h-4 text-stone-950" />
+                <span>{lang === "ta" ? "✏️ அட்டை விவரங்களைத் திருத்து" : "✏️ Edit Member Card"}</span>
+              </button>
+
               <div className="bg-stone-100 p-1 rounded-2xl flex gap-1 border border-stone-200">
                 <button
                   onClick={() => setCardSide("both")}
@@ -474,17 +738,78 @@ export default function MemberIdCardPortal({
                 </button>
               )}
 
-              {/* Print Button */}
+              {/* Print & PDF & PNG Download Buttons */}
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="px-4 py-2 bg-gradient-to-r from-[#C00000] to-[#800000] hover:from-red-700 hover:to-red-900 text-white font-black text-xs rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-yellow-400/50 active:scale-95 disabled:opacity-50"
+              >
+                {isGeneratingPdf ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
+                ) : (
+                  <Download className="w-4 h-4 text-yellow-300" />
+                )}
+                <span>{lang === "ta" ? "📥 PDF பதிவிறக்கம்" : "📥 Download PDF"}</span>
+              </button>
+
+              <button
+                onClick={handleDownloadPngs}
+                disabled={isGeneratingPdf}
+                className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-yellow-300 font-black text-xs rounded-2xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-yellow-500/40 active:scale-95 disabled:opacity-50"
+              >
+                <ImageIcon className="w-4 h-4 text-yellow-300" />
+                <span>{lang === "ta" ? "🖼️ PNG படங்கள்" : "🖼️ PNG Images"}</span>
+              </button>
+
               <button
                 onClick={handlePrintCard}
-                className="px-4 py-2 bg-gradient-to-r from-stone-900 to-black hover:from-stone-800 hover:to-stone-900 text-yellow-400 font-black text-xs rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-yellow-400/40 active:scale-95"
+                className="px-3.5 py-2 bg-stone-900 hover:bg-black text-yellow-400 font-black text-xs rounded-2xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-stone-700 active:scale-95"
               >
                 <Printer className="w-4 h-4" />
-                <span>{lang === "ta" ? "அச்சிடு / PDF" : "Print / PDF"}</span>
+                <span>{lang === "ta" ? "அச்சிடு" : "Print"}</span>
               </button>
             </div>
 
           </div>
+
+          {/* Progress Toast */}
+          {pdfStatusMessage && (
+            <div className="p-3 bg-amber-500 text-white font-black text-xs rounded-2xl shadow-lg flex items-center justify-between gap-3 animate-pulse">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{pdfStatusMessage}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Persistent Open PDF Card Banner */}
+          {generatedPdfResult && (
+            <div className="p-3.5 bg-emerald-900 border-2 border-emerald-400 text-white rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-stone-950 flex items-center justify-center font-black">
+                  ✓
+                </div>
+                <div>
+                  <h4 className="font-black text-xs text-yellow-300">
+                    {lang === "ta" ? "அடையாள அட்டை PDF தயார்!" : "ID Card PDF Ready!"}
+                  </h4>
+                  <p className="text-[11px] text-emerald-100">
+                    {lang === "ta" ? "கோப்பை நேரடியாக திறக்க கீழே உள்ள பொத்தானை அழுத்தவும்" : "Click below to view or save the PDF file"}
+                  </p>
+                </div>
+              </div>
+              <a
+                href={generatedPdfResult.blobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={generatedPdfResult.fileName}
+                className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <ExternalLink className="w-4 h-4 text-stone-950" />
+                <span>{lang === "ta" ? "📂 கோப்பைத் திறக்க (Open PDF)" : "📂 Open PDF File"}</span>
+              </a>
+            </div>
+          )}
 
           {/* COLOR PALETTE & SPECIFICATION BADGE */}
           <div className="bg-stone-50 border border-stone-200 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -512,6 +837,49 @@ export default function MemberIdCardPortal({
             </div>
           </div>
 
+          {/* DEDICATED ID CARD HEADER & QUICK EDIT BAR */}
+          <div className="w-full max-w-4xl mx-auto bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 text-white p-3.5 sm:p-4 rounded-2xl border-2 border-stone-700 shadow-xl flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#C00000] text-white flex items-center justify-center font-black shadow text-base shrink-0">
+                🪪
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-black text-sm text-yellow-400">{memberName}</h3>
+                  <span className="text-[11px] font-mono bg-stone-950 px-2 py-0.5 rounded text-stone-200 font-bold border border-stone-700">
+                    {memberRegNo}
+                  </span>
+                </div>
+                <p className="text-xs text-stone-300 font-medium">
+                  {memberDistrict} • {memberOccupation} • {memberBlood}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                id="btn-direct-edit-card"
+                onClick={() => handleOpenEditModal()}
+                className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-black text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer border border-yellow-300 active:scale-95"
+                title="உறுப்பினர் அடையாள அட்டை விவரங்களை திருத்துவதற்கு புதிய ஆப்ஷன்"
+              >
+                <Pencil className="w-4 h-4 text-stone-950" />
+                <span>{lang === "ta" ? "✏️ அட்டையைத் திருத்து" : "✏️ Edit Card"}</span>
+              </button>
+
+              <label className="px-3.5 py-2 bg-stone-700 hover:bg-stone-600 text-stone-200 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-stone-600 active:scale-95">
+                <Camera className="w-3.5 h-3.5 text-yellow-400" />
+                <span>{lang === "ta" ? "படம் மாற்று" : "Photo"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileUpload(e, "front")}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
           {/* DYNAMIC TWO PREVIEW CARDS (SIDE-BY-SIDE) */}
           <div className="w-full flex justify-center py-4">
             <UnionOfficialIdCard
@@ -533,6 +901,8 @@ export default function MemberIdCardPortal({
               }}
               side={cardSide}
               customLogoUrl={customLogoUrl}
+              customLogoLeftUrl={customLogoUrl}
+              customLogoRightUrl={customLogoUrl}
               customGovtSealUrl={customEmblemUrl}
               customWatermarkUrl={customWatermarkUrl}
               onUpdatePhoto={(newPhotoUrl) => {
@@ -550,12 +920,123 @@ export default function MemberIdCardPortal({
                 setCustomLogoUrl(newLogoUrl);
                 onAddAuditLog("Update Association Logo", `Updated association logo on member ID cards`);
               }}
+              onUpdateLogoLeft={(newLogoUrl) => {
+                setCustomLogoUrl(newLogoUrl);
+                onAddAuditLog("Update Association Logo", `Updated left association logo on member ID cards`);
+              }}
+              onUpdateLogoRight={(newLogoUrl) => {
+                setCustomLogoUrl(newLogoUrl);
+                onAddAuditLog("Update Association Logo", `Updated right association logo on member ID cards`);
+              }}
               onUpdateWatermark={(newWatermarkUrl) => {
                 setCustomWatermarkUrl(newWatermarkUrl);
                 localStorage.setItem("tnpa_custom_watermark", newWatermarkUrl);
                 onAddAuditLog("Update Watermark", `Updated ID card watermark image from device`);
               }}
             />
+          </div>
+
+          {/* DEDICATED OFFICIAL DOWNLOAD HUB & PAYMENT VERIFICATION CARD */}
+          <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-8 text-white shadow-2xl space-y-5">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-stone-700/80 pb-5">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4" />
+                  <span>அதிகாரப்பூர்வ அட்டை பதிவிறக்கம் & அச்சிடுதல் மையம்</span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-white">
+                  உறுப்பினர் அடையாள அட்டை (PDF & PNG) பதிவிறக்கம்
+                </h3>
+                <p className="text-xs sm:text-sm text-stone-300">
+                  சங்கத்தின் தரநிலைகளுக்கு ஏற்ப துல்லியமான அளவு (CR80 Standard ID Card Ratio) மற்றும் உயர்தர பிரிண்டிங் தெளிவுடன் (300 DPI) உடனடியாகப் பதிவிறக்கம் செய்யலாம்.
+                </p>
+              </div>
+
+              {/* Status Badge */}
+              <div className="shrink-0">
+                {isPaymentApproved ? (
+                  <div className="px-4 py-2 bg-emerald-500/20 border-2 border-emerald-400 rounded-2xl text-emerald-300 text-xs font-black flex items-center gap-2 shadow-inner">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>கார்டு அப்ரூவல் முடிந்தது (Ready to Download)</span>
+                  </div>
+                ) : existingPaymentRequest?.status === "district_approved" ? (
+                  <div className="px-4 py-2 bg-amber-500/20 border-2 border-amber-400 rounded-2xl text-amber-300 text-xs font-black flex items-center gap-2 shadow-inner">
+                    <Clock className="w-4 h-4 text-amber-400" />
+                    <span>சூப்பர் அட்மின் இறுதி ஒப்புதலுக்குக் காத்திருக்கிறது</span>
+                  </div>
+                ) : existingPaymentRequest?.status === "pending" ? (
+                  <div className="px-4 py-2 bg-yellow-500/20 border-2 border-yellow-400 rounded-2xl text-yellow-300 text-xs font-black flex items-center gap-2 shadow-inner">
+                    <Clock className="w-4 h-4 text-yellow-400" />
+                    <span>கட்டண சரிபார்ப்பு நிலுவையில் உள்ளது</span>
+                  </div>
+                ) : (
+                  <div className="px-4 py-2 bg-red-500/20 border-2 border-red-400 rounded-2xl text-red-300 text-xs font-black flex items-center gap-2 shadow-inner">
+                    <CreditCard className="w-4 h-4 text-red-400" />
+                    <span>₹100 கட்டணம் & ஒப்புதல் தேவை</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              
+              {/* Button 1: Download High-Res PDF */}
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="py-4 px-5 bg-gradient-to-r from-[#C00000] to-[#900000] hover:from-red-600 hover:to-red-800 text-white rounded-2xl font-black text-sm shadow-xl flex items-center justify-center gap-2.5 transition-all cursor-pointer border-2 border-yellow-400/60 active:scale-95 disabled:opacity-50"
+              >
+                {isGeneratingPdf ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-yellow-300" />
+                ) : (
+                  <Download className="w-5 h-5 text-yellow-300" />
+                )}
+                <span>📥 PDF அட்டை பதிவிறக்கம்</span>
+              </button>
+
+              {/* Button 2: Download Front & Back PNGs */}
+              <button
+                type="button"
+                onClick={handleDownloadPngs}
+                disabled={isGeneratingPdf}
+                className="py-4 px-5 bg-stone-800 hover:bg-stone-700 text-yellow-400 rounded-2xl font-black text-sm shadow-lg flex items-center justify-center gap-2.5 transition-all cursor-pointer border border-stone-600 active:scale-95 disabled:opacity-50"
+              >
+                <ImageIcon className="w-5 h-5 text-yellow-400" />
+                <span>🖼️ முன்பின் படங்கள் (PNG)</span>
+              </button>
+
+              {/* Button 3: Direct Print */}
+              <button
+                type="button"
+                onClick={handlePrintCard}
+                className="py-4 px-5 bg-white hover:bg-stone-100 text-stone-950 rounded-2xl font-black text-sm shadow-lg flex items-center justify-center gap-2.5 transition-all cursor-pointer border border-stone-300 active:scale-95"
+              >
+                <Printer className="w-5 h-5 text-[#C00000]" />
+                <span>🖨️ நேரடி பிரிண்ட் (Print)</span>
+              </button>
+
+            </div>
+
+            {/* Hint message if user needs to pay */}
+            {!isPaymentApproved && (
+              <div className="bg-amber-500/10 border border-amber-400/30 p-3.5 rounded-2xl text-xs text-amber-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    அடையாள அட்டையைப் பதிவிறக்கம் செய்ய ₹100 ஜிபே (Google Pay / PhonePe) கட்டணம் செலுத்தி, UTR எண்ணை உள்ளிடவும். மாவட்ட மற்றும் சூப்பர் அட்மின் ஒப்புதல் அளித்தவுடன் உடனடியாக பதிவிறக்கம் செய்துகொள்ளலாம்.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(true)}
+                  className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-stone-950 rounded-xl font-black text-xs shrink-0 cursor-pointer shadow-sm"
+                >
+                  கட்டணம் செலுத்த
+                </button>
+              </div>
+            )}
           </div>
 
           {/* =============================================================== */}
@@ -968,10 +1449,10 @@ export default function MemberIdCardPortal({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {safeRegistrations.map((mem) => (
+            {safeRegistrations.filter(Boolean).map((mem) => (
               <div key={mem.id} className="p-4 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <img src={mem.photoUrl} alt="" className="h-12 w-12 rounded-xl object-cover border border-[#C00000] shrink-0" />
+                  <img src={mem.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150&h=150"} alt="" className="h-12 w-12 rounded-xl object-cover border border-[#C00000] shrink-0" />
                   <div className="min-w-0">
                     <h4 className="font-black text-stone-900 text-xs truncate">{mem.name}</h4>
                     <p className="text-stone-500 text-[11px] truncate">{mem.district} • {mem.regNumber}</p>
@@ -979,20 +1460,76 @@ export default function MemberIdCardPortal({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    handleMemberSelect(mem.id);
-                    setActiveSubTab("id_card");
-                  }}
-                  className="px-3 py-1.5 bg-[#C00000] text-white font-bold text-xs rounded-xl hover:bg-red-700 transition-all shrink-0 cursor-pointer"
-                >
-                  {lang === "ta" ? "அட்டை காண்க" : "View ID"}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => {
+                      handleOpenEditModal(mem);
+                    }}
+                    className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                    title={lang === "ta" ? "அட்டை திருத்து" : "Edit ID Card"}
+                  >
+                    <Pencil className="w-3 h-3" />
+                    <span>{lang === "ta" ? "திருத்து" : "Edit"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleMemberSelect(mem.id);
+                      setActiveSubTab("id_card");
+                    }}
+                    className="px-3 py-1.5 bg-[#C00000] text-white font-bold text-xs rounded-xl hover:bg-red-700 transition-all shrink-0 cursor-pointer"
+                  >
+                    {lang === "ta" ? "அட்டை காண்க" : "View ID"}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      handleMemberSelect(mem.id);
+                      setActiveSubTab("id_card");
+                      setTimeout(() => {
+                        handleDownloadPdf();
+                      }, 400);
+                    }}
+                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shrink-0 cursor-pointer flex items-center gap-1 shadow-sm"
+                    title={lang === "ta" ? "PDF அட்டை பதிவிறக்கம்" : "Download PDF ID Card"}
+                  >
+                    <Download className="w-3 h-3 text-yellow-300" />
+                    <span>{lang === "ta" ? "டவுன்லோடு" : "Download"}</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* MEMBER CARD ₹100 PAYMENT & DUAL-APPROVAL MODAL */}
+      <MemberCardPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        member={{
+          id: currentMember?.id || selectedMemberId || "custom",
+          name: memberName,
+          nameEn: currentMember?.nameEn || "",
+          regNumber: memberRegNo,
+          district: memberDistrict,
+          phone: memberPhone,
+          photoUrl: memberPhoto
+        }}
+        isSuperAdmin={isSuperAdmin}
+        onApprovedDownload={handleDownloadPdf}
+        lang={lang}
+      />
+
+      {/* NEW DEDICATED EDIT MEMBER ID CARD MODAL */}
+      <EditMemberIdCardModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        lang={lang}
+        initialData={editModalData}
+        onSave={handleSaveMemberCardEdit}
+        isSaving={isSavingCardEdit}
+      />
 
     </div>
   );

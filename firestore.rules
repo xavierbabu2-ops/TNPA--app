@@ -37,6 +37,11 @@ service cloud.firestore {
       );
     }
 
+    // 0. CONNECTION HEALTH CHECK
+    match /test/{docId} {
+      allow read: if true;
+    }
+
     // 1. REGISTRATIONS COLLECTION (Visible to all union app downloaders)
     match /registrations/{registrationId} {
       allow read: if true;
@@ -69,6 +74,18 @@ service cloud.firestore {
 
     // 3b. EXECUTIVES HIERARCHY (State, District, Zone, Area/Union)
     match /executives/{execId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 3c. DISTRICT EXECUTIVES & IN-CHARGES (38 Districts, Towns, Unions)
+    match /district_executives/{execId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 3d. DISTRICT SUPER KEYS (38 Districts Leadership Access)
+    match /district_super_keys/{keyId} {
       allow read: if true;
       allow write: if true;
     }

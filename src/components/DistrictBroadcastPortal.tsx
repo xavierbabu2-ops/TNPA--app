@@ -40,30 +40,7 @@ interface DistrictBroadcastPortalProps {
   onAddAuditLog: (action: string, details: string) => void;
 }
 
-const defaultBroadcasts: BroadcastMessage[] = [
-  {
-    id: "br_1",
-    title: "மாநில செயற்குழுக் கூட்டம் குறித்த அவசர அறிவிப்பு",
-    titleEn: "Urgent State Executive Meeting Notice",
-    district: "அனைத்து மாவட்டங்கள் (All Districts)",
-    message: "சென்னை தலைமை அலுவலகத்தில் மாநில பெயிண்டர்கள் சங்க செயற்குழுக் கூட்டம் நடைபெறுகிறது. மாவட்ட தலைவர்கள் மற்றும் செயலாளர்கள் தவறாமல் கலந்துகொள்ளவும்.",
-    senderName: "ஆர். சேவியர் பாபு (மாநில பொதுச்செயலாளர்)",
-    senderRole: "State General Secretary",
-    date: "2026-08-28",
-    priority: "urgent"
-  },
-  {
-    id: "br_2",
-    title: "நலவாரிய ஸ்மார்ட் கார்டு புதுப்பித்தல் முகாம்",
-    titleEn: "Welfare Board Smart Card Renewal Camp",
-    district: "கோயம்புத்தூர் & மதுரை",
-    message: "மாவட்ட அலுவலகத்தில் நலவாரிய ஸ்மார்ட் கார்டு புதுப்பித்தல் மற்றும் புதிய பதிவு முகாம் நடைபெறுகிறது.",
-    senderName: "எஸ். மைக்கேல் ஆல்வின் (மாநில தலைவர்)",
-    senderRole: "State President",
-    date: "2026-08-26",
-    priority: "normal"
-  }
-];
+const defaultBroadcasts: BroadcastMessage[] = [];
 
 export default function DistrictBroadcastPortal({
   lang,
