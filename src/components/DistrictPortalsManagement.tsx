@@ -60,6 +60,7 @@ import {
   fetchDistrictInChargesFromFirestore,
   subscribeToDistrictSuperKeys
 } from "../utils/districtInChargeStorage";
+import { compressImageFile } from "../utils/imageCompressor";
 import { UserAccount } from "../types";
 import DistrictAppointmentOrderModal from "./DistrictAppointmentOrderModal";
 
@@ -228,6 +229,7 @@ export default function DistrictPortalsManagement({
   const [pendingDeletePerson, setPendingDeletePerson] = useState<DistrictInChargePerson | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDeleteCheckbox, setConfirmDeleteCheckbox] = useState(false);
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
@@ -355,23 +357,36 @@ export default function DistrictPortalsManagement({
     });
   }, [overviewList, searchQuery, selectedZoneFilter]);
 
-  // Handle Photo Upload (Convert to Base64)
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Photo Upload (Automatic smart compression into clean, lightweight passport JPEG)
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert("தயவுசெய்து 2MB-க்குள் உள்ள புகைப்படத்தைப் பதிவேற்றவும்!");
+    if (file.size > 15 * 1024 * 1024) {
+      alert("தயவுசெய்து 15MB-க்குள் உள்ள புகைப்படத்தைத் தேர்ந்தெடுக்கவும்!");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setRegPhotoUrl(reader.result);
+    setIsCompressingPhoto(true);
+    try {
+      const compressedData = await compressImageFile(file, 380, 0.82);
+      setRegPhotoUrl(compressedData);
+    } catch (err) {
+      console.warn("Image compressor fallback:", err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setRegPhotoUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressingPhoto(false);
+      // Reset the file input value so selecting the same file again works
+      if (e.target) {
+        e.target.value = "";
       }
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   // Verify Super Key
@@ -566,9 +581,16 @@ export default function DistrictPortalsManagement({
       else if (personToSave.category === "district_wing") setDistrictSubTab("district_wings");
       else if (personToSave.category === "district_executive") setDistrictSubTab("district_executives");
       else setDistrictSubTab("leadership");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Save error:", err);
-      setFormValidationError("பதிவு செய்வதில் பிழை ஏற்பட்டது! மீண்டும் முயற்சிக்கவும்.");
+      // Ensure confirmation modal is closed so UI doesn't freeze
+      setPendingAppointPerson(null);
+      const msg = err?.message || "";
+      setFormValidationError(
+        msg
+          ? `பதிவு செய்வதில் பிழை ஏற்பட்டது (${msg})! மீண்டும் முயற்சிக்கவும்.`
+          : "பதிவு செய்வதில் பிழை ஏற்பட்டது! மீண்டும் முயற்சிக்கவும்."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -2019,11 +2041,21 @@ export default function DistrictPortalsManagement({
                         />
                         <button
                           type="button"
+                          disabled={isCompressingPhoto}
                           onClick={() => fileInputRef.current?.click()}
-                          className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow transition-all active:scale-95"
+                          className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-white rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer shadow transition-all active:scale-95"
                         >
-                          <Upload className="w-4 h-4 text-amber-400" />
-                          <span>கணினி / மொபைலில் இருந்து படம் பதிவேற்ற</span>
+                          {isCompressingPhoto ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 text-amber-400 animate-spin" />
+                              <span>படம் சுருக்கப்படுகிறது (Compressing)...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4 text-amber-400" />
+                              <span>கணினி / மொபைலில் இருந்து படம் பதிவேற்ற</span>
+                            </>
+                          )}
                         </button>
 
                         <span className="text-stone-400 text-xs">அல்லது மாதிரி படம் தேர்வு செய்க:</span>

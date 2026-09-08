@@ -9,9 +9,6 @@ import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, getDocs, onSnapshot } from "firebase/firestore";
 import { cleanForFirestore } from "../lib/syncService";
 
-const STORAGE_KEY_INCHARGES = "tnpa_district_incharges_v3";
-const STORAGE_KEY_SUPERKEYS = "tnpa_district_superkeys_v3";
-
 // Default avatar placeholder (used only when a real person is registered without an uploaded photo)
 export const DEFAULT_EXEC_AVATARS = [
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300&h=300"
@@ -194,13 +191,109 @@ export function loadAllDistrictSuperKeys(): DistrictSuperKeyRecord[] {
   return initial;
 }
 
+// Storage Keys
+export const STORAGE_KEY_INCHARGES = "tnpa_district_incharges_v3";
+export const STORAGE_KEY_SUPERKEYS = "tnpa_district_super_keys_v3";
+export const STORAGE_KEY_PENDING_SYNC = "tnpa_pending_incharge_sync_v1";
+
+// Helper: Get offline pending sync list
+export function getPendingInChargeSync(): DistrictInChargePerson[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PENDING_SYNC);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Helper: Add person to offline sync queue
+export function addToPendingInChargeSync(person: DistrictInChargePerson): void {
+  try {
+    const pending = getPendingInChargeSync().filter(p => p.id !== person.id);
+    pending.push(person);
+    localStorage.setItem(STORAGE_KEY_PENDING_SYNC, JSON.stringify(pending));
+  } catch (e) {
+    console.warn("Could not save to offline sync queue:", e);
+  }
+}
+
+// Helper: Remove person from offline sync queue
+export function removeFromPendingInChargeSync(id: string): void {
+  try {
+    const pending = getPendingInChargeSync().filter(p => p.id !== id);
+    localStorage.setItem(STORAGE_KEY_PENDING_SYNC, JSON.stringify(pending));
+  } catch {
+    // Ignore
+  }
+}
+
+// Helper: Flush pending sync queue to Firestore
+export async function flushPendingInChargeSync(): Promise<void> {
+  const pending = getPendingInChargeSync();
+  if (!pending.length) return;
+
+  for (const person of pending) {
+    try {
+      const ref = doc(db, "district_executives", person.id);
+      await setDoc(ref, cleanForFirestore(person), { merge: true });
+      
+      const isDistrictLeader = person.category === "district_leader" || person.category === "district_executive" || person.category === "district_wing";
+      const execRef = doc(db, "executives", person.id);
+      const execData = {
+        id: person.id,
+        name: person.name,
+        nameEn: person.nameEn || "",
+        level: isDistrictLeader ? "district" : "union_area",
+        role: person.role,
+        district: person.districtTa,
+        districtEn: person.districtEn,
+        phone: person.phone,
+        photoUrl: person.photoUrl,
+        appointedDate: person.appointedDate,
+        status: person.status,
+        unitType: person.unitType,
+        unitName: person.unitName,
+        notes: person.notes || `ஆணை எண்: ${person.appointmentOrderNo}`,
+        appointedBy: person.appointedBy || "மாநில தலைமை"
+      };
+      await setDoc(execRef, cleanForFirestore(execData), { merge: true });
+      removeFromPendingInChargeSync(person.id);
+    } catch (e) {
+      console.warn("Retrying offline queue later for:", person.id, e);
+      break; // Exit and retry next time
+    }
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    flushPendingInChargeSync().catch(() => {});
+  });
+  // Also flush shortly after startup
+  setTimeout(() => {
+    flushPendingInChargeSync().catch(() => {});
+  }, 5000);
+}
+
 // Save all in-charges to local storage (only real records)
 export function saveAllDistrictInCharges(incharges: DistrictInChargePerson[]): void {
+  const cleanOnly = incharges.filter(p => !isFakeInCharge(p));
   try {
-    const cleanOnly = incharges.filter(p => !isFakeInCharge(p));
     localStorage.setItem(STORAGE_KEY_INCHARGES, JSON.stringify(cleanOnly));
   } catch (e) {
-    console.error("Error saving district incharges:", e);
+    console.error("Error saving district incharges to localStorage, retrying without heavy data:", e);
+    // If QuotaExceededError, strip oversized base64 images to prevent crashing
+    try {
+      const safeList = cleanOnly.map(p => ({
+        ...p,
+        photoUrl: (p.photoUrl && p.photoUrl.startsWith("data:") && p.photoUrl.length > 50000)
+          ? DEFAULT_EXEC_AVATARS[0]
+          : p.photoUrl
+      }));
+      localStorage.setItem(STORAGE_KEY_INCHARGES, JSON.stringify(safeList));
+    } catch (fallbackErr) {
+      console.warn("Could not save to localStorage even with fallback:", fallbackErr);
+    }
   }
 }
 
@@ -327,51 +420,72 @@ export async function persistInChargePerson(
     return currentList;
   }
 
-  const existingIdx = currentList.findIndex(p => p.id === person.id);
+  // Ensure photoUrl is not an oversized string that violates Firestore 1MB document limit
+  const sanitizedPerson: DistrictInChargePerson = {
+    ...person,
+    // If someone passed a raw uncompressed base64 exceeding 400KB, fallback to avatar for safety
+    photoUrl: (person.photoUrl && person.photoUrl.startsWith("data:") && person.photoUrl.length > 450000)
+      ? DEFAULT_EXEC_AVATARS[0]
+      : person.photoUrl
+  };
+
+  const existingIdx = currentList.findIndex(p => p.id === sanitizedPerson.id);
   let updatedList: DistrictInChargePerson[];
   if (existingIdx >= 0) {
     updatedList = [...currentList];
-    updatedList[existingIdx] = person;
+    updatedList[existingIdx] = sanitizedPerson;
   } else {
-    updatedList = [person, ...currentList];
+    updatedList = [sanitizedPerson, ...currentList];
   }
 
-  // 1. Immediate local save
+  // 1. Immediate local save (guaranteed fast UX and offline resilience)
   saveAllDistrictInCharges(updatedList);
 
-  // 2. Persistent save to Firestore "district_executives"
+  // 2. Persistent save to Firestore "district_executives" with 7s timeout
+  let firestoreSucceeded = false;
   try {
-    const ref = doc(db, "district_executives", person.id);
-    await setDoc(ref, cleanForFirestore(person), { merge: true });
+    const ref = doc(db, "district_executives", sanitizedPerson.id);
+    const cleaned = cleanForFirestore(sanitizedPerson);
+    
+    await Promise.race([
+      setDoc(ref, cleaned, { merge: true }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Firestore sync timeout")), 7000))
+    ]);
+    
+    firestoreSucceeded = true;
+    removeFromPendingInChargeSync(sanitizedPerson.id);
   } catch (err) {
-    console.error("Critical: Firestore sync error for district_executives:", err);
-    throw err;
+    console.warn("Firestore sync warning for district_executives (queued for background sync):", err);
+    // Queue for automatic retry when network connection is available
+    addToPendingInChargeSync(sanitizedPerson);
   }
 
-  // 3. Mirror to central "executives" collection in Firestore
-  try {
-    const isDistrictLeader = person.category === "district_leader" || person.category === "district_executive" || person.category === "district_wing";
-    const execRef = doc(db, "executives", person.id);
-    const execData = {
-      id: person.id,
-      name: person.name,
-      nameEn: person.nameEn || "",
-      level: isDistrictLeader ? "district" : "union_area",
-      role: person.role,
-      district: person.districtTa,
-      districtEn: person.districtEn,
-      phone: person.phone,
-      photoUrl: person.photoUrl,
-      appointedDate: person.appointedDate,
-      status: person.status,
-      unitType: person.unitType,
-      unitName: person.unitName,
-      notes: person.notes || `ஆணை எண்: ${person.appointmentOrderNo}`,
-      appointedBy: person.appointedBy || "மாநில தலைமை"
-    };
-    await setDoc(execRef, cleanForFirestore(execData), { merge: true });
-  } catch (err) {
-    console.warn("Mirroring to executives collection warning:", err);
+  // 3. Mirror to central "executives" collection in Firestore if online
+  if (firestoreSucceeded) {
+    try {
+      const isDistrictLeader = sanitizedPerson.category === "district_leader" || sanitizedPerson.category === "district_executive" || sanitizedPerson.category === "district_wing";
+      const execRef = doc(db, "executives", sanitizedPerson.id);
+      const execData = {
+        id: sanitizedPerson.id,
+        name: sanitizedPerson.name,
+        nameEn: sanitizedPerson.nameEn || "",
+        level: isDistrictLeader ? "district" : "union_area",
+        role: sanitizedPerson.role,
+        district: sanitizedPerson.districtTa,
+        districtEn: sanitizedPerson.districtEn,
+        phone: sanitizedPerson.phone,
+        photoUrl: sanitizedPerson.photoUrl,
+        appointedDate: sanitizedPerson.appointedDate,
+        status: sanitizedPerson.status,
+        unitType: sanitizedPerson.unitType,
+        unitName: sanitizedPerson.unitName,
+        notes: sanitizedPerson.notes || `ஆணை எண்: ${sanitizedPerson.appointmentOrderNo}`,
+        appointedBy: sanitizedPerson.appointedBy || "மாநில தலைமை"
+      };
+      await setDoc(execRef, cleanForFirestore(execData), { merge: true });
+    } catch (err) {
+      console.warn("Mirroring to executives collection warning:", err);
+    }
   }
 
   // Notify any active UI listeners
