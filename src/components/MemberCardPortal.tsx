@@ -19,7 +19,9 @@ import {
   Download,
   ImageIcon,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Share2,
+  FileCheck
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { MemberCardRequest, MemberCardPaymentConfig } from '../types/memberCard';
@@ -28,7 +30,7 @@ import {
   getMemberCardRequestByMemberId, 
   saveMemberCardRequest 
 } from '../utils/memberCardStorage';
-import { exportIdCardAsPDF, exportIdCardAsImages } from '../utils/idCardPdfExport';
+import { exportIdCardAsPDF, exportIdCardAsImages, shareOrDownloadBlob } from '../utils/idCardPdfExport';
 
 interface MemberCardPortalProps {
   currentUser: UserAccount | null;
@@ -54,7 +56,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
-  const [generatedPdf, setGeneratedPdf] = useState<{ blobUrl: string; fileName: string } | null>(null);
+  const [generatedPdf, setGeneratedPdf] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
 
   // Load existing member card request
   useEffect(() => {
@@ -72,7 +74,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
 
   const handleDownloadDigitalPdf = async () => {
     setIsDownloading(true);
-    setDownloadMsg('PDF கோப்பு உருவாக்கப்படுகிறது...');
+    setDownloadMsg('PDF கோப்பு உருவாக்கப்படுகிறது (Rendering Card)...');
     try {
       const memberName = request?.memberName || currentUser?.name || 'Member';
       const memberRegNo = request?.cardNumber || request?.memberId || currentUser?.regNumber || currentUser?.id || 'TNPA-MEM';
@@ -85,13 +87,13 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
         singleElementId: 'printable-member-card',
         onProgress: (msg) => setDownloadMsg(msg),
         onSuccess: (result) => {
-          setGeneratedPdf({ blobUrl: result.blobUrl, fileName: result.fileName });
+          setGeneratedPdf({ blobUrl: result.blobUrl, fileName: result.fileName, blob: result.blob });
         }
       });
       if (success) {
         setTimeout(() => {
           setIsDownloading(false);
-          setDownloadMsg('✅ PDF தயார்! உங்கள் போனில் தானாக பதிவிறக்கம் ஆகவில்லை எனில் கீழே உள்ள பொத்தானை அழுத்தவும்.');
+          setDownloadMsg('✅ PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.');
         }, 800);
       } else {
         setIsDownloading(false);
@@ -101,6 +103,32 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
       console.error(err);
       setIsDownloading(false);
       setDownloadMsg('❌ பதிவிறக்கத்தில் பிழை.');
+    }
+  };
+
+  const handleSaveOrSharePdf = async (forceDirect = false) => {
+    if (!generatedPdf) {
+      await handleDownloadDigitalPdf();
+      return;
+    }
+    if (generatedPdf.blob) {
+      await shareOrDownloadBlob(generatedPdf.blob, generatedPdf.fileName, 'TNPA Digital Member Card', forceDirect);
+    } else {
+      try {
+        const res = await fetch(generatedPdf.blobUrl);
+        const b = await res.blob();
+        await shareOrDownloadBlob(b, generatedPdf.fileName, 'TNPA Digital Member Card', forceDirect);
+      } catch {
+        const link = document.createElement('a');
+        link.href = generatedPdf.blobUrl;
+        link.download = generatedPdf.fileName;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch {}
+        }, 1500);
+      }
     }
   };
 
@@ -377,21 +405,34 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                   )}
 
                   {generatedPdf && (
-                    <div className="p-3 bg-emerald-950/80 border-2 border-emerald-400 rounded-2xl flex flex-wrap items-center justify-between gap-2 shadow-lg">
+                    <div className="p-3.5 bg-emerald-950/90 border-2 border-emerald-400 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xl">
                       <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span>PDF வெற்றிகரமாக உருவாக்கப்பட்டது!</span>
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <div>
+                          <span className="block font-black text-yellow-300 text-xs">PDF வெற்றிகரமாக உருவாக்கப்பட்டது!</span>
+                          <span className="text-[11px] text-emerald-100 font-normal">போனில் சேமிக்க அல்லது பகிர கீழே உள்ள பொத்தானை அழுத்தவும்:</span>
+                        </div>
                       </div>
-                      <a
-                        href={generatedPdf.blobUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download={generatedPdf.fileName}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 text-stone-950" />
-                        <span>📂 கோப்பைத் திறக்க / Open PDF</span>
-                      </a>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveOrSharePdf(false)}
+                          className="px-3.5 py-2 bg-yellow-400 hover:bg-yellow-300 text-stone-950 text-xs font-black rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          title="Android / Mobile Share & Save"
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-stone-950" />
+                          <span>📱 போனில் சேமி / பகிர</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveOrSharePdf(true)}
+                          className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-black rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          title="Direct File Download"
+                        >
+                          <Download className="w-3.5 h-3.5 text-stone-950" />
+                          <span>📥 நேரடி பதிவிறக்கம்</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -399,7 +440,13 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                       type="button"
                       id="btn-download-digital-pdf"
                       disabled={isDownloading}
-                      onClick={handleDownloadDigitalPdf}
+                      onClick={() => {
+                        if (generatedPdf) {
+                          handleSaveOrSharePdf(false);
+                        } else {
+                          handleDownloadDigitalPdf();
+                        }
+                      }}
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-[#C00000] hover:bg-red-700 text-white text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50"
                     >
                       {isDownloading ? (
@@ -407,7 +454,7 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                       ) : (
                         <Download className="w-4 h-4 text-yellow-300" />
                       )}
-                      <span>📥 PDF டவுன்லோடு</span>
+                      <span>📥 {generatedPdf ? 'PDF சேமி / டவுன்லோடு' : 'PDF டவுன்லோடு'}</span>
                     </button>
 
                     <button

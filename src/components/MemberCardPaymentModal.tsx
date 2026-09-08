@@ -15,7 +15,8 @@ import {
   ArrowRight,
   RefreshCw,
   FileText,
-  ExternalLink
+  ExternalLink,
+  Share2
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { MemberCardRequest, MemberCardPaymentConfig } from '../types/memberCard';
@@ -25,6 +26,7 @@ import {
   saveMemberCardRequest
 } from '../utils/memberCardStorage';
 import { exportIdCardAsPDF, exportIdCardAsImages } from '../utils/idCardPdfExport';
+import { shareOrDownloadBlob } from '../utils/pdfDownloadHelper';
 
 interface MemberCardPaymentModalProps {
   isOpen: boolean;
@@ -61,7 +63,7 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<string | null>(null);
-  const [modalPdfResult, setModalPdfResult] = useState<{ blobUrl: string; fileName: string } | null>(null);
+  const [modalPdfResult, setModalPdfResult] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
 
   const memberId = targetMember?.regNumber || targetMember?.id || currentUser?.regNumber || currentUser?.id || 'TNP-MEM';
   const memberName = targetMember?.name || currentUser?.name || 'உறுப்பினர்';
@@ -164,7 +166,7 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
           singleElementId: singleElId,
           onProgress: (status) => setDownloadProgress(status),
           onSuccess: (result) => {
-            setModalPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName });
+            setModalPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName, blob: result.blob });
           }
         });
 
@@ -172,7 +174,7 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
           if (onDownloadSuccess) onDownloadSuccess();
           setTimeout(() => {
             setIsDownloading(false);
-            setDownloadProgress('✅ PDF தயார்! போனில் தானாக திறக்கப்படவில்லை எனில் கீழே உள்ள பொத்தானைப் பயன்படுத்தவும்.');
+            setDownloadProgress('✅ PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.');
           }, 800);
         } else {
           setIsDownloading(false);
@@ -197,6 +199,32 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
       console.error(err);
       setIsDownloading(false);
       setDownloadProgress('❌ பதிவிறக்கத்தில் பிழை. அச்சிடு முறையைப் பயன்படுத்தவும்.');
+    }
+  };
+
+  const handleSaveOrShareModalPdf = async (forceDirect = false) => {
+    if (!modalPdfResult) {
+      await handleDirectDownload('pdf');
+      return;
+    }
+    if (modalPdfResult.blob) {
+      await shareOrDownloadBlob(modalPdfResult.blob, modalPdfResult.fileName, 'TNPA Digital Member Card', forceDirect);
+    } else {
+      try {
+        const res = await fetch(modalPdfResult.blobUrl);
+        const b = await res.blob();
+        await shareOrDownloadBlob(b, modalPdfResult.fileName, 'TNPA Digital Member Card', forceDirect);
+      } catch {
+        const link = document.createElement('a');
+        link.href = modalPdfResult.blobUrl;
+        link.download = modalPdfResult.fileName;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch {}
+        }, 1500);
+      }
     }
   };
 
@@ -270,21 +298,29 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
 
               {/* Persistent Open PDF Link */}
               {modalPdfResult && (
-                <div className="p-3 bg-emerald-950 border border-emerald-400 text-white rounded-xl shadow-md flex items-center justify-between gap-2">
+                <div className="p-3 bg-emerald-950 border border-emerald-400 text-white rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>PDF தயாராக உள்ளது!</span>
                   </div>
-                  <a
-                    href={modalPdfResult.blobUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download={modalPdfResult.fileName}
-                    className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 text-stone-950" />
-                    <span>📂 திறக்க / Open</span>
-                  </a>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveOrShareModalPdf(false)}
+                      className="px-2.5 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-stone-950" />
+                      <span>📱 சேமி / பகிர</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveOrShareModalPdf(true)}
+                      className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <Download className="w-3.5 h-3.5 text-stone-950" />
+                      <span>📥 டவுன்லோடு</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -293,11 +329,23 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
                 <button
                   type="button"
                   disabled={isDownloading}
-                  onClick={() => handleDirectDownload('pdf')}
+                  onClick={() => {
+                    if (modalPdfResult) {
+                      handleSaveOrShareModalPdf(false);
+                    } else {
+                      handleDirectDownload('pdf');
+                    }
+                  }}
                   className="w-full py-3.5 px-4 bg-[#C00000] hover:bg-red-700 active:scale-98 text-white text-sm font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Download className="w-4 h-4" />
-                  <span>{isDownloading ? 'தயாராகிறது...' : 'PDF அட்டை டவுன்லோட்'}</span>
+                  <span>
+                    {isDownloading
+                      ? 'தயாராகிறது...'
+                      : modalPdfResult
+                      ? '📥 PDF சேமி / டவுன்லோடு'
+                      : 'PDF அட்டை டவுன்லோட்'}
+                  </span>
                 </button>
 
                 <button

@@ -36,6 +36,7 @@ import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
 import EditMemberIdCardModal, { MemberCardEditableData } from "./EditMemberIdCardModal";
 import { ALL_38_TAMILNADU_DISTRICTS } from "../data/initialExecutives";
 import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
+import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
 import { getMemberCardRequestByMemberId } from "../utils/memberCardStorage";
 import { formatMemberNumber, generateDistrictRegNumber } from "../utils/districtCodes";
 import { storage, db } from "../lib/firebase";
@@ -91,7 +92,7 @@ export default function MemberIdCardPortal({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfStatusMessage, setPdfStatusMessage] = useState<string | null>(null);
-  const [generatedPdfResult, setGeneratedPdfResult] = useState<{ blobUrl: string; fileName: string } | null>(null);
+  const [generatedPdfResult, setGeneratedPdfResult] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
 
   // Dynamic Editable state for instant interactive testing
   const [customName, setCustomName] = useState(currentUser?.name || "மு.பிரகாசம்");
@@ -478,7 +479,7 @@ export default function MemberIdCardPortal({
         backElementId: "union-id-card-back",
         onProgress: (msg) => setPdfStatusMessage(msg),
         onSuccess: (result) => {
-          setGeneratedPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName });
+          setGeneratedPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName, blob: result.blob });
         }
       });
 
@@ -486,7 +487,7 @@ export default function MemberIdCardPortal({
         onAddAuditLog("Download ID Card PDF", `Downloaded high-res PDF for ${memberName} (${memberRegNo})`);
         setTimeout(() => {
           setIsGeneratingPdf(false);
-          setPdfStatusMessage("✅ PDF தயார்! போனில் தானாக திறக்கப்படவில்லை எனில் கீழே உள்ள பொத்தானைப் பயன்படுத்தவும்.");
+          setPdfStatusMessage("✅ PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.");
         }, 800);
       } else {
         setIsGeneratingPdf(false);
@@ -499,6 +500,32 @@ export default function MemberIdCardPortal({
     } finally {
       if (originalSide !== "both") {
         setCardSide(originalSide);
+      }
+    }
+  };
+
+  const handleSaveOrShareOfficialPdf = async (forceDirect = false) => {
+    if (!generatedPdfResult) {
+      await handleDownloadPdf();
+      return;
+    }
+    if (generatedPdfResult.blob) {
+      await shareOrDownloadBlob(generatedPdfResult.blob, generatedPdfResult.fileName, 'TNPA Official ID Card', forceDirect);
+    } else {
+      try {
+        const res = await fetch(generatedPdfResult.blobUrl);
+        const b = await res.blob();
+        await shareOrDownloadBlob(b, generatedPdfResult.fileName, 'TNPA Official ID Card', forceDirect);
+      } catch {
+        const link = document.createElement('a');
+        link.href = generatedPdfResult.blobUrl;
+        link.download = generatedPdfResult.fileName;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch {}
+        }, 1500);
       }
     }
   };
@@ -798,16 +825,24 @@ export default function MemberIdCardPortal({
                   </p>
                 </div>
               </div>
-              <a
-                href={generatedPdfResult.blobUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                download={generatedPdfResult.fileName}
-                className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-              >
-                <ExternalLink className="w-4 h-4 text-stone-950" />
-                <span>{lang === "ta" ? "📂 கோப்பைத் திறக்க (Open PDF)" : "📂 Open PDF File"}</span>
-              </a>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveOrShareOfficialPdf(false)}
+                  className="px-3.5 py-2 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-stone-950" />
+                  <span>{lang === "ta" ? "📱 போனில் சேமி / பகிர" : "📱 Save / Share to Phone"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveOrShareOfficialPdf(true)}
+                  className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5 text-stone-950" />
+                  <span>{lang === "ta" ? "📥 நேரடி பதிவிறக்கம்" : "📥 Direct Download"}</span>
+                </button>
+              </div>
             </div>
           )}
 

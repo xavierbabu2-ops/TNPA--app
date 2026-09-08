@@ -1,10 +1,14 @@
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
+import { shareOrDownloadBlob } from './pdfDownloadHelper';
+
+export { shareOrDownloadBlob };
 
 export interface IdCardExportResult {
   success: boolean;
   blob?: Blob;
   blobUrl?: string;
+  dataUrl?: string;
   fileName?: string;
   error?: string;
 }
@@ -17,7 +21,7 @@ export interface IdCardExportOptions {
   backElementId?: string;
   singleElementId?: string;
   onProgress?: (status: string) => void;
-  onSuccess?: (result: { blob: Blob; blobUrl: string; fileName: string }) => void;
+  onSuccess?: (result: { blob: Blob; blobUrl: string; fileName: string; dataUrl?: string }) => void;
 }
 
 /**
@@ -195,45 +199,22 @@ function safeCanvasToDataURL(canvas: HTMLCanvasElement): string {
 
 /**
  * Triggers robust download of a Blob across mobile browsers, iframes, and desktop browsers.
+ * Uses Web Share API on mobile (Android / iOS) and clean direct download on desktop without opening blank tabs.
  */
 export function triggerBlobDownload(blob: Blob, fileName: string): string {
   const blobUrl = URL.createObjectURL(blob);
 
-  // 1. IE / legacy Edge
-  if ((window.navigator as any).msSaveOrOpenBlob) {
-    try {
-      (window.navigator as any).msSaveOrOpenBlob(blob, fileName);
-      return blobUrl;
-    } catch (_) {
-      // Continue to standard
-    }
-  }
+  // Trigger robust share or download in background
+  shareOrDownloadBlob(blob, fileName, 'TNPA Digital ID Card').catch(err => {
+    console.warn('Background share/download handled:', err);
+  });
 
-  // 2. Standard invisible anchor click
-  try {
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = fileName;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      try {
-        document.body.removeChild(link);
-      } catch {}
-    }, 1500);
-  } catch (e) {
-    console.warn('Automatic click failed:', e);
-  }
-
-  // Keep the blob URL valid for 2 minutes so user can open/save if needed
+  // Keep the blob URL valid for 5 minutes so user can open/save if needed
   setTimeout(() => {
     try {
       URL.revokeObjectURL(blobUrl);
     } catch {}
-  }, 120000);
+  }, 300000);
 
   return blobUrl;
 }

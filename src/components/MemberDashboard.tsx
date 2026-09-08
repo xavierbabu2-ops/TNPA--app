@@ -18,11 +18,13 @@ import {
   ImageIcon,
   Loader2,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Share2
 } from "lucide-react";
 import { UserAccount, WelfareApplication, PaymentRecord, WelfareScheme } from "../types";
 import { initialWelfareSchemes } from "../mockData";
 import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
+import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
 
 interface MemberDashboardProps {
   lang: "ta" | "en";
@@ -67,7 +69,7 @@ export default function MemberDashboard({
   const [isPayingSub, setIsPayingSub] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
-  const [dashboardPdfResult, setDashboardPdfResult] = useState<{ blobUrl: string; fileName: string } | null>(null);
+  const [dashboardPdfResult, setDashboardPdfResult] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
 
   const handleDownloadDashboardPdf = async () => {
     setIsDownloading(true);
@@ -80,13 +82,13 @@ export default function MemberDashboard({
         singleElementId: "dashboard-digital-member-card",
         onProgress: (msg) => setDownloadMsg(msg),
         onSuccess: (result) => {
-          setDashboardPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName });
+          setDashboardPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName, blob: result.blob });
         }
       });
       if (success) {
         setTimeout(() => {
           setIsDownloading(false);
-          setDownloadMsg("✅ PDF தயார்! போனில் தானாக திறக்கப்படவில்லை எனில் கீழே உள்ள பொத்தானைப் பயன்படுத்தவும்.");
+          setDownloadMsg("✅ PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.");
         }, 800);
       } else {
         setIsDownloading(false);
@@ -96,6 +98,32 @@ export default function MemberDashboard({
       console.error(err);
       setIsDownloading(false);
       setDownloadMsg("❌ பதிவிறக்கத்தில் பிழை.");
+    }
+  };
+
+  const handleSaveOrShareDashboardPdf = async (forceDirect = false) => {
+    if (!dashboardPdfResult) {
+      await handleDownloadDashboardPdf();
+      return;
+    }
+    if (dashboardPdfResult.blob) {
+      await shareOrDownloadBlob(dashboardPdfResult.blob, dashboardPdfResult.fileName, 'TNPA Digital Member Card', forceDirect);
+    } else {
+      try {
+        const res = await fetch(dashboardPdfResult.blobUrl);
+        const b = await res.blob();
+        await shareOrDownloadBlob(b, dashboardPdfResult.fileName, 'TNPA Digital Member Card', forceDirect);
+      } catch {
+        const link = document.createElement('a');
+        link.href = dashboardPdfResult.blobUrl;
+        link.download = dashboardPdfResult.fileName;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          try { document.body.removeChild(link); } catch {}
+        }, 1500);
+      }
     }
   };
 
@@ -442,21 +470,29 @@ export default function MemberDashboard({
 
             {/* Persistent Open PDF Card Banner */}
             {dashboardPdfResult && (
-              <div className="w-full max-w-sm p-3 bg-emerald-950/90 border border-emerald-400 text-white rounded-xl shadow-md flex items-center justify-between gap-2">
+              <div className="w-full max-w-sm p-3 bg-emerald-950/90 border border-emerald-400 text-white rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>PDF தயார்!</span>
                 </div>
-                <a
-                  href={dashboardPdfResult.blobUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={dashboardPdfResult.fileName}
-                  className="px-3 py-1 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1 cursor-pointer active:scale-95"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-stone-950" />
-                  <span>📂 திறக்க / Open</span>
-                </a>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveOrShareDashboardPdf(false)}
+                    className="px-2.5 py-1 bg-yellow-400 hover:bg-yellow-300 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1 cursor-pointer active:scale-95"
+                  >
+                    <Share2 className="w-3 h-3 text-stone-950" />
+                    <span>📱 சேமி / பகிர</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveOrShareDashboardPdf(true)}
+                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1 cursor-pointer active:scale-95"
+                  >
+                    <Download className="w-3 h-3 text-stone-950" />
+                    <span>📥 டவுன்லோடு</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -464,7 +500,13 @@ export default function MemberDashboard({
             <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
               <button
                 type="button"
-                onClick={handleDownloadDashboardPdf}
+                onClick={() => {
+                  if (dashboardPdfResult) {
+                    handleSaveOrShareDashboardPdf(false);
+                  } else {
+                    handleDownloadDashboardPdf();
+                  }
+                }}
                 disabled={isDownloading}
                 className="px-4 py-2.5 bg-[#C00000] hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50"
               >
@@ -473,7 +515,11 @@ export default function MemberDashboard({
                 ) : (
                   <Download className="w-4 h-4 text-yellow-300" />
                 )}
-                <span>{lang === "ta" ? "📥 PDF பதிவிறக்கம்" : "📥 Download PDF"}</span>
+                <span>
+                  {dashboardPdfResult
+                    ? (lang === "ta" ? "📥 PDF சேமி / டவுன்லோடு" : "📥 Save / Download PDF")
+                    : (lang === "ta" ? "📥 PDF பதிவிறக்கம்" : "📥 Download PDF")}
+                </span>
               </button>
 
               <button
