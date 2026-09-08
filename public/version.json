@@ -1,0 +1,14 @@
+{
+  "version": "3.3.0",
+  "buildId": 1788876500000,
+  "buildDate": "2026-09-08",
+  "name": "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²",
+  "mandatoryUpdate": true,
+  "features": [
+    "38 மாவட்ட நிர்வாகிகள் கிளவுட் நிரந்தர சேமிப்பு",
+    "தானியங்கி நேரலை ஒத்திசைவு (Real-time Cloud Sync)",
+    "அன்இன்ஸ்டால் தேவையில்லாத ஓவர்-தி-ஏர் (OTA) ஆட்டோ அப்டேட்"
+  ],
+  "messageTa": "சங்கத்தின் அண்மைப் பதிப்பு (v3.3.0) நிறுவப்பட்டது. பழைய செயலியை அன்இன்ஸ்டால் செய்யத் தேவையில்லை.",
+  "messageEn": "Latest official union release (v3.3.0) applied automatically without reinstall."
+}

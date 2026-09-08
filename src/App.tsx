@@ -130,6 +130,7 @@ import {
   seedInitialFirestoreData,
   GlobalUnionConfig 
 } from "./lib/syncService";
+import { subscribeToDistrictInCharges } from "./utils/districtInChargeStorage";
 
 export default function App() {
   console.log("App component initializing with Realtime Cloud Sync...");
@@ -267,6 +268,44 @@ export default function App() {
       }
     });
 
+    // 9. Real-time District Executives & In-Charges listener (38 Districts from Firestore)
+    const unsubDistrictExecs = subscribeToDistrictInCharges((remoteDistrictIncharges) => {
+      if (remoteDistrictIncharges && remoteDistrictIncharges.length > 0) {
+        setExecutives((prev) => {
+          const map = new Map<string, ExecutiveMember>();
+          prev.forEach((e) => map.set(e.id, e));
+
+          remoteDistrictIncharges.forEach((p) => {
+            const isDistrictLevel = p.category === "district_leader" || p.category === "district_executive" || p.category === "district_wing";
+            const mapped: ExecutiveMember = {
+              id: p.id,
+              name: p.name,
+              nameEn: p.nameEn || "",
+              level: isDistrictLevel ? "district" : "union_area",
+              role: p.role,
+              district: p.districtTa,
+              districtEn: p.districtEn,
+              phone: p.phone,
+              photoUrl: p.photoUrl || getExecutivePhoto(p),
+              appointedDate: p.appointedDate || "2026-06-01",
+              status: p.status || "active",
+              unitType: p.unitType || "district",
+              unitName: p.unitName || `${p.districtTa} தலைமை`,
+              notes: p.notes || `ஆணை எண்: ${p.appointmentOrderNo}`,
+              appointedBy: p.appointedBy || "மாநில தலைமை"
+            };
+            map.set(p.id, mapped);
+          });
+
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem("tnpa_executives_v1", JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+      }
+    });
+
     return () => {
       unsubRegs();
       unsubConfig();
@@ -275,6 +314,7 @@ export default function App() {
       unsubWelfare();
       unsubPayments();
       unsubExecs();
+      unsubDistrictExecs();
     };
   }, []);
 
@@ -2566,9 +2606,6 @@ export default function App() {
         />
       )}
 
-      {/* Progressive Web App & APK Dynamic Auto-Update Prompt */}
-      <AutoUpdatePrompt lang={lang} />
-
       {/* 6. ENTERPRISE FOOTER */}
       <footer className="bg-stone-900 text-stone-100 py-10 px-6 border-t-4 border-amber-500 shrink-0 text-left">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -2698,18 +2735,18 @@ export default function App() {
                   <div className="p-2.5 bg-stone-900/80 rounded-xl border border-stone-700/80 space-y-1.5 text-stone-300">
                     <p className="font-bold text-amber-300 text-xs">
                       {lang === "ta" 
-                        ? "📌 ஏபிகே (APK) மற்றும் ஸ்டுடியோ நேரலை விளக்கம்:" 
-                        : "📌 APK & Studio Real-time Sync Details:"}
+                        ? "📌 தானியங்கி ஓவர்-தி-ஏர் (OTA) அப்டேட் & நேரலை ஒத்திசைவு:" 
+                        : "📌 Zero-Uninstall OTA Auto-Update & Real-time Live Sync:"}
                     </p>
                     <p className="text-[11px] leading-relaxed">
                       {lang === "ta"
-                        ? "1. தரவுத்தளம் (Firestore Data): உறுப்பினர்கள், நிர்வாகிகள், அடையாள அட்டை விவரங்கள், விண்ணப்பங்கள் ஆகியவை உங்கள் கைபேசியில் உள்ள ஏபிகே-வில் நொடிக்குள் 100% தானாகவே ஒத்திசைக்கிறது."
-                        : "1. Database (Firestore Data): Members, executives, ID card data, and announcements sync 100% instantly to your installed APK."}
+                        ? "1. தரவுத்தளம் (Firestore Data): 38 மாவட்ட நிர்வாகிகள், உறுப்பினர்கள், அடையாள அட்டை விவரங்கள் ஆகியவை உங்கள் கைபேசியில் உள்ள செயலியில் 100% தானாகவே உடனுக்குடன் ஒத்திசைக்கப்படுகிறது."
+                        : "1. Database (Firestore Data): 38 District executives, members, and ID cards sync 100% in real-time."}
                     </p>
                     <p className="text-[11px] leading-relaxed">
                       {lang === "ta"
-                        ? "2. புதிய பட்டன்கள் & இடைமுக மாற்றங்கள் (UI Design Updates): ஸ்டுடியோவில் சேர்க்கப்படும் புதிய பொத்தான்கள் உடனடியாக கைபேசியில் தெரிய கீழே உள்ள 'நேரலை கிளவுட் செயலியைத் திற' பொத்தானைப் பயன்படுத்தலாம் அல்லது நேரடி சர்வர் இணைக்கப்பட்ட புதிய ஏபிகே-வை நிறுவலாம்."
-                        : "2. New UI Buttons & Templates: To see newly added UI features instantly on your phone, tap 'Open Live Cloud App' below or install the live-server connected APK."}
+                        ? "2. தானியங்கி பதிப்புப் புதுப்பிப்பு (Zero-Uninstall OTA): பழைய செயலியை அன்இன்ஸ்டால் செய்ய வேண்டிய அவசியமே இல்லை! புதிய வடிவமைப்பு மற்றும் வசதிகள் தயாராகும்போது செயலி தானாகவே புதிய பதிப்பை நிறுவிக்கொள்ளும்."
+                        : "2. Zero-Uninstall Updates: No need to uninstall the app! New updates are downloaded and applied automatically over the air."}
                     </p>
                   </div>
 
@@ -2729,7 +2766,7 @@ export default function App() {
                       className="py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all text-center cursor-pointer"
                     >
                       <Globe className="w-3.5 h-3.5" />
-                      <span>{lang === "ta" ? "🌐 நேரலை கிளவுட் செயலியைத் திற (100% Live)" : "🌐 Open Live Cloud App"}</span>
+                      <span>{lang === "ta" ? "🌐 நேரலை கிளவுட் செயலியைத் திற" : "🌐 Open Live Cloud App"}</span>
                     </button>
 
                     <button
@@ -2740,15 +2777,15 @@ export default function App() {
                       className="py-2.5 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
-                      <span>{lang === "ta" ? "🔄 கேச் அழித்து புதுப்பி (Sync APK)" : "🔄 Clear Cache & Reload"}</span>
+                      <span>{lang === "ta" ? "🚀 இப்போதே புதிய பதிப்புக்கு மாற்று" : "🚀 Update to Latest Version"}</span>
                     </button>
                   </div>
                 </div>
 
                 <p className="text-stone-400 text-[11px]">
                   {lang === "ta"
-                    ? "குறிப்பு: சூப்பர் அட்மின் அல்லது மாநில தலைவர் செய்யும் அனைத்து மாற்றங்களும் கிளவுட் டேட்டாபேஸ் மூலமாக நொடிக்குள் உலகளவில் அனைத்து கைபேசிகளுக்கும் ஒத்திசைக்கப்படும்."
-                    : "Note: All administrative updates propagate globally in real time via Cloud Firestore."}
+                    ? "குறிப்பு: நீங்கள் செயலியைத் திறக்கும்போதும், மீண்டும் முன்னிலைக்குக் கொண்டுவரும்போதும் புதிய மாற்றங்கள் பின்னணியில் தானாகவே பதிவிறக்கப்படும்."
+                    : "Note: When launching or returning to the app, new updates are automatically downloaded in the background."}
                 </p>
               </div>
 

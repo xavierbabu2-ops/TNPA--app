@@ -4795,6 +4795,40 @@ app.get("/api/whatsapp-consent/report", (req, res) => {
 });
 
 
+// Version & Instant OTA Auto-Update Manifest API
+const APP_VERSION_PAYLOAD = {
+  version: "3.3.0",
+  buildId: 1788876500000,
+  buildDate: "2026-09-08",
+  name: "தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் - TNPA²",
+  mandatoryUpdate: true,
+  features: [
+    "38 மாவட்ட நிர்வாகிகள் கிளவுட் நிரந்தர சேமிப்பு (Permanent Firestore Cloud Sync)",
+    "தானியங்கி நேரலை ஒத்திசைவு (Real-time Cloud Sync)",
+    "அன்இன்ஸ்டால் தேவையில்லாத ஓவர்-தி-ஏர் (OTA) ஆட்டோ அப்டேட்"
+  ],
+  messageTa: "சங்கத்தின் அண்மைப் பதிப்பு (v3.3.0) நிறுவப்பட்டது. பழைய செயலியை அன்இன்ஸ்டால் செய்யத் தேவையில்லை.",
+  messageEn: "Latest official union release (v3.3.0) applied automatically without reinstall."
+};
+
+app.get(["/api/version", "/version.json"], (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Content-Type", "application/json");
+  return res.json(APP_VERSION_PAYLOAD);
+});
+
+// Always serve sw.js with strict zero-caching headers
+app.use((req, res, next) => {
+  if (req.path === "/sw.js" || req.path === "/manifest.json" || req.path === "/version.json") {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
+  next();
+});
+
 // Express global JSON error handler middleware for API routes
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (req.path && req.path.startsWith("/api/")) {
@@ -4813,8 +4847,26 @@ async function startServer() {
   // Static files or Vite dev middleware
   if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (
+          filePath.endsWith("sw.js") || 
+          filePath.endsWith("index.html") || 
+          filePath.endsWith("manifest.json") || 
+          filePath.endsWith("version.json")
+        ) {
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        } else if (filePath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      }
+    }));
     app.get('*', (req, res) => {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else if (!process.env.VERCEL) {

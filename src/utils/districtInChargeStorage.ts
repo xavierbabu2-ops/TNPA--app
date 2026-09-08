@@ -6,7 +6,7 @@ import {
   DistrictLeadership 
 } from "../types/districtPortals";
 import { db } from "../lib/firebase";
-import { collection, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { collection, doc, setDoc, deleteDoc, getDocs, onSnapshot } from "firebase/firestore";
 import { cleanForFirestore } from "../lib/syncService";
 
 const STORAGE_KEY_INCHARGES = "tnpa_district_incharges_v3";
@@ -18,50 +18,14 @@ export const DEFAULT_EXEC_AVATARS = [
 ];
 
 /**
- * Filter to strictly identify and eliminate any generated or imaginary in-charge data
+ * Filter to validate in-charge records.
+ * CRITICAL: Never reject or delete legitimate user-registered executives.
  */
 export function isFakeInCharge(p: any): boolean {
-  if (!p) return true;
-  const id = String(p.id || "");
-  const name = String(p.name || "");
-  const nameEn = String(p.nameEn || "").toLowerCase();
-
-  // Known fake IDs generated previously
-  if (
-    id.startsWith("dist_leader_") ||
-    id.startsWith("dist_exec_") ||
-    id.startsWith("town_incharge_") ||
-    id.startsWith("union_incharge_")
-  ) {
-    return true;
-  }
-
-  // Artificial placeholder names
-  const fakeNames = [
-    "ஆர். பாஸ்கரன்", "பி. நடராஜன்", "எம். வீரபாண்டி", "எஸ். வெங்கடேசன்", "ஆர். ஈஸ்வரன்",
-    "எஸ். கார்த்திகேயன்", "கே. குமார்", "எம். பழனிசாமி", "பி. முத்துக்கிருஷ்ணன்",
-    "எம். ரமேஷ்", "டி. முனுசாமி", "ஆர். கார்த்திக்", "எஸ். பாபு", "கே. அசோகன்",
-    "ஜி. சதிஷ்", "பி. மோகன்", "வி. தினேஷ்", "ஆர். அருண்", "எஸ். சண்முகம்",
-    "கே. தங்கவேல்", "ஏ. பாலகிருஷ்ணன்", "எஸ். ரமேஷ் குமார்", "எம். முருகன்",
-    "கே. விஜயகுமார்", "எம். பழனிச்சாமி", "எஸ். முத்துராமலிங்கம்", "பி. அன்பழகன்"
-  ];
-  if (fakeNames.includes(name.trim())) return true;
-
-  // Fake patterns where title/role was concatenated inside the name (e.g., "கே. சென்னை தலைவர்")
-  if (
-    name.endsWith("தலைவர்") ||
-    name.endsWith("செயலாளர்") ||
-    name.endsWith("பொருளாளர்") ||
-    name.endsWith("துணைத் தலைவர்") ||
-    name.endsWith("ஒன்றியச் செயலாளர்") ||
-    name.endsWith("நகரத் தலைவர்") ||
-    nameEn.endsWith("president") ||
-    nameEn.endsWith("secretary") ||
-    nameEn.endsWith("treasurer")
-  ) {
-    return true;
-  }
-
+  if (!p || typeof p !== "object") return true;
+  const name = String(p.name || "").trim();
+  // Valid as long as name is provided
+  if (!name) return true;
   return false;
 }
 
@@ -87,10 +51,69 @@ function buildInitialDistrictSuperKeys(): DistrictSuperKeyRecord[] {
   });
 }
 
+// Real-time Firestore subscription for 38 Districts In-Charges & Executives
+export function subscribeToDistrictInCharges(
+  onUpdate: (incharges: DistrictInChargePerson[]) => void,
+  onError?: (err: any) => void
+): () => void {
+  try {
+    const colRef = collection(db, "district_executives");
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: DistrictInChargePerson[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as DistrictInChargePerson;
+          if (data && data.name) {
+            list.push({ ...data, id: docSnap.id });
+          }
+        });
+        // Keep local cache up-to-date with Firestore cloud
+        try {
+          localStorage.setItem(STORAGE_KEY_INCHARGES, JSON.stringify(list));
+        } catch (e) {
+          console.warn("Could not cache incharges to localStorage:", e);
+        }
+        onUpdate(list);
+      },
+      (error) => {
+        console.warn("Firestore district_executives subscription warning:", error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn("Failed to attach district_executives listener:", err);
+    return () => {};
+  }
+}
+
+// Direct async fetch from Firestore (guarantees latest cloud data even before subscription triggers)
+export async function fetchDistrictInChargesFromFirestore(): Promise<DistrictInChargePerson[]> {
+  try {
+    const colRef = collection(db, "district_executives");
+    const snapshot = await getDocs(colRef);
+    const list: DistrictInChargePerson[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as DistrictInChargePerson;
+      if (data && data.name) {
+        list.push({ ...data, id: docSnap.id });
+      }
+    });
+    if (list.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY_INCHARGES, JSON.stringify(list));
+      } catch (e) {}
+    }
+    return list;
+  } catch (err) {
+    console.warn("Error fetching district_executives from Firestore:", err);
+    return loadAllDistrictInCharges();
+  }
+}
+
 // Clean any cached mock data and load only genuine in-charges
 export function loadAllDistrictInCharges(): DistrictInChargePerson[] {
   try {
-    // Clear old legacy keys that contained mock data
     try {
       localStorage.removeItem("tnpa_district_incharges_v2");
     } catch {
@@ -102,7 +125,6 @@ export function loadAllDistrictInCharges(): DistrictInChargePerson[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         const clean = parsed.filter(p => !isFakeInCharge(p));
-        localStorage.setItem(STORAGE_KEY_INCHARGES, JSON.stringify(clean));
         return clean;
       }
     }
@@ -110,14 +132,42 @@ export function loadAllDistrictInCharges(): DistrictInChargePerson[] {
     console.error("Error loading district incharges:", e);
   }
 
-  // NO FAKE INITIAL PERSONS - empty list by default
   return [];
+}
+
+// Real-time Firestore subscription for District Super Keys
+export function subscribeToDistrictSuperKeys(
+  onUpdate: (keys: DistrictSuperKeyRecord[]) => void
+): () => void {
+  try {
+    const colRef = collection(db, "district_super_keys");
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const remoteKeys: DistrictSuperKeyRecord[] = [];
+        snapshot.forEach((docSnap) => {
+          remoteKeys.push(docSnap.data() as DistrictSuperKeyRecord);
+        });
+        if (remoteKeys.length > 0) {
+          const current = loadAllDistrictSuperKeys();
+          const merged = current.map(localKey => {
+            const found = remoteKeys.find(r => r.districtCode.toUpperCase() === localKey.districtCode.toUpperCase());
+            return found || localKey;
+          });
+          saveAllDistrictSuperKeys(merged);
+          onUpdate(merged);
+        }
+      },
+      (err) => console.warn("Super keys subscription warning:", err)
+    );
+  } catch (err) {
+    return () => {};
+  }
 }
 
 // Load Super Keys for 38 districts
 export function loadAllDistrictSuperKeys(): DistrictSuperKeyRecord[] {
   try {
-    // Clear old legacy keys
     try {
       localStorage.removeItem("tnpa_district_superkeys_v2");
     } catch {
@@ -128,12 +178,7 @@ export function loadAllDistrictSuperKeys(): DistrictSuperKeyRecord[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Clean any fake phone numbers from keys
-        const cleanedKeys = parsed.map((k: DistrictSuperKeyRecord) => ({
-          ...k,
-          authorizedPhones: (k.authorizedPhones || []).filter(p => !p.startsWith("984000"))
-        }));
-        return cleanedKeys;
+        return parsed;
       }
     }
   } catch (e) {
@@ -272,13 +317,13 @@ export function verifyDistrictSuperKey(
   return record.status === "active" && record.superKey.trim().toUpperCase() === cleanInput;
 }
 
-// Save a new or updated incharge to local state and Firestore (only genuine records)
+// Save a new or updated incharge to local state and Firestore (permanently persisted)
 export async function persistInChargePerson(
   person: DistrictInChargePerson,
   currentList: DistrictInChargePerson[]
 ): Promise<DistrictInChargePerson[]> {
   if (isFakeInCharge(person)) {
-    console.warn("Blocked attempt to persist fake person:", person.name);
+    console.warn("Blocked attempt to persist invalid person:", person?.name);
     return currentList;
   }
 
@@ -291,14 +336,47 @@ export async function persistInChargePerson(
     updatedList = [person, ...currentList];
   }
 
+  // 1. Immediate local save
   saveAllDistrictInCharges(updatedList);
 
-  // Sync to Firestore
+  // 2. Persistent save to Firestore "district_executives"
   try {
     const ref = doc(db, "district_executives", person.id);
-    await setDoc(ref, cleanForFirestore(person));
+    await setDoc(ref, cleanForFirestore(person), { merge: true });
   } catch (err) {
-    console.warn("Firestore sync warning for district_executives:", err);
+    console.error("Critical: Firestore sync error for district_executives:", err);
+    throw err;
+  }
+
+  // 3. Mirror to central "executives" collection in Firestore
+  try {
+    const isDistrictLeader = person.category === "district_leader" || person.category === "district_executive" || person.category === "district_wing";
+    const execRef = doc(db, "executives", person.id);
+    const execData = {
+      id: person.id,
+      name: person.name,
+      nameEn: person.nameEn || "",
+      level: isDistrictLeader ? "district" : "union_area",
+      role: person.role,
+      district: person.districtTa,
+      districtEn: person.districtEn,
+      phone: person.phone,
+      photoUrl: person.photoUrl,
+      appointedDate: person.appointedDate,
+      status: person.status,
+      unitType: person.unitType,
+      unitName: person.unitName,
+      notes: person.notes || `ஆணை எண்: ${person.appointmentOrderNo}`,
+      appointedBy: person.appointedBy || "மாநில தலைமை"
+    };
+    await setDoc(execRef, cleanForFirestore(execData), { merge: true });
+  } catch (err) {
+    console.warn("Mirroring to executives collection warning:", err);
+  }
+
+  // Notify any active UI listeners
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("tnpa_incharges_changed", { detail: updatedList }));
   }
 
   return updatedList;
@@ -317,6 +395,17 @@ export async function removeInChargePerson(
     await deleteDoc(ref);
   } catch (err) {
     console.warn("Firestore delete warning for district_executives:", err);
+  }
+
+  try {
+    const execRef = doc(db, "executives", id);
+    await deleteDoc(execRef);
+  } catch (err) {
+    console.warn("Firestore delete warning for executives:", err);
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("tnpa_incharges_changed", { detail: updatedList }));
   }
 
   return updatedList;
@@ -360,7 +449,7 @@ export async function updateDistrictSuperKey(
     const ref = doc(db, "district_super_keys", code);
     const rec = updated.find(k => k.districtCode.toUpperCase() === code);
     if (rec) {
-      await setDoc(ref, cleanForFirestore(rec));
+      await setDoc(ref, cleanForFirestore(rec), { merge: true });
     }
   } catch (err) {
     console.warn("Firestore sync warning for district_super_keys:", err);
@@ -370,30 +459,9 @@ export async function updateDistrictSuperKey(
 }
 
 /**
- * Clean any legacy fake or imaginary records from Firestore database
+ * Safeguard: Never delete any user records from Firestore.
  */
 export async function purgeFakeInChargesFromFirestore(): Promise<number> {
-  try {
-    const colRef = collection(db, "district_executives");
-    const snapshot = await getDocs(colRef);
-    let deletedCount = 0;
-    const promises: Promise<void>[] = [];
-
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (isFakeInCharge({ ...data, id: docSnap.id })) {
-        promises.push(deleteDoc(doc(db, "district_executives", docSnap.id)));
-        deletedCount++;
-      }
-    });
-
-    if (promises.length > 0) {
-      await Promise.all(promises);
-      console.log(`Successfully purged ${deletedCount} fake records from Firestore.`);
-    }
-    return deletedCount;
-  } catch (err) {
-    console.warn("Firestore purge error:", err);
-    return 0;
-  }
+  // Always return 0 to prevent any accidental deletion of user data
+  return 0;
 }

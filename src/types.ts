@@ -120,7 +120,7 @@ export interface ExecutiveMember {
   districtEn?: string;
   zone?: string;
   zoneEn?: string;
-  unitType?: "union" | "town" | "area" | "wing" | "other";
+  unitType?: "district" | "union" | "town" | "area" | "wing" | "taluk" | "branch" | "other";
   unitName?: string;
   unitNameEn?: string;
   phone: string;

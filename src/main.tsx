@@ -4,29 +4,42 @@ import App from './App.tsx';
 import './index.css';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { initOfflineDatabase } from './utils/offlineMemberDatabase';
+import { initAutoUpdateListeners } from './utils/autoUpdater';
+
+// Start Zero-Uninstall OTA Auto-Update monitoring immediately
+if (typeof window !== 'undefined') {
+  initAutoUpdateListeners();
+}
 
 // Suppress benign platform-level errors (Vite HMR websocket in cloud sandbox and Firestore transport reconnects)
 if (typeof window !== 'undefined') {
-  // Prevent unhandled promise rejections for Vite HMR websocket
+  // Prevent unhandled promise rejections for Vite HMR websocket and transient Firestore network reconnects
   window.addEventListener('unhandledrejection', (event) => {
     const reasonStr = String(event.reason?.message || event.reason || '');
     if (
       reasonStr.includes('WebSocket closed without opened') ||
       reasonStr.includes('failed to connect to websocket') ||
-      reasonStr.includes('[vite]')
+      reasonStr.includes('[vite]') ||
+      reasonStr.includes('Could not reach Cloud Firestore backend') ||
+      reasonStr.includes('The operation could not be completed') ||
+      reasonStr.includes('code=unavailable') ||
+      reasonStr.includes('WebChannelConnection RPC')
     ) {
       event.preventDefault();
       event.stopPropagation();
     }
   });
 
-  // Prevent window error event for Vite HMR websocket
+  // Prevent window error event for Vite HMR websocket & transient Firestore offline connection notices
   window.addEventListener('error', (event) => {
     const msg = String(event.message || '');
     if (
       msg.includes('WebSocket') ||
       msg.includes('[vite]') ||
-      msg.includes('WebChannelConnection RPC')
+      msg.includes('WebChannelConnection RPC') ||
+      msg.includes('Could not reach Cloud Firestore backend') ||
+      msg.includes('code=unavailable') ||
+      msg.includes('@firebase/firestore')
     ) {
       event.preventDefault();
       event.stopPropagation();
@@ -40,7 +53,10 @@ if (typeof window !== 'undefined') {
     if (
       text.includes('[vite] failed to connect to websocket') ||
       text.includes('WebSocket closed without opened') ||
-      text.includes('WebChannelConnection RPC')
+      text.includes('WebChannelConnection RPC') ||
+      text.includes('Could not reach Cloud Firestore backend') ||
+      (text.includes('@firebase/firestore') && (text.includes('unavailable') || text.includes('Could not reach') || text.includes('offline mode'))) ||
+      (text.includes('FirebaseError') && text.includes('code=unavailable'))
     ) {
       return;
     }
@@ -57,7 +73,8 @@ if (typeof window !== 'undefined') {
       text.includes('database is closing') ||
       text.includes('Database is closing') ||
       text.includes('closing/hidden') ||
-      text.includes('The database connection is closing')
+      text.includes('The database connection is closing') ||
+      text.includes('Could not reach Cloud Firestore backend')
     ) {
       return;
     }

@@ -625,6 +625,36 @@ export async function saveExecutiveToFirestore(executive: ExecutiveMember): Prom
     const docRef = doc(db, "executives", executive.id);
     const cleaned = cleanForFirestore(executive);
     await setDoc(docRef, cleaned, { merge: true });
+
+    // If this is a district level executive, also mirror to district_executives
+    if (executive.level === "district" && executive.district) {
+      try {
+        const distRef = doc(db, "district_executives", executive.id);
+        const distData = {
+          id: executive.id,
+          name: executive.name,
+          nameEn: executive.nameEn || "",
+          category: "district_executive",
+          role: executive.role,
+          districtTa: executive.district,
+          districtEn: executive.districtEn || executive.district,
+          districtCode: executive.district.slice(0, 3).toUpperCase(),
+          phone: executive.phone,
+          photoUrl: executive.photoUrl || "",
+          appointedDate: executive.appointedDate || new Date().toISOString().split("T")[0],
+          status: executive.status || "active",
+          unitType: executive.unitType || "district",
+          unitName: executive.unitName || `${executive.district} தலைமை`,
+          appointmentOrderNo: executive.notes || `TNPA/${executive.district}/DIST/2026/001`,
+          address: executive.district,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(distRef, cleanForFirestore(distData), { merge: true });
+      } catch (distErr) {
+        console.warn("Mirror to district_executives warning:", distErr);
+      }
+    }
+
     return true;
   } catch (error) {
     console.warn("Error saving executive to Firestore:", error);
@@ -636,6 +666,13 @@ export async function deleteExecutiveFromFirestore(executiveId: string): Promise
   try {
     const docRef = doc(db, "executives", executiveId);
     await deleteDoc(docRef);
+
+    // Also delete from district_executives if present
+    try {
+      const distRef = doc(db, "district_executives", executiveId);
+      await deleteDoc(distRef);
+    } catch (e) {}
+
     return true;
   } catch (error) {
     console.warn("Error deleting executive from Firestore:", error);

@@ -1,10 +1,16 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   Users, Shield, Phone, MapPin, Search, Filter, ChevronRight, 
   Award, Sparkles, UserCheck, Flame, Building2, Layers, Globe, CheckCircle2, ArrowRight, UserPlus
 } from "lucide-react";
 import { ALL_38_TAMILNADU_DISTRICTS, INITIAL_EXECUTIVE_MEMBERS } from "../data/initialExecutives";
-import { loadAllDistrictInCharges, isFakeInCharge } from "../utils/districtInChargeStorage";
+import { 
+  loadAllDistrictInCharges, 
+  isFakeInCharge,
+  subscribeToDistrictInCharges,
+  fetchDistrictInChargesFromFirestore
+} from "../utils/districtInChargeStorage";
+import { DistrictInChargePerson } from "../types/districtPortals";
 
 interface DistrictHierarchyDirectoryProps {
   lang: "ta" | "en";
@@ -15,10 +21,23 @@ export default function DistrictHierarchyDirectory({ lang, onClose }: DistrictHi
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZone, setSelectedZone] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
+  const [registeredInCharges, setRegisteredInCharges] = useState<DistrictInChargePerson[]>(() => loadAllDistrictInCharges());
 
-  // Load genuine registered in-charges only (strictly no fake data)
-  const registeredInCharges = useMemo(() => {
-    return loadAllDistrictInCharges().filter(p => !isFakeInCharge(p));
+  // Real-time Firestore sync
+  useEffect(() => {
+    fetchDistrictInChargesFromFirestore().then((fetched) => {
+      if (fetched && fetched.length > 0) {
+        setRegisteredInCharges(fetched);
+      }
+    });
+
+    const unsub = subscribeToDistrictInCharges((remoteList) => {
+      if (remoteList && remoteList.length > 0) {
+        setRegisteredInCharges(remoteList);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   // Build directory for all 38 districts based on genuine registrations

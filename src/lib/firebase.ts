@@ -4,6 +4,8 @@ import {
   getFirestore, 
   doc, 
   getDocFromServer,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   Firestore 
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -13,21 +15,32 @@ import config from "../../firebase-applet-config.json";
 const app = getApps().length === 0 ? initializeApp(config) : getApp();
 
 /**
- * Configure Firestore using initializeFirestore with experimentalForceLongPolling.
- * This prevents "Could not reach Cloud Firestore backend" and WebChannel stream drops
- * that occur inside iframes, proxies, and containerized dev environments.
+ * Configure Firestore using initializeFirestore with persistent multi-tab cache
+ * and experimentalForceLongPolling to eliminate "Could not reach Cloud Firestore backend"
+ * and WebChannel stream disconnects that occur in sandboxed iframes and cloud containers.
  */
 let firestoreDb: Firestore;
 try {
   firestoreDb = initializeFirestore(
     app,
     {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
       experimentalForceLongPolling: true,
     },
     config.firestoreDatabaseId
   );
 } catch {
-  firestoreDb = getFirestore(app, config.firestoreDatabaseId);
+  try {
+    firestoreDb = initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true,
+      },
+      config.firestoreDatabaseId
+    );
+  } catch {
+    firestoreDb = getFirestore(app, config.firestoreDatabaseId);
+  }
 }
 
 export const db = firestoreDb;
@@ -95,15 +108,26 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 export async function testConnection() {
   try {
     await getDocFromServer(doc(db, "test", "connection"));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("the client is offline")) {
-      console.warn("Firestore operating in offline mode. Local cache active.");
+  } catch (error: any) {
+    const msg = String(error?.message || error || "");
+    if (
+      msg.includes("the client is offline") ||
+      msg.includes("offline") ||
+      msg.includes("unavailable") ||
+      msg.includes("could not be completed") ||
+      msg.includes("Could not reach")
+    ) {
+      // Gracefully handle transient network offline mode
+      console.info("Firestore operating in offline cache mode.");
     }
   }
 }
 
 if (typeof window !== "undefined") {
-  testConnection().catch(() => {});
+  // Check connection gracefully after app render has settled
+  setTimeout(() => {
+    testConnection().catch(() => {});
+  }, 4000);
 }
 
 

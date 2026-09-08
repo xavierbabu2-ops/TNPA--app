@@ -1,15 +1,16 @@
 /**
  * TNPA Progressive Web Application (PWA) Service Worker
- * Version: 3.0.0
+ * Version: 3.3.0
  * Features:
- * - App Shell Caching
+ * - App Shell Caching & Instant Zero-Uninstall Auto-Updating
+ * - Network-First Navigation with Stale-Free Online App Shell
  * - Local Member Database & Directory Caching (Offline Read-Access)
  * - Background Sync & Offline Mutation Interception
  * - Automatic Connectivity Recovery Syncing
  */
 
-const STATIC_CACHE_NAME = 'tnpa-pwa-static-v3.0';
-const MEMBERS_CACHE_NAME = 'tnpa-members-database-v3.0';
+const STATIC_CACHE_NAME = 'tnpa-pwa-static-v3.3.0';
+const MEMBERS_CACHE_NAME = 'tnpa-members-database-v3.3.0';
 
 const STATIC_URLS_TO_CACHE = [
   '/',
@@ -33,8 +34,9 @@ const MEMBER_DATA_ENDPOINTS = [
   '/api/whatsapp-groups'
 ];
 
-// Install Event: Pre-cache core application shell
+// Install Event: Pre-cache core application shell and skip waiting immediately
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_URLS_TO_CACHE).catch((err) => {
@@ -42,7 +44,6 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  self.skipWaiting();
 });
 
 // Activate Event: Clean up legacy caches & take immediate client control
@@ -57,7 +58,15 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      return self.clients.claim();
+    }).then(() => {
+      broadcastToClients({
+        type: 'TNPA_VERSION_UPDATED',
+        version: '3.3.0',
+        timestamp: Date.now()
+      });
+    })
   );
 });
 
@@ -72,12 +81,34 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // 1. Navigation requests (App Shell)
+  // Skip cache completely for version manifest, service worker, or browser reload checks
+  if (
+    url.pathname === '/version.json' || 
+    url.pathname === '/api/version' || 
+    url.pathname === '/sw.js' ||
+    url.searchParams.has('_v') ||
+    url.searchParams.has('_t')
+  ) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // 1. Navigation requests (App Shell): Network First, fallback to cache ONLY when offline
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
-      })
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(STATIC_CACHE_NAME).then((cache) => {
+              cache.put('/index.html', responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          return (await caches.match('/index.html')) || (await caches.match('/'));
+        })
     );
     return;
   }

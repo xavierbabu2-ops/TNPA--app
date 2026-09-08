@@ -56,7 +56,9 @@ import {
   updateDistrictSuperKey,
   DEFAULT_EXEC_AVATARS,
   generateDefaultSuperKey,
-  purgeFakeInChargesFromFirestore
+  subscribeToDistrictInCharges,
+  fetchDistrictInChargesFromFirestore,
+  subscribeToDistrictSuperKeys
 } from "../utils/districtInChargeStorage";
 import { UserAccount } from "../types";
 import DistrictAppointmentOrderModal from "./DistrictAppointmentOrderModal";
@@ -228,14 +230,62 @@ export default function DistrictPortalsManagement({
   const [confirmDeleteCheckbox, setConfirmDeleteCheckbox] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-clean any legacy fake records from Firestore on initial mount
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // Real-time Firestore sync & immediate load for all 38 districts in-charges
   useEffect(() => {
-    purgeFakeInChargesFromFirestore().then((count) => {
-      if (count > 0) {
-        setIncharges(loadAllDistrictInCharges());
+    // 1. Immediate fetch from Firestore cloud database
+    setIsCloudSyncing(true);
+    fetchDistrictInChargesFromFirestore().then((fetched) => {
+      if (fetched && fetched.length > 0) {
+        setIncharges(fetched);
+      }
+      setIsCloudSyncing(false);
+    }).catch(() => {
+      setIsCloudSyncing(false);
+    });
+
+    // 2. Real-time live listener from Firestore
+    const unsubIncharges = subscribeToDistrictInCharges((remoteList) => {
+      if (remoteList && remoteList.length > 0) {
+        setIncharges(remoteList);
       }
     });
+
+    // 3. Real-time live listener for Super Keys
+    const unsubKeys = subscribeToDistrictSuperKeys((remoteKeys) => {
+      if (remoteKeys && remoteKeys.length > 0) {
+        setSuperKeys(remoteKeys);
+      }
+    });
+
+    // 4. Custom window event listener for local updates
+    const handleLocalUpdate = (e: any) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setIncharges(e.detail);
+      }
+    };
+    window.addEventListener("tnpa_incharges_changed", handleLocalUpdate);
+
+    return () => {
+      unsubIncharges();
+      unsubKeys();
+      window.removeEventListener("tnpa_incharges_changed", handleLocalUpdate);
+    };
   }, []);
+
+  // Manual refresh from Cloud Database
+  const handleRefreshCloudData = async () => {
+    setIsCloudSyncing(true);
+    try {
+      const fresh = await fetchDistrictInChargesFromFirestore();
+      if (fresh) {
+        setIncharges(fresh);
+      }
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
 
   // Auto-unlock if Super Admin, State President (Central Authority), or matching district admin
   useEffect(() => {
@@ -586,7 +636,11 @@ export default function DistrictPortalsManagement({
                 <span className="bg-amber-400 text-stone-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                   38 மாவட்ட அதிகாரப்பூர்வ கட்டமைப்பு
                 </span>
-                <span className="bg-emerald-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full">
+                <span className="bg-emerald-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping inline-block"></span>
+                  ☁️ கிளவுட் நேரலை தரவுத்தளம் ({incharges.length} பதிவு)
+                </span>
+                <span className="bg-emerald-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full">
                   🔑 சூப்பர் கீ இயக்கப்பட்ட தளம்
                 </span>
               </div>
@@ -596,13 +650,22 @@ export default function DistrictPortalsManagement({
                   : "District Executive Portals & Town / Union In-Charges"}
               </h1>
               <p className="text-xs text-amber-200 font-semibold mt-0.5">
-                தமிழ்நாடு முழுவதும் உள்ள 38 மாவட்டங்களின் தலைவர், செயலாளர், பொருளாளர் மற்றும் நிர்வாகப் பொறுப்பாளர்கள்
+                தமிழ்நாடு முழுவதும் உள்ள 38 மாவட்டங்களின் தலைவர், செயலாளர், பொருளாளர் மற்றும் நிர்வாகப் பொறுப்பாளர்கள் (கிளவுடில் நிரந்தரமாக சேமிக்கப்படும்)
               </p>
             </div>
           </div>
 
           {/* Quick Stats or Navigation Back */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefreshCloudData}
+              disabled={isCloudSyncing}
+              title="கிளவுட் தரவுத்தளத்திலிருந்து புதுப்பிக்கவும்"
+              className="p-2.5 bg-stone-900/80 hover:bg-stone-800 text-amber-300 rounded-xl border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isCloudSyncing ? "animate-spin text-amber-400" : ""}`} />
+              <span className="hidden sm:inline">{isCloudSyncing ? "புதுப்பிக்கிறது..." : "கிளவுட் சிங்"}</span>
+            </button>
             {activeView === "district_view" ? (
               <button
                 onClick={() => setActiveView("directory")}

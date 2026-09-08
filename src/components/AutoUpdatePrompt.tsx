@@ -1,49 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { RefreshCw, Sparkles, X, Smartphone } from "lucide-react";
+import { RefreshCw, Sparkles, X, CheckCircle2, ShieldCheck } from "lucide-react";
+import { performInstantAppUpdate, checkForAppUpdate, VersionInfo } from "../utils/autoUpdater";
+import { APP_VERSION } from "../version";
 
 interface AutoUpdatePromptProps {
   lang: "ta" | "en";
 }
 
-export async function forcePurgeCacheAndReload() {
-  try {
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
-    if ("serviceWorker" in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const reg of regs) {
-        await reg.update().catch(() => {});
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("Cache purge notice:", e);
-  } finally {
-    // Bust browser HTTP cache and reload
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set("_v", Date.now().toString());
-    window.location.href = currentUrl.toString();
-  }
-}
+export { performInstantAppUpdate as forcePurgeCacheAndReload };
 
 export function AutoUpdatePrompt({ lang }: AutoUpdatePromptProps) {
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [autoApplyCountdown, setAutoApplyCountdown] = useState(5);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
+    // 1. Listen for custom event from autoUpdater
+    const handleUpdateReady = (e: any) => {
+      if (e.detail) {
+        setUpdateInfo(e.detail);
+        setUpdateAvailable(true);
+        setIsDismissed(false);
+      }
+    };
+    window.addEventListener("tnpa_update_ready", handleUpdateReady);
+
+    // 2. Service Worker ready listener
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.ready.then((reg) => {
-        setRegistration(reg);
-
-        // Check for updates immediately
         reg.update().catch(() => {});
-
-        // Listen for new worker found
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           if (newWorker) {
@@ -55,101 +42,99 @@ export function AutoUpdatePrompt({ lang }: AutoUpdatePromptProps) {
           }
         });
       });
-
-      // Periodically check for updates (every 5 minutes)
-      const interval = setInterval(() => {
-        if (registration) {
-          registration.update().catch(() => {});
-        }
-      }, 5 * 60 * 1000);
-
-      // Check for updates whenever user returns to the APK / app window
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === "visible") {
-          navigator.serviceWorker.ready.then((reg) => {
-            reg.update().catch(() => {});
-          });
-        }
-      };
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-      window.addEventListener("online", handleVisibilityChange);
-
-      // Listen for controller change (reload when updated)
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      });
-
-      return () => {
-        clearInterval(interval);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-        window.removeEventListener("online", handleVisibilityChange);
-      };
     }
-  }, [registration]);
 
-  const handleUpdate = () => {
+    return () => {
+      window.removeEventListener("tnpa_update_ready", handleUpdateReady);
+    };
+  }, []);
+
+  // Automatic countdown to apply update without any user friction
+  useEffect(() => {
+    if (!updateAvailable || isDismissed || isUpdating) return;
+
+    if (autoApplyCountdown <= 0) {
+      setIsUpdating(true);
+      performInstantAppUpdate();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setAutoApplyCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [updateAvailable, autoApplyCountdown, isDismissed, isUpdating]);
+
+  const handleUpdateNow = () => {
     setIsUpdating(true);
-    if (registration && registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    } else {
-      // Force cache bust & hard reload
-      if ("caches" in window) {
-        caches.keys().then((names) => {
-          names.forEach((name) => caches.delete(name));
-        });
-      }
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    }
+    performInstantAppUpdate();
   };
 
-  if (!updateAvailable) {
+  if (!updateAvailable || isDismissed) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 md:left-auto md:right-6 md:w-96 bg-stone-900 text-white p-4 rounded-2xl shadow-2xl border-2 border-amber-500 z-50 animate-bounce">
+    <div 
+      id="auto-update-ota-banner"
+      className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-[420px] bg-stone-950/95 text-white p-5 rounded-3xl shadow-2xl border-2 border-amber-400 z-[9999] backdrop-blur-xl animate-in fade-in slide-in-from-bottom-5 duration-300"
+    >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
-            <Sparkles className="w-5 h-5 animate-spin" />
+        <div className="flex items-start gap-3.5">
+          <div className="p-3 bg-gradient-to-br from-amber-400 to-amber-600 text-stone-950 rounded-2xl shadow-lg shrink-0 mt-0.5">
+            <Sparkles className="w-6 h-6 animate-spin" />
           </div>
-          <div>
-            <h4 className="font-extrabold text-sm text-amber-300">
-              {lang === "ta" ? "புதிய பதிப்பு கிடைத்துள்ளது! 🚀" : "New Update Available! 🚀"}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="bg-emerald-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                {lang === "ta" ? "நேரடி தானியங்கி அப்டேட்" : "OTA Auto-Update"}
+              </span>
+              <span className="bg-stone-800 text-amber-300 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-stone-700">
+                v{updateInfo?.version || "3.3.0"}
+              </span>
+            </div>
+            <h4 className="font-black text-sm text-amber-300 leading-tight">
+              {lang === "ta" 
+                ? "புதிய அதிகாரப்பூர்வ பதிப்பு தயாராக உள்ளது! 🚀" 
+                : "Official App Update is Ready! 🚀"}
             </h4>
-            <p className="text-xs text-stone-300 mt-0.5">
+            <p className="text-xs text-stone-200 leading-relaxed">
               {lang === "ta"
-                ? "சங்க செயலியின் புதிய அம்சங்கள் மற்றும் பாதுகாப்பு மாற்றங்கள் தயாராக உள்ளன."
-                : "A new version with the latest features and fixes is ready."}
+                ? "பழைய செயலியை அன்இன்ஸ்டால் செய்யத் தேவையில்லை! 38 மாவட்ட நிர்வாகிகள் கிளவுட் பாதுகாப்பு மற்றும் புதிய வசதிகள் தானாகவே நிறுவப்படும்."
+                : "No need to uninstall the app! Latest 38 districts Firestore persistence and new features will apply automatically."}
             </p>
           </div>
         </div>
         <button
-          onClick={() => setUpdateAvailable(false)}
-          className="text-stone-400 hover:text-white p-1"
-          title="Close"
+          onClick={() => setIsDismissed(true)}
+          className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 cursor-pointer"
+          title="Dismiss"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      {/* Progress & Action Bar */}
+      <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between gap-3">
+        <div className="text-[11px] text-amber-200 font-semibold flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          {lang === "ta"
+            ? `${autoApplyCountdown} வினாடிகளில் தானாகப் புதுப்பிக்கப்படும்...`
+            : `Auto-refreshing in ${autoApplyCountdown}s...`}
+        </div>
+
         <button
-          onClick={handleUpdate}
+          onClick={handleUpdateNow}
           disabled={isUpdating}
-          className="flex-1 py-2 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+          className="py-2.5 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 shrink-0 active:scale-95"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin text-stone-950" : ""}`} />
           <span>
             {isUpdating
-              ? (lang === "ta" ? "புதுப்பிக்கப்படுகிறது..." : "Updating...")
-              : (lang === "ta" ? "இப்போதே புதுப்பிக்கவும் (Update Now)" : "Update Now")}
+              ? (lang === "ta" ? "புதுப்பிக்கிறது..." : "Updating...")
+              : (lang === "ta" ? "இப்போதே புதுப்பி" : "Update Now")}
           </span>
         </button>
       </div>
@@ -157,3 +142,4 @@ export function AutoUpdatePrompt({ lang }: AutoUpdatePromptProps) {
   );
 }
 export default AutoUpdatePrompt;
+
