@@ -9,6 +9,11 @@ import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, getDocs, onSnapshot } from "firebase/firestore";
 import { cleanForFirestore } from "../lib/syncService";
 
+// Storage Keys (Declared at module top to avoid TDZ issues)
+export const STORAGE_KEY_INCHARGES = "tnpa_district_incharges_v3";
+export const STORAGE_KEY_SUPERKEYS = "tnpa_district_super_keys_v3";
+export const STORAGE_KEY_PENDING_SYNC = "tnpa_pending_incharge_sync_v1";
+
 // Default avatar placeholder (used only when a real person is registered without an uploaded photo)
 export const DEFAULT_EXEC_AVATARS = [
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300&h=300"
@@ -191,11 +196,6 @@ export function loadAllDistrictSuperKeys(): DistrictSuperKeyRecord[] {
   return initial;
 }
 
-// Storage Keys
-export const STORAGE_KEY_INCHARGES = "tnpa_district_incharges_v3";
-export const STORAGE_KEY_SUPERKEYS = "tnpa_district_super_keys_v3";
-export const STORAGE_KEY_PENDING_SYNC = "tnpa_pending_incharge_sync_v1";
-
 // Helper: Get offline pending sync list
 export function getPendingInChargeSync(): DistrictInChargePerson[] {
   try {
@@ -317,16 +317,37 @@ export function getDistrictsOverviewList(
 
   return ALL_38_TAMILNADU_DISTRICTS.map((dist) => {
     const code = dist.code.toUpperCase();
-    const distIncharges = validIncharges.filter(
-      i => i.districtCode.toUpperCase() === code || i.districtTa === dist.ta
+    const distTa = dist.ta;
+    const distEn = dist.en.toLowerCase();
+
+    const distIncharges = validIncharges.filter(i => {
+      const iCode = (i.districtCode || "").toUpperCase();
+      const iTa = i.districtTa || "";
+      const iEn = (i.districtEn || "").toLowerCase();
+      return (
+        (iCode && iCode === code) ||
+        (iTa && (iTa.includes(distTa) || distTa.includes(iTa))) ||
+        (iEn && (iEn.includes(distEn) || distEn.includes(iEn)))
+      );
+    });
+
+    const pres = distIncharges.find(i => 
+      (i.category === "district_leader" || i.category === "district_executive") && 
+      i.role.includes("தலைவர்") && !i.role.includes("துணை")
+    );
+    const sec = distIncharges.find(i => 
+      (i.category === "district_leader" || i.category === "district_executive") && 
+      i.role.includes("செயலாளர்") && !i.role.includes("துணை") && !i.role.includes("இணை")
+    );
+    const tres = distIncharges.find(i => 
+      (i.category === "district_leader" || i.category === "district_executive") && 
+      i.role.includes("பொருளாளர்") && !i.role.includes("துணை")
     );
 
-    const pres = distIncharges.find(i => i.category === "district_leader" && i.role.includes("தலைவர்"));
-    const sec = distIncharges.find(i => i.category === "district_leader" && i.role.includes("செயலாளர்"));
-    const tres = distIncharges.find(i => i.category === "district_leader" && i.role.includes("பொருளாளர்"));
-
-    const distExecCount = distIncharges.filter(i => i.category === "district_executive").length;
-    const townCount = distIncharges.filter(i => i.category === "town_incharge").length;
+    const distExecCount = distIncharges.filter(
+      i => i.category === "district_executive" || (i.category === "district_leader" && i !== pres && i !== sec && i !== tres)
+    ).length;
+    const townCount = distIncharges.filter(i => i.category === "town_incharge" || i.category === "branch_incharge").length;
     const unionCount = distIncharges.filter(i => i.category === "union_incharge").length;
 
     return {
@@ -360,15 +381,35 @@ export function getInChargesForDistrict(
   townInCharges: DistrictInChargePerson[];
   unionInCharges: DistrictInChargePerson[];
 } {
-  const code = districtCode.toUpperCase();
-  const validIncharges = allIncharges.filter(p => !isFakeInCharge(p));
-  const districtList = validIncharges.filter(
-    i => i.districtCode.toUpperCase() === code
-  );
+  const code = (districtCode || "").toUpperCase();
+  const distObj = ALL_38_TAMILNADU_DISTRICTS.find(d => d.code.toUpperCase() === code);
+  const distTa = distObj ? distObj.ta : "";
+  const distEn = distObj ? distObj.en.toLowerCase() : "";
 
-  const president = districtList.find(i => i.category === "district_leader" && i.role.includes("தலைவர்"));
-  const secretary = districtList.find(i => i.category === "district_leader" && i.role.includes("செயலாளர்"));
-  const treasurer = districtList.find(i => i.category === "district_leader" && i.role.includes("பொருளாளர்"));
+  const validIncharges = allIncharges.filter(p => !isFakeInCharge(p));
+  const districtList = validIncharges.filter(i => {
+    const iCode = (i.districtCode || "").toUpperCase();
+    const iTa = i.districtTa || "";
+    const iEn = (i.districtEn || "").toLowerCase();
+    return (
+      (iCode && iCode === code) ||
+      (distTa && (iTa.includes(distTa) || distTa.includes(iTa))) ||
+      (distEn && (iEn.includes(distEn) || distEn.includes(iEn)))
+    );
+  });
+
+  const president = districtList.find(i => 
+    (i.category === "district_leader" || i.category === "district_executive") && 
+    i.role.includes("தலைவர்") && !i.role.includes("துணை")
+  );
+  const secretary = districtList.find(i => 
+    (i.category === "district_leader" || i.category === "district_executive") && 
+    i.role.includes("செயலாளர்") && !i.role.includes("துணை") && !i.role.includes("இணை")
+  );
+  const treasurer = districtList.find(i => 
+    (i.category === "district_leader" || i.category === "district_executive") && 
+    i.role.includes("பொருளாளர்") && !i.role.includes("துணை")
+  );
 
   const districtExecutives = districtList.filter(
     i => i.category === "district_executive" || (i.category === "district_leader" && i !== president && i !== secretary && i !== treasurer)

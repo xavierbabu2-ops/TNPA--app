@@ -269,10 +269,23 @@ export default function DistrictPortalsManagement({
     };
     window.addEventListener("tnpa_incharges_changed", handleLocalUpdate);
 
+    // 5. When user switches back to this tab or app on mobile, auto-refresh from Firestore
+    const handleFocusOrVisible = () => {
+      fetchDistrictInChargesFromFirestore().then((fetched) => {
+        if (fetched && fetched.length > 0) {
+          setIncharges(fetched);
+        }
+      }).catch(() => {});
+    };
+    window.addEventListener("focus", handleFocusOrVisible);
+    document.addEventListener("visibilitychange", handleFocusOrVisible);
+
     return () => {
       unsubIncharges();
       unsubKeys();
       window.removeEventListener("tnpa_incharges_changed", handleLocalUpdate);
+      window.removeEventListener("focus", handleFocusOrVisible);
+      document.removeEventListener("visibilitychange", handleFocusOrVisible);
     };
   }, []);
 

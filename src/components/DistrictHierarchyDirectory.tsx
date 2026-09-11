@@ -44,15 +44,33 @@ export default function DistrictHierarchyDirectory({ lang, onClose }: DistrictHi
   const directoryList = useMemo(() => {
     return ALL_38_TAMILNADU_DISTRICTS.map((dist) => {
       const code = dist.code.toUpperCase();
-      const distIncharges = registeredInCharges.filter(
-        i => i.districtCode?.toUpperCase() === code || i.districtTa === dist.ta
+      const distIncharges = registeredInCharges.filter(i => {
+        const iCode = (i.districtCode || "").toUpperCase();
+        const iTa = i.districtTa || "";
+        const iEn = (i.districtEn || "").toLowerCase();
+        return (
+          (iCode && iCode === code) ||
+          (iTa && (iTa.includes(dist.ta) || dist.ta.includes(iTa))) ||
+          (iEn && (iEn.includes(dist.en.toLowerCase()) || dist.en.toLowerCase().includes(iEn)))
+        );
+      });
+
+      const pres = distIncharges.find(i => 
+        (i.category === "district_leader" || i.category === "district_executive") && 
+        i.role.includes("தலைவர்") && !i.role.includes("துணை")
+      );
+      const sec = distIncharges.find(i => 
+        (i.category === "district_leader" || i.category === "district_executive") && 
+        i.role.includes("செயலாளர்") && !i.role.includes("துணை") && !i.role.includes("இணை")
+      );
+      const tres = distIncharges.find(i => 
+        (i.category === "district_leader" || i.category === "district_executive") && 
+        i.role.includes("பொருளாளர்") && !i.role.includes("துணை")
       );
 
-      const pres = distIncharges.find(i => i.category === "district_leader" && i.role.includes("தலைவர்"));
-      const sec = distIncharges.find(i => i.category === "district_leader" && i.role.includes("செயலாளர்"));
-      const tres = distIncharges.find(i => i.category === "district_leader" && i.role.includes("பொருளாளர்"));
-
-      const executives = distIncharges.filter(i => i.category === "district_executive");
+      const executives = distIncharges.filter(i => 
+        i.category === "district_executive" || (i.category === "district_leader" && i !== pres && i !== sec && i !== tres)
+      );
       const towns = distIncharges.filter(i => i.category === "town_incharge");
       const unions = distIncharges.filter(i => i.category === "union_incharge");
 

@@ -97,7 +97,7 @@ import DistrictHierarchyDirectory from "./components/DistrictHierarchyDirectory"
 import RoleBasedControlPortal from "./components/RoleBasedControlPortal";
 import OfficeBearerPortal from "./components/OfficeBearerPortal";
 import ExecutiveDirectoryPortal from "./components/ExecutiveDirectoryPortal";
-import { INITIAL_EXECUTIVE_MEMBERS } from "./data/initialExecutives";
+import { INITIAL_EXECUTIVE_MEMBERS, ALL_38_TAMILNADU_DISTRICTS } from "./data/initialExecutives";
 import { getExecutivePhoto } from "./utils/executivePhotos";
 import PainterInsurancePortal from "./components/PainterInsurancePortal";
 import PainterSkillAcademy from "./components/PainterSkillAcademy";
@@ -257,14 +257,25 @@ export default function App() {
     // 8. Real-time Executives listener (State, District, Zone, Area/Union)
     const unsubExecs = subscribeToExecutives((remoteExecs) => {
       if (remoteExecs && remoteExecs.length > 0) {
-        const sanitized = remoteExecs.map((e) => ({
-          ...e,
-          photoUrl: getExecutivePhoto(e)
-        }));
-        setExecutives(sanitized);
-        try {
-          localStorage.setItem("tnpa_executives_v1", JSON.stringify(sanitized));
-        } catch (e) {}
+        setExecutives((prev) => {
+          const map = new Map<string, ExecutiveMember>();
+          // 1. Guarantee state leaders exist
+          INITIAL_EXECUTIVE_MEMBERS.forEach((e) => map.set(e.id, e));
+          // 2. Preserve existing in-memory executives
+          prev.forEach((e) => map.set(e.id, e));
+          // 3. Overlay remote executives
+          remoteExecs.forEach((e) => {
+            map.set(e.id, {
+              ...e,
+              photoUrl: getExecutivePhoto(e)
+            });
+          });
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem("tnpa_executives_v1", JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
       }
     });
 
@@ -273,6 +284,9 @@ export default function App() {
       if (remoteDistrictIncharges && remoteDistrictIncharges.length > 0) {
         setExecutives((prev) => {
           const map = new Map<string, ExecutiveMember>();
+          // 1. Guarantee state leaders exist
+          INITIAL_EXECUTIVE_MEMBERS.forEach((e) => map.set(e.id, e));
+          // 2. Preserve existing in-memory executives
           prev.forEach((e) => map.set(e.id, e));
 
           remoteDistrictIncharges.forEach((p) => {
@@ -2146,32 +2160,76 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {initialDistricts.map((dist, idx) => (
-                    <div key={`app_dist_${dist.id}_${idx}`} className="p-4 border border-stone-200 bg-stone-50 rounded-2xl text-left space-y-3">
-                      <div className="border-b border-stone-200 pb-2 flex justify-between items-center">
-                        <span className="font-extrabold text-stone-950 text-sm">
-                          📍 {lang === "ta" ? dist.district : dist.districtEn}
-                        </span>
-                        <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                          {lang === "ta" ? "செயலில் உள்ளது" : "Active"}
-                        </span>
-                      </div>
+                  {ALL_38_TAMILNADU_DISTRICTS.map((dist, idx) => {
+                    const distExecs = executives.filter(
+                      (e) => (e.district && e.district.includes(dist.ta)) || (e.districtEn && e.districtEn.toLowerCase().includes(dist.en.toLowerCase()))
+                    );
+                    const pres = distExecs.find((e) => e.role.includes("தலைவர்") && !e.role.includes("துணை"));
+                    const sec = distExecs.find((e) => e.role.includes("செயலாளர்") && !e.role.includes("துணை") && !e.role.includes("இணை"));
+                    const isRegistered = Boolean(pres || sec || distExecs.length > 0);
 
-                      <div className="space-y-1.5 text-xs text-stone-700">
-                        <div>
-                          <span className="text-[10px] text-stone-400 block uppercase font-bold">President / தலைவர்:</span>
-                          <span className="font-bold text-stone-900">{dist.president}</span>
-                          <a href={`tel:${dist.presidentPhone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">{dist.presidentPhone}</a>
+                    return (
+                      <div key={`app_dist_${dist.code}_${idx}`} className="p-4 border border-stone-200 bg-stone-50 hover:bg-amber-50/40 transition-colors rounded-2xl text-left space-y-3">
+                        <div className="border-b border-stone-200 pb-2 flex justify-between items-center">
+                          <span className="font-extrabold text-stone-950 text-sm flex items-center gap-1.5">
+                            📍 {lang === "ta" ? dist.ta : dist.en}
+                            <span className="text-[10px] font-mono text-stone-400 bg-stone-200 px-1.5 py-0.5 rounded">
+                              {dist.code}
+                            </span>
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            isRegistered 
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200" 
+                              : "bg-stone-100 text-stone-500 border border-stone-200"
+                          }`}>
+                            {isRegistered 
+                              ? (lang === "ta" ? "நிர்வாகிகள் பதிவுசெய்துள்ளனர்" : "Active & Registered")
+                              : (lang === "ta" ? "நேரடி பொறுப்பு" : "Pending Registration")}
+                          </span>
                         </div>
 
-                        <div className="border-t border-stone-200/50 pt-1.5">
-                          <span className="text-[10px] text-stone-400 block uppercase font-bold">Secretary / செயலாளர்:</span>
-                          <span className="font-bold text-stone-900">{dist.secretary}</span>
-                          <a href={`tel:${dist.secretaryPhone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">{dist.secretaryPhone}</a>
+                        <div className="space-y-1.5 text-xs text-stone-700">
+                          <div>
+                            <span className="text-[10px] text-stone-400 block uppercase font-bold">President / தலைவர்:</span>
+                            <span className="font-bold text-stone-900">
+                              {pres ? pres.name : (lang === "ta" ? "நியமன பரிசீலனையில்..." : "To be appointed")}
+                            </span>
+                            {pres?.phone ? (
+                              <a href={`tel:${pres.phone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">
+                                📞 {pres.phone}
+                              </a>
+                            ) : null}
+                          </div>
+
+                          <div className="border-t border-stone-200/50 pt-1.5">
+                            <span className="text-[10px] text-stone-400 block uppercase font-bold">Secretary / செயலாளர்:</span>
+                            <span className="font-bold text-stone-900">
+                              {sec ? sec.name : (lang === "ta" ? "நியமன பரிசீலனையில்..." : "To be appointed")}
+                            </span>
+                            {sec?.phone ? (
+                              <a href={`tel:${sec.phone}`} className="text-[#b91c1c] font-bold block hover:underline mt-0.5">
+                                📞 {sec.phone}
+                              </a>
+                            ) : null}
+                          </div>
+
+                          <div className="pt-2 border-t border-stone-200/60 flex justify-between items-center">
+                            <span className="text-[10px] text-stone-500">
+                              {distExecs.length > 0 ? `${distExecs.length} நிர்வாகிகள்` : "மாநில தலைமை மேற்பார்வை"}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setActiveTab("district_portals");
+                              }}
+                              className="text-[11px] font-bold text-[#b91c1c] hover:text-red-700 cursor-pointer underline"
+                            >
+                              {lang === "ta" ? "மாவட்ட தளம் திறக்க →" : "Open Portal →"}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
