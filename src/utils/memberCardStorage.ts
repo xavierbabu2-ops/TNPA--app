@@ -1,10 +1,89 @@
 import { MemberCardRequest, MemberCardPaymentConfig, DEFAULT_MEMBER_CARD_CONFIG } from '../types/memberCard';
+import { db } from '../lib/firebase';
+import { collection, doc, setDoc, onSnapshot, getDocs } from 'firebase/firestore';
 
 const STORAGE_KEY_REQUESTS = 'tnpa_member_card_requests_v1';
 const STORAGE_KEY_CONFIG = 'tnpa_member_card_config_v1';
+export const CARD_REQUESTS_EVENT = 'tnpa_card_requests_updated';
+
+// In-memory cache
+let cachedRequests: MemberCardRequest[] | null = null;
 
 // Initial sample mock data if empty
 const INITIAL_REQUESTS: MemberCardRequest[] = [];
+
+// Initialize Firestore listener for real-time sync across devices and sessions
+let isListenerAttached = false;
+export function initMemberCardFirestoreListener() {
+  if (isListenerAttached || typeof window === 'undefined') return;
+  isListenerAttached = true;
+
+  try {
+    const colRef = collection(db, 'member_card_requests');
+    onSnapshot(colRef, (snapshot) => {
+      const serverRequests: MemberCardRequest[] = [];
+      snapshot.forEach((d) => {
+        serverRequests.push(d.data() as MemberCardRequest);
+      });
+
+      if (serverRequests.length > 0) {
+        // Merge with any locally saved requests
+        const local = getLocalRequests();
+        const mergedMap = new Map<string, MemberCardRequest>();
+        local.forEach((r) => mergedMap.set(r.id, r));
+        serverRequests.forEach((r) => mergedMap.set(r.id, r));
+        
+        const merged = Array.from(mergedMap.values()).sort((a, b) => 
+          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+
+        cachedRequests = merged;
+        try {
+          localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(merged));
+        } catch (e) {
+          console.error(e);
+        }
+        window.dispatchEvent(new CustomEvent(CARD_REQUESTS_EVENT, { detail: merged }));
+      }
+    }, (err) => {
+      console.warn('Firestore member_card_requests onSnapshot warning:', err);
+    });
+  } catch (e) {
+    console.warn('Could not attach Firestore listener for member_card_requests:', e);
+  }
+}
+
+// Auto start listener
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    initMemberCardFirestoreListener();
+  }, 100);
+}
+
+function getLocalRequests(): MemberCardRequest[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_REQUESTS);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load member card requests:', e);
+  }
+  return INITIAL_REQUESTS;
+}
+
+export function subscribeToMemberCardRequests(callback: (requests: MemberCardRequest[]) => void): () => void {
+  const handler = (e: Event) => {
+    const custom = e as CustomEvent<MemberCardRequest[]>;
+    callback(custom.detail || getAllMemberCardRequests());
+  };
+  window.addEventListener(CARD_REQUESTS_EVENT, handler);
+  // Also call immediately
+  callback(getAllMemberCardRequests());
+  return () => {
+    window.removeEventListener(CARD_REQUESTS_EVENT, handler);
+  };
+}
 
 export function getMemberCardConfig(): MemberCardPaymentConfig {
   try {
@@ -21,28 +100,33 @@ export function getMemberCardConfig(): MemberCardPaymentConfig {
 export function saveMemberCardConfig(config: MemberCardPaymentConfig): void {
   try {
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
+    // Also sync config to Firestore union_config
+    const docRef = doc(db, 'union_config', 'member_card_settings');
+    setDoc(docRef, config, { merge: true }).catch((err) => {
+      console.warn('Failed to sync member_card_settings to Firestore:', err);
+    });
   } catch (e) {
     console.error('Failed to save member card config:', e);
   }
 }
 
 export function getAllMemberCardRequests(): MemberCardRequest[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_REQUESTS);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (e) {
-    console.error('Failed to load member card requests:', e);
-  }
-  // Initialize default
-  localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(INITIAL_REQUESTS));
-  return INITIAL_REQUESTS;
+  if (cachedRequests) return cachedRequests;
+  const list = getLocalRequests();
+  cachedRequests = list;
+  return list;
 }
 
 export function getMemberCardRequestByMemberId(memberId: string): MemberCardRequest | null {
+  if (!memberId) return null;
   const requests = getAllMemberCardRequests();
-  return requests.find(r => r.memberId === memberId) || null;
+  const cleanId = String(memberId).trim().toLowerCase();
+  return requests.find(r => 
+    (r.memberId && String(r.memberId).trim().toLowerCase() === cleanId) ||
+    (r.id && String(r.id).trim().toLowerCase() === cleanId) ||
+    (r.cardNumber && String(r.cardNumber).trim().toLowerCase() === cleanId) ||
+    (r.memberPhone && String(r.memberPhone).trim() === cleanId)
+  ) || null;
 }
 
 export function getMemberCardRequestByToken(token: string): MemberCardRequest | null {
@@ -51,16 +135,38 @@ export function getMemberCardRequestByToken(token: string): MemberCardRequest | 
 }
 
 export function saveMemberCardRequest(request: MemberCardRequest): void {
-  const requests = getAllMemberCardRequests();
+  const requests = [...getAllMemberCardRequests()];
   const index = requests.findIndex(r => r.id === request.id || r.memberId === request.memberId);
   
+  const updatedReq = {
+    ...request,
+    updatedAt: new Date().toISOString()
+  };
+
   if (index >= 0) {
-    requests[index] = { ...requests[index], ...request, updatedAt: new Date().toISOString() };
+    requests[index] = { ...requests[index], ...updatedReq };
   } else {
-    requests.unshift(request);
+    requests.unshift(updatedReq);
   }
   
-  localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+  cachedRequests = requests;
+  try {
+    localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+  } catch (e) {
+    console.error('Error saving requests to localStorage:', e);
+  }
+
+  // Sync to Firestore
+  try {
+    const docRef = doc(db, 'member_card_requests', updatedReq.id);
+    setDoc(docRef, updatedReq, { merge: true }).catch((err) => {
+      console.warn('Failed to write member_card_request to Firestore:', err);
+    });
+  } catch (err) {
+    console.warn('Firestore write error:', err);
+  }
+
+  window.dispatchEvent(new CustomEvent(CARD_REQUESTS_EVENT, { detail: requests }));
 }
 
 export function approveMemberCardRequest(
@@ -69,10 +175,11 @@ export function approveMemberCardRequest(
   isSuperAdmin: boolean = false,
   isDistrictAdmin: boolean = false
 ): MemberCardRequest | null {
-  const requests = getAllMemberCardRequests();
-  const req = requests.find(r => r.id === requestId);
-  if (!req) return null;
+  const requests = [...getAllMemberCardRequests()];
+  const index = requests.findIndex(r => r.id === requestId);
+  if (index < 0) return null;
 
+  const req = { ...requests[index] };
   const nowString = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 
   if (isSuperAdmin) {
@@ -102,7 +209,25 @@ export function approveMemberCardRequest(
     req.updatedAt = new Date().toISOString();
   }
 
-  localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+  requests[index] = req;
+  cachedRequests = requests;
+  try {
+    localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+  } catch (e) {
+    console.error(e);
+  }
+
+  // Sync to Firestore
+  try {
+    const docRef = doc(db, 'member_card_requests', req.id);
+    setDoc(docRef, req, { merge: true }).catch((err) => {
+      console.warn('Failed to update member_card_request in Firestore:', err);
+    });
+  } catch (err) {
+    console.warn('Firestore update error:', err);
+  }
+
+  window.dispatchEvent(new CustomEvent(CARD_REQUESTS_EVENT, { detail: requests }));
   return req;
 }
 
@@ -115,15 +240,35 @@ export function superAdminApproveMemberCardRequest(requestId: string, superAdmin
 }
 
 export function rejectMemberCardRequest(requestId: string, reason: string, adminName: string): MemberCardRequest | null {
-  const requests = getAllMemberCardRequests();
-  const req = requests.find(r => r.id === requestId);
-  if (!req) return null;
+  const requests = [...getAllMemberCardRequests()];
+  const index = requests.findIndex(r => r.id === requestId);
+  if (index < 0) return null;
 
+  const req = { ...requests[index] };
   req.status = 'rejected';
   req.rejectionReason = reason || 'Payment UTR number could not be verified in association bank account.';
   req.approvedBy = adminName;
   req.updatedAt = new Date().toISOString();
 
-  localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+  requests[index] = req;
+  cachedRequests = requests;
+  try {
+    localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
+  } catch (e) {
+    console.error(e);
+  }
+
+  // Sync to Firestore
+  try {
+    const docRef = doc(db, 'member_card_requests', req.id);
+    setDoc(docRef, req, { merge: true }).catch((err) => {
+      console.warn('Failed to reject member_card_request in Firestore:', err);
+    });
+  } catch (err) {
+    console.warn('Firestore update error:', err);
+  }
+
+  window.dispatchEvent(new CustomEvent(CARD_REQUESTS_EVENT, { detail: requests }));
   return req;
 }
+

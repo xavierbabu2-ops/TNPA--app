@@ -28,7 +28,8 @@ import {
   X,
   Camera,
   Save,
-  ExternalLink
+  ExternalLink,
+  Lock
 } from "lucide-react";
 import { MemberRegistration, UserAccount } from "../types";
 import UnionOfficialIdCard from "./UnionOfficialIdCard";
@@ -37,7 +38,7 @@ import EditMemberIdCardModal, { MemberCardEditableData } from "./EditMemberIdCar
 import { ALL_38_TAMILNADU_DISTRICTS } from "../data/initialExecutives";
 import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
 import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
-import { getMemberCardRequestByMemberId } from "../utils/memberCardStorage";
+import { getMemberCardRequestByMemberId, subscribeToMemberCardRequests } from "../utils/memberCardStorage";
 import { formatMemberNumber, generateDistrictRegNumber } from "../utils/districtCodes";
 import { storage, db } from "../lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -439,20 +440,40 @@ export default function MemberIdCardPortal({
     }
   };
 
-  const handlePrintCard = () => {
-    window.print();
-    onAddAuditLog("Print Member ID Card", `Printed official ID card for: ${memberName}`);
-  };
+  // Live subscription to card requests
+  const [cardRequestsTick, setCardRequestsTick] = useState(0);
+  useEffect(() => {
+    const unsub = subscribeToMemberCardRequests(() => {
+      setCardRequestsTick(t => t + 1);
+    });
+    return () => unsub();
+  }, []);
 
   // Check payment approval status
   const currentMemberKey = currentMember?.regNumber || currentMember?.id || customRegNo || "custom";
   const existingPaymentRequest =
     getMemberCardRequestByMemberId(currentMemberKey) ||
     (currentMember?.regNumber ? getMemberCardRequestByMemberId(currentMember.regNumber) : null) ||
-    (currentMember?.id ? getMemberCardRequestByMemberId(currentMember.id) : null);
+    (currentMember?.id ? getMemberCardRequestByMemberId(currentMember.id) : null) ||
+    (currentMember?.phone ? getMemberCardRequestByMemberId(currentMember.phone) : null);
 
-  // Payment / authorization status - All registered members and officials can download their official ID cards directly
-  const isPaymentApproved = true;
+  // Super Admin approval check - member card can only be downloaded after Super Admin approves
+  const isSuperAdminOrState = Boolean(
+    isSuperAdmin || 
+    (currentMember as any)?.role === "super_admin" || 
+    (currentMember as any)?.role === "state_president" ||
+    (currentMember as any)?.isPrimarySuperAdmin
+  );
+  const isPaymentApproved = isSuperAdminOrState || existingPaymentRequest?.status === "approved";
+
+  const handlePrintCard = () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
+    window.print();
+    onAddAuditLog("Print Member ID Card", `Printed official ID card for: ${memberName}`);
+  };
 
   const handleDownloadPdf = async () => {
     if (!isPaymentApproved) {
@@ -842,6 +863,65 @@ export default function MemberIdCardPortal({
                   <Download className="w-3.5 h-3.5 text-stone-950" />
                   <span>{lang === "ta" ? "📥 நேரடி பதிவிறக்கம்" : "📥 Direct Download"}</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Super Admin Payment Approval Gate Banner */}
+          {!isPaymentApproved && (
+            <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-left shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 mt-0.5">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <span className="inline-block text-[11px] font-black uppercase text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md">
+                    {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
+                      ? (lang === "ta" ? "சூப்பர் அட்மின் ஒப்புதலுக்கு பரிசீலனையில் உள்ளது" : "Awaiting Super Admin Approval")
+                      : (lang === "ta" ? "கட்டண சரிபார்ப்பு தேவை" : "Payment Verification Required")}
+                  </span>
+                  <h4 className="text-sm font-black text-amber-950">
+                    {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
+                      ? (lang === "ta"
+                          ? `நீங்கள் பணம் அனுப்பிய கோடு (UTR: ${existingPaymentRequest.utrNumber}) சமர்ப்பிக்கப்பட்டுள்ளது.`
+                          : `Payment Reference (UTR: ${existingPaymentRequest.utrNumber}) submitted.`)
+                      : (lang === "ta"
+                          ? "உறுப்பினர் அட்டை டவுன்லோட் செய்வதற்கு முன்னர் பணம் அனுப்பிய கோடை உள்ளிடவும்."
+                          : "Enter payment UTR code before downloading member card.")}
+                  </h4>
+                  <p className="text-xs text-amber-800 font-medium">
+                    {lang === "ta"
+                      ? "சூப்பர் அட்மின் ஒப்புதலுக்கு பிறகு மட்டுமே உறுப்பினர் அட்டை தயார் செய்யப்பட்டு டவுன்லோட் செய்ய முடியும்."
+                      : "Membership card will be generated and downloadable only after Super Admin approves your payment code."}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="btn-open-payment-modal-banner"
+                onClick={() => setShowPaymentModal(true)}
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
+                  ? (lang === "ta" ? "நிலையை பார்க்க / Refresh" : "Check Live Status")
+                  : (lang === "ta" ? "பணம் அனுப்பிய கோடை உள்ளிடவும்" : "Enter Payment Code")}
+              </button>
+            </div>
+          )}
+
+          {isPaymentApproved && !isSuperAdminOrState && (
+            <div className="p-3.5 bg-emerald-50 border-2 border-emerald-500 rounded-2xl flex items-center gap-3 text-left shadow-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div className="text-xs">
+                <span className="font-black text-emerald-950 block">
+                  {lang === "ta" ? "🎉 சூப்பர் அட்மின் ஒப்புதல் வழங்கப்பட்டது!" : "🎉 Super Admin Approved!"}
+                </span>
+                <span className="text-emerald-800 font-medium">
+                  {lang === "ta"
+                    ? "உங்கள் உறுப்பினர் அட்டை தயார் செய்யப்பட்டுள்ளது. இப்போது நீங்கள் மேலே உள்ள பொத்தான்கள் மூலம் பதிவிறக்கம் செய்து கொள்ளலாம்."
+                    : "Your membership card is prepared and ready to download."}
+                </span>
               </div>
             </div>
           )}

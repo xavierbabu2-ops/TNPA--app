@@ -21,14 +21,17 @@ import {
   Loader2,
   ExternalLink,
   Share2,
-  FileCheck
+  FileCheck,
+  Lock,
+  Crown
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { MemberCardRequest, MemberCardPaymentConfig } from '../types/memberCard';
 import { 
   getMemberCardConfig, 
   getMemberCardRequestByMemberId, 
-  saveMemberCardRequest 
+  saveMemberCardRequest,
+  subscribeToMemberCardRequests
 } from '../utils/memberCardStorage';
 import { exportIdCardAsPDF, exportIdCardAsImages, shareOrDownloadBlob } from '../utils/idCardPdfExport';
 
@@ -58,13 +61,24 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
   const [generatedPdf, setGeneratedPdf] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
 
-  // Load existing member card request
+  // Load and reactively subscribe to existing member card request
   useEffect(() => {
-    if (currentUser) {
-      const memberId = currentUser.regNumber || currentUser.id;
-      const existing = getMemberCardRequestByMemberId(memberId);
-      setRequest(existing);
+    if (!currentUser) {
+      setRequest(null);
+      return;
     }
+    const updateReq = () => {
+      const memberId = currentUser.regNumber || currentUser.id;
+      const existing = getMemberCardRequestByMemberId(memberId) ||
+        getMemberCardRequestByMemberId(currentUser.phone) ||
+        (currentUser.regNumber ? getMemberCardRequestByMemberId(currentUser.regNumber) : null);
+      setRequest(existing);
+    };
+    updateReq();
+    const unsub = subscribeToMemberCardRequests(() => {
+      updateReq();
+    });
+    return () => unsub();
   }, [currentUser]);
 
   // Refresh config from storage
@@ -286,9 +300,24 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
       {/* MAIN LIFECYCLE ROUTER */}
       {currentUser && (
         <>
-          {/* STATE 1: APPROVED - DISPLAY OFFICIAL MEMBER CARD */}
-          {(request?.status === 'approved' || currentUser?.status === 'approved' || currentUser?.role === 'super_admin' || currentUser?.role === 'district_admin' || currentUser?.role === 'state_president' || currentUser?.role === 'state_treasurer') && (
+          {/* STATE 1: APPROVED - DISPLAY OFFICIAL MEMBER CARD (Super Admin Approved Only) */}
+          {(request?.status === 'approved' || currentUser?.role === 'super_admin' || currentUser?.isPrimarySuperAdmin) && (
             <div className="space-y-6">
+              {/* Approval Success Banner */}
+              <div className="w-full max-w-md mx-auto p-4 bg-emerald-50 border-2 border-emerald-500 rounded-2xl flex items-center gap-3 text-emerald-900 shadow-sm text-left">
+                <div className="p-2 bg-emerald-500 text-white rounded-xl shrink-0">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="text-xs space-y-0.5">
+                  <span className="font-black text-sm text-emerald-950 block">
+                    {request?.superAdminApprovedBy ? `சூப்பர் அட்மின் (${request.superAdminApprovedBy}) ஒப்புதல் வழங்கப்பட்டது!` : 'சூப்பர் அட்மின் ஒப்புதல் வழங்கப்பட்டது!'}
+                  </span>
+                  <span className="text-emerald-800 font-medium">
+                    உங்கள் உறுப்பினர் அட்டை தயார் செய்யப்பட்டுள்ளது. இப்போது நீங்கள் கீழே உள்ள பொத்தான்கள் மூலம் பதிவிறக்கம் அல்லது அச்சிட்டுக் கொள்ளலாம்.
+                  </span>
+                </div>
+              </div>
+
               <div className="flex flex-col items-center justify-center space-y-6">
                 {/* Visual Smart Card */}
                 <div 
@@ -483,23 +512,64 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
             </div>
           )}
 
-          {/* STATE 2: PENDING VERIFICATION */}
-          {request?.status === 'pending' && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-200 shadow-lg space-y-6">
+          {/* STATE 2: PENDING SUPER ADMIN APPROVAL */}
+          {(request?.status === 'pending' || request?.status === 'district_approved') && (
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-amber-300 shadow-xl space-y-6 text-left">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-b border-amber-100 pb-6">
-                <div className="p-4 rounded-2xl bg-amber-100 text-amber-700">
+                <div className="p-4 rounded-2xl bg-amber-500 text-white shadow-md">
                   <Clock className="w-8 h-8 animate-spin" style={{ animationDuration: '6s' }} />
                 </div>
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                    Payment Verification Pending
+                <div className="space-y-1.5 flex-1">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>சூப்பர் அட்மின் ஒப்புதலுக்கு காத்திருக்கிறது / Awaiting Super Admin Approval</span>
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">
-                    கட்டண சரிபார்ப்பு நிலுவையில் உள்ளது
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
+                    பணம் அனுப்பிய கோடு சமர்ப்பிக்கப்பட்டுள்ளது - சூப்பர் அட்மின் ஒப்புதலுக்குப் பிறகு உறுப்பினர் அட்டை தயார் செய்து டவுன்லோட் செய்ய முடியும்
                   </h2>
-                  <p className="text-sm text-slate-600">
-                    Your ₹100 payment request has been submitted. The Member Card will become available after Admin verification.
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                    நீங்கள் உள்ளிட்ட பணம் அனுப்பிய கோடு (UTR: <span className="font-mono font-black text-amber-700">{request?.utrNumber}</span>) சங்க தலைமைக்கு அனுப்பப்பட்டுள்ளது. சூப்பர் அட்மின் ஒப்புதல் அளித்தவுடன் உடனடியாக உங்கள் உறுப்பினர் அட்டை தயார் செய்யப்பட்டு பதிவிறக்கம் செய்ய திறக்கப்படும்.
                   </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const memberId = currentUser?.regNumber || currentUser?.id;
+                    if (memberId) {
+                      const latest = getMemberCardRequestByMemberId(memberId);
+                      setRequest(latest);
+                    }
+                  }}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 shrink-0 transition"
+                  title="Refresh Status"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>புதுப்பிக்க / Refresh</span>
+                </button>
+              </div>
+
+              {/* Step Progress Tracker */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+                <div className="flex items-center gap-2.5 p-2 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl font-bold">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <span className="text-[10px] text-emerald-700 uppercase block">படி 1</span>
+                    <span>பணம் அனுப்பிய கோடு பதிவு செய்யப்பட்டது</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5 p-2 bg-amber-50 border border-amber-300 text-amber-950 rounded-xl font-bold">
+                  <Clock className="w-5 h-5 text-amber-600 animate-spin shrink-0" style={{ animationDuration: '6s' }} />
+                  <div>
+                    <span className="text-[10px] text-amber-700 uppercase block">படி 2</span>
+                    <span>சூப்பர் அட்மின் சரிபார்ப்பு (நிலுவை)</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5 p-2 bg-slate-100 border border-slate-200 text-slate-500 rounded-xl font-bold opacity-75">
+                  <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase block">படி 3</span>
+                    <span>அட்டை தயார் & டவுன்லோடு</span>
+                  </div>
                 </div>
               </div>
 
@@ -510,29 +580,29 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 text-xs block font-medium">தொகை</span>
-                    <span className="text-base font-bold text-slate-900">₹{request?.amount || 100}</span>
+                    <span className="text-slate-500 text-xs block font-medium">செலுத்திய தொகை</span>
+                    <span className="text-base font-black text-slate-900">₹{request?.amount || 100}</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 text-xs block font-medium">UTR / Reference No</span>
-                    <span className="text-base font-mono font-bold text-indigo-600">{request?.utrNumber || '-'}</span>
+                    <span className="text-slate-500 text-xs block font-medium">பணம் அனுப்பிய கோடு (UTR / Ref No)</span>
+                    <span className="text-base font-mono font-black text-indigo-600">{request?.utrNumber || '-'}</span>
                   </div>
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 text-xs block font-medium">தேதி</span>
+                    <span className="text-slate-500 text-xs block font-medium">சமர்ப்பித்த தேதி</span>
                     <span className="text-sm font-semibold text-slate-800">{request?.paymentDate || '-'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Safety Note */}
-              <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-900 text-sm">
+              <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-900 text-xs">
                 <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-semibold">
-                    நிர்வாகி சரிபார்ப்பு (Admin Verification)
+                  <p className="font-bold text-sm">
+                    சூப்பர் அட்மின் இறுதி ஒப்புதல் முறை (Super Admin Approval Gate)
                   </p>
-                  <p className="text-xs text-indigo-700 leading-relaxed">
-                    நிர்வாகி உங்கள் UTR எண்ணை சரிபார்த்து ஒப்புதல் அளித்தவுடன் உங்கள் உறுப்பினர் அட்டை தானாகவே பதிவிறக்கம் செய்ய கிடைக்கும்.
+                  <p className="text-indigo-800 leading-relaxed">
+                    சங்க விதிகளின்படி சூப்பர் அட்மின் உங்கள் கட்டணக் குறியீட்டை சரிபார்த்து ஒப்புதல் அளித்தவுடன் மட்டுமே உங்கள் அதிகாரப்பூர்வ டிஜிட்டல் உறுப்பினர் அட்டை தயார் செய்யப்பட்டு பதிவிறக்கம் செய்ய அனுமதிக்கப்படும்.
                   </p>
                 </div>
               </div>
@@ -541,17 +611,17 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
 
           {/* STATE 3: REJECTED */}
           {request?.status === 'rejected' && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-rose-200 shadow-lg space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-rose-200 shadow-lg space-y-6 text-left">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-b border-rose-100 pb-6">
                 <div className="p-4 rounded-2xl bg-rose-100 text-rose-700">
                   <AlertTriangle className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
-                    Verification Rejected
+                    சரிபார்ப்பு தோல்வி / Verification Rejected
                   </div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    கட்டணம் நிராகரிக்கப்பட்டது / Payment Rejected
+                    கட்டணக் குறியீடு நிராகரிக்கப்பட்டது / Payment Rejected
                   </h2>
                   <p className="text-sm text-rose-700 font-medium">
                     காரணம் / Reason: {request?.rejectionReason || 'UTR எண் வங்கி கணக்கில் பொருந்தவில்லை.'}
@@ -562,30 +632,34 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
               <button
                 id="btn-retry-payment"
                 onClick={() => setRequest(null)}
-                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-colors shadow-sm"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-colors shadow-sm cursor-pointer"
               >
-                மீண்டும் செலுத்த / Try Again
+                பணம் அனுப்பிய கோடை மீண்டும் சமர்ப்பிக்க / Try Again
               </button>
             </div>
           )}
 
-          {/* STATE 4: UNPAID - SIMPLE & DIRECT ₹100 PAYMENT FLOW */}
-          {!(request?.status === 'approved' || currentUser?.status === 'approved' || currentUser?.role === 'super_admin' || currentUser?.role === 'district_admin' || currentUser?.role === 'state_president' || currentUser?.role === 'state_treasurer') && (!request || request.status === 'unpaid') && (
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+          {/* STATE 4: UNPAID - MANDATORY PAYMENT CODE SUBMISSION FOR SUPER ADMIN APPROVAL */}
+          {!(request?.status === 'approved' || currentUser?.role === 'super_admin' || currentUser?.isPrimarySuperAdmin) && (!request || request.status === 'unpaid') && (
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
               {/* Header Display */}
-              <div className="p-6 sm:p-8 bg-gradient-to-r from-indigo-50 via-slate-50 to-indigo-50 border-b border-indigo-100">
+              <div className="p-6 sm:p-8 bg-gradient-to-r from-amber-50 via-slate-50 to-indigo-50 border-b border-amber-100">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-amber-200 text-amber-900">
+                      <Lock className="w-3.5 h-3.5" />
+                      உறுப்பினர் அட்டை டவுன்லோடு கட்டுப்பாடு
+                    </span>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-                      உறுப்பினர் அட்டை பெற ₹100 செலுத்தவும்
+                      உறுப்பினர் அட்டை டவுன்லோட் செய்ய பணம் அனுப்பிய கோடை (UTR எண்) உள்ளிடவும்
                     </h2>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Pay ₹100 to receive your official Member Card.
+                    <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                      பணம் அனுப்பிய கோடை எண்டர் செய்தவுடன் சூப்பர் அட்மினின் ஒப்புதலுக்கு அனுப்பப்படும். சூப்பர் அட்மின் ஒப்புதலுக்கு பிறகு உங்கள் உறுப்பினர் அட்டை தயார் செய்யப்பட்டு டவுன்லோட் செய்ய முடியும்.
                     </p>
                   </div>
-                  <div className="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl shadow text-center shrink-0">
-                    <span className="text-[10px] uppercase tracking-wider block opacity-80">கட்டணம்</span>
-                    <span className="text-xl font-black">₹100</span>
+                  <div className="bg-gradient-to-br from-indigo-700 to-indigo-950 text-white px-5 py-3 rounded-2xl shadow-md text-center shrink-0 border border-indigo-500/40">
+                    <span className="text-[10px] uppercase font-bold text-amber-300 block tracking-wider">அட்டை கட்டணம்</span>
+                    <span className="text-2xl font-black">₹{config.amount || 100}</span>
                   </div>
                 </div>
               </div>

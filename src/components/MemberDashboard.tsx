@@ -19,12 +19,15 @@ import {
   Loader2,
   ExternalLink,
   CheckCircle2,
-  Share2
+  Share2,
+  Lock
 } from "lucide-react";
 import { UserAccount, WelfareApplication, PaymentRecord, WelfareScheme } from "../types";
 import { initialWelfareSchemes } from "../mockData";
 import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
 import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
+import { getMemberCardRequestByMemberId, subscribeToMemberCardRequests } from "../utils/memberCardStorage";
+import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
 
 interface MemberDashboardProps {
   lang: "ta" | "en";
@@ -70,8 +73,37 @@ export default function MemberDashboard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string | null>(null);
   const [dashboardPdfResult, setDashboardPdfResult] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [, setCardRequestsTick] = useState(0);
+
+  // Live real-time subscription to card request approvals
+  React.useEffect(() => {
+    const unsub = subscribeToMemberCardRequests(() => {
+      setCardRequestsTick((t) => t + 1);
+    });
+    return () => unsub();
+  }, []);
+
+  const currentMemberKey = member.regNumber || member.id;
+  const existingPaymentRequest =
+    getMemberCardRequestByMemberId(currentMemberKey) ||
+    (member.regNumber ? getMemberCardRequestByMemberId(member.regNumber) : null) ||
+    (member.id ? getMemberCardRequestByMemberId(member.id) : null) ||
+    (member.phone ? getMemberCardRequestByMemberId(member.phone) : null);
+
+  const isSuperAdminOrState = Boolean(
+    member.role === "super_admin" ||
+    member.role === "state_president" ||
+    (member as any)?.isPrimarySuperAdmin
+  );
+  // Member card can ONLY be downloaded after Super Admin approves
+  const isPaymentApproved = isSuperAdminOrState || existingPaymentRequest?.status === "approved";
 
   const handleDownloadDashboardPdf = async () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
     setIsDownloading(true);
     setDownloadMsg("PDF உருவாக்கப்படுகிறது...");
     try {
@@ -128,6 +160,10 @@ export default function MemberDashboard({
   };
 
   const handleDownloadDashboardPng = async () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
     setIsDownloading(true);
     setDownloadMsg("PNG படம் உருவாக்கப்படுகிறது...");
     try {
@@ -461,6 +497,50 @@ export default function MemberDashboard({
               </div>
             </div>
 
+            {/* Payment & Super Admin Approval Gate Banner */}
+            {!isPaymentApproved && (
+              <div className="w-full max-w-sm p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col items-start gap-2.5 text-left shadow-sm">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span className="text-xs font-black uppercase">
+                    {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
+                      ? (lang === "ta" ? "சூப்பர் அட்மின் ஒப்புதலுக்கு காத்திருக்கிறது" : "Awaiting Super Admin Approval")
+                      : (lang === "ta" ? "கட்டண குறியீடு தேவை" : "Payment Code Required")}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800 font-medium">
+                  {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
+                    ? (lang === "ta"
+                        ? `நீங்கள் செலுத்திய கட்டண கோடு (UTR: ${existingPaymentRequest.utrNumber}) சமர்ப்பிக்கப்பட்டு சூப்பர் அட்மின் ஒப்புதலுக்கு பரிசீலனையில் உள்ளது. ஒப்புதலுக்கு பிறகு அட்டை தயாராகி டவுன்லோட் செய்ய முடியும்.`
+                        : `Your payment reference (UTR: ${existingPaymentRequest.utrNumber}) is submitted. Card download unlocks after Super Admin approval.`)
+                    : (lang === "ta"
+                        ? "உறுப்பினர் அட்டை டவுன்லோட் செய்வதற்கு முன்னர் பணம் அனுப்பிய கோடை (UTR எண்) பதிவு செய்து சூப்பர் அட்மினின் ஒப்புதல் பெற வேண்டும்."
+                        : "Enter payment UTR code before downloading. ID card unlocks upon Super Admin approval.")}
+                </p>
+                <button
+                  type="button"
+                  id="btn-dashboard-open-payment"
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow transition cursor-pointer text-center active:scale-95"
+                >
+                  {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
+                    ? (lang === "ta" ? "நிலையை சரிபார்க்க / View Status" : "Check Live Status")
+                    : (lang === "ta" ? "பணம் அனுப்பிய கோடை உள்ளிடவும்" : "Enter Payment Code (UTR)")}
+                </button>
+              </div>
+            )}
+
+            {isPaymentApproved && !isSuperAdminOrState && (
+              <div className="w-full max-w-sm p-3 bg-emerald-50 border-2 border-emerald-400 rounded-xl flex items-center gap-2 text-emerald-900 text-xs font-bold shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  {lang === "ta"
+                    ? "🎉 சூப்பர் அட்மின் ஒப்புதல் வழங்கப்பட்டுள்ளது! உங்கள் உறுப்பினர் அட்டை தயாராக உள்ளது."
+                    : "🎉 Super Admin approved! Your membership ID card is ready to download."}
+                </span>
+              </div>
+            )}
+
             {/* Download Progress Message */}
             {downloadMsg && (
               <div className="w-full max-w-sm p-3 bg-amber-500 text-white font-bold text-xs rounded-xl text-center shadow-md animate-pulse">
@@ -534,7 +614,13 @@ export default function MemberDashboard({
 
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => {
+                  if (!isPaymentApproved) {
+                    setShowPaymentModal(true);
+                    return;
+                  }
+                  window.print();
+                }}
                 className="px-4 py-2.5 bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm active:scale-95"
               >
                 <Printer className="w-4 h-4 text-[#C00000]" />
@@ -830,6 +916,13 @@ export default function MemberDashboard({
 
       </div>
 
+      {/* Payment & UTR Submission Modal */}
+      <MemberCardPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        currentUser={member}
+        targetMember={member}
+      />
     </div>
   );
 }

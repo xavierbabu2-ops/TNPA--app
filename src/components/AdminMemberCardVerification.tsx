@@ -34,7 +34,8 @@ import {
   superAdminApproveMemberCardRequest,
   rejectMemberCardRequest, 
   getMemberCardConfig, 
-  saveMemberCardConfig 
+  saveMemberCardConfig,
+  subscribeToMemberCardRequests
 } from '../utils/memberCardStorage';
 
 interface AdminMemberCardVerificationProps {
@@ -81,6 +82,10 @@ export const AdminMemberCardVerification: React.FC<AdminMemberCardVerificationPr
 
   useEffect(() => {
     loadData();
+    const unsub = subscribeToMemberCardRequests(() => {
+      loadData();
+    });
+    return () => unsub();
   }, []);
 
   const showFeedback = (msg: string) => {

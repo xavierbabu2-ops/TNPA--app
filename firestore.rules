@@ -156,6 +156,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // 11. MEMBER CARD REQUESTS (Card payment, UTR code, Super Admin approval)
+    match /member_card_requests/{requestId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }
 

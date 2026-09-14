@@ -23,7 +23,8 @@ import { MemberCardRequest, MemberCardPaymentConfig } from '../types/memberCard'
 import {
   getMemberCardConfig,
   getMemberCardRequestByMemberId,
-  saveMemberCardRequest
+  saveMemberCardRequest,
+  subscribeToMemberCardRequests
 } from '../utils/memberCardStorage';
 import { exportIdCardAsPDF, exportIdCardAsImages } from '../utils/idCardPdfExport';
 import { shareOrDownloadBlob } from '../utils/pdfDownloadHelper';
@@ -78,13 +79,21 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setConfig(getMemberCardConfig());
-      const existing =
-        getMemberCardRequestByMemberId(memberId) ||
-        (targetMember?.id ? getMemberCardRequestByMemberId(targetMember.id) : null) ||
-        (targetMember?.regNumber ? getMemberCardRequestByMemberId(targetMember.regNumber) : null);
-      setRequest(existing);
+      const refreshReq = () => {
+        const existing =
+          getMemberCardRequestByMemberId(memberId) ||
+          (targetMember?.id ? getMemberCardRequestByMemberId(targetMember.id) : null) ||
+          (targetMember?.regNumber ? getMemberCardRequestByMemberId(targetMember.regNumber) : null);
+        setRequest(existing);
+      };
+      refreshReq();
       setErrorMessage(null);
       setDownloadProgress(null);
+
+      const unsub = subscribeToMemberCardRequests(() => {
+        refreshReq();
+      });
+      return () => unsub();
     }
   }, [isOpen, memberId, targetMember]);
 
