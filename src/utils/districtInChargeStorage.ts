@@ -8,6 +8,7 @@ import {
 import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, getDocs, onSnapshot } from "firebase/firestore";
 import { cleanForFirestore } from "../lib/syncService";
+import { recordSyncEvent } from "./syncTelemetry";
 
 // Storage Keys (Declared at module top to avoid TDZ issues)
 export const STORAGE_KEY_INCHARGES = "tnpa_district_incharges_v3";
@@ -76,6 +77,19 @@ export function subscribeToDistrictInCharges(
         } catch (e) {
           console.warn("Could not cache incharges to localStorage:", e);
         }
+        if (list.length > 0) {
+          recordSyncEvent({
+            objectType: "district_executives",
+            recordCount: list.length,
+            details: {
+              ta: `${list.length} மாவட்ட நிர்வாகிகள் Firestore-லிருந்து ஒத்திசைக்கப்பட்டனர்`,
+              en: `${list.length} district executives synchronized live from Firestore`
+            },
+            status: "success",
+            syncSource: "firestore_listener",
+            isDistrictRelated: true
+          });
+        }
         onUpdate(list);
       },
       (error) => {
@@ -105,6 +119,17 @@ export async function fetchDistrictInChargesFromFirestore(): Promise<DistrictInC
       try {
         localStorage.setItem(STORAGE_KEY_INCHARGES, JSON.stringify(list));
       } catch (e) {}
+      recordSyncEvent({
+        objectType: "district_executives",
+        recordCount: list.length,
+        details: {
+          ta: `${list.length} மாவட்டப் பொறுப்பாளர்கள் கிளவுடிலிருந்து வெற்றிகரமாகப் பெறப்பட்டனர்`,
+          en: `${list.length} district executives verified from Firestore cloud`
+        },
+        status: "success",
+        syncSource: "firestore_fetch",
+        isDistrictRelated: true
+      });
     }
     return list;
   } catch (err) {
@@ -495,6 +520,17 @@ export async function persistInChargePerson(
     
     firestoreSucceeded = true;
     removeFromPendingInChargeSync(sanitizedPerson.id);
+    recordSyncEvent({
+      objectType: "district_executives",
+      recordCount: 1,
+      details: {
+        ta: `மாவட்டப் பதிவு: ${sanitizedPerson.name} (${sanitizedPerson.districtTa} - ${sanitizedPerson.role}) வெற்றிகரமாகப் பதியப்பட்டது`,
+        en: `District registration: ${sanitizedPerson.name} (${sanitizedPerson.districtEn || sanitizedPerson.districtTa} - ${sanitizedPerson.role}) saved to cloud`
+      },
+      status: "success",
+      syncSource: "firestore_write",
+      isDistrictRelated: true
+    });
   } catch (err) {
     console.warn("Firestore sync warning for district_executives (queued for background sync):", err);
     // Queue for automatic retry when network connection is available

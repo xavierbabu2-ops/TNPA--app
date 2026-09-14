@@ -131,6 +131,8 @@ import {
   GlobalUnionConfig 
 } from "./lib/syncService";
 import { subscribeToDistrictInCharges } from "./utils/districtInChargeStorage";
+import SyncDiagnosticPanel from "./components/SyncDiagnosticPanel";
+import { recordSyncEvent } from "./utils/syncTelemetry";
 
 export default function App() {
   console.log("App component initializing with Realtime Cloud Sync...");
@@ -211,6 +213,17 @@ export default function App() {
       if (remoteRegs && remoteRegs.length > 0) {
         setRegistrations(remoteRegs);
         setIsCloudSyncActive(true);
+        recordSyncEvent({
+          objectType: "registrations",
+          recordCount: remoteRegs.length,
+          details: {
+            ta: `${remoteRegs.length} உறுப்பினர் சேர்க்கைப் பதிவுகள் நேரலையில் ஒத்திசைக்கப்பட்டன`,
+            en: `${remoteRegs.length} member registrations synchronized live from Firestore`
+          },
+          status: "success",
+          syncSource: "firestore_listener",
+          isDistrictRelated: true
+        });
       }
     });
 
@@ -220,6 +233,17 @@ export default function App() {
       if (cfg.customFlagUrl) setCustomFlagUrl(cfg.customFlagUrl);
       if (cfg.emergencyAlert !== undefined) setEmergencyAlert(cfg.emergencyAlert);
       setIsCloudSyncActive(true);
+      recordSyncEvent({
+        objectType: "union_config",
+        recordCount: 1,
+        details: {
+          ta: "அடையாள அட்டை வடிவமைப்பு மற்றும் சங்க லோகோ ஒத்திசைக்கப்பட்டது",
+          en: "ID card template and union branding synchronized"
+        },
+        status: "success",
+        syncSource: "firestore_listener",
+        isDistrictRelated: false
+      });
     });
 
     // 4. Real-time Leaders listener
@@ -276,6 +300,17 @@ export default function App() {
           } catch (e) {}
           return merged;
         });
+        recordSyncEvent({
+          objectType: "executives",
+          recordCount: remoteExecs.length,
+          details: {
+            ta: `${remoteExecs.length} மாநில & மாவட்ட நிர்வாகிகள் கட்டமைப்பு ஒத்திசைக்கப்பட்டது`,
+            en: `${remoteExecs.length} state & district executives hierarchy synchronized`
+          },
+          status: "success",
+          syncSource: "firestore_listener",
+          isDistrictRelated: true
+        });
       }
     });
 
@@ -316,6 +351,17 @@ export default function App() {
             localStorage.setItem("tnpa_executives_v1", JSON.stringify(merged));
           } catch (e) {}
           return merged;
+        });
+        recordSyncEvent({
+          objectType: "district_executives",
+          recordCount: remoteDistrictIncharges.length,
+          details: {
+            ta: `${remoteDistrictIncharges.length} மாவட்ட நிர்வாகிகள் நேரலையில் பெறப்பட்டு ஒத்திசைக்கப்பட்டது`,
+            en: `${remoteDistrictIncharges.length} district executives received live in real-time sync`
+          },
+          status: "success",
+          syncSource: "firestore_listener",
+          isDistrictRelated: true
         });
       }
     });
@@ -2730,7 +2776,7 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-stone-900 border-2 border-emerald-500 text-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 text-left"
+              className="bg-stone-900 border-2 border-emerald-500 text-white rounded-3xl p-5 sm:p-6 max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 text-left scrollbar-thin scrollbar-thumb-stone-700"
             >
               <div className="flex items-center justify-between border-b border-stone-800 pb-3">
                 <div className="flex items-center gap-2.5 text-emerald-400">
@@ -2738,9 +2784,14 @@ export default function App() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
                   </span>
-                  <h3 className="text-base font-black">
-                    {lang === "ta" ? "நேரலை கிளவுட் ஒத்திசைவு நிலை" : "Real-Time Cloud Synchronization"}
-                  </h3>
+                  <div>
+                    <h3 className="text-base font-black">
+                      {lang === "ta" ? "நேரலை கிளவுட் ஒத்திசைவு & கண்டறிதல் மையம்" : "Real-Time Cloud Synchronization & Diagnostics"}
+                    </h3>
+                    <p className="text-[10px] text-stone-400">
+                      {lang === "ta" ? "38 மாவட்ட நிர்வாகிகள் & உறுப்பினர் தரவுகள் நேரலையில் கண்காணிக்கப்படுகிறது" : "Live Firestore synchronization across all 38 Tamil Nadu districts"}
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowSyncInfoModal(false)}
@@ -2759,8 +2810,8 @@ export default function App() {
                   </span>
                   <p className="text-emerald-200/90 text-xs">
                     {lang === "ta"
-                      ? "சூப்பர் அட்மினால் அல்லது மாவட்டப் பொறுப்பாளர்களால் செய்யப்படும் உறுப்பினர் சேர்க்கை, அடையாள அட்டை (ID Card) வடிவமைப்பு, லோகோ, சங்க அறிவிப்புகள் அனைத்தும் இந்த செயலியைப் பயன்படுத்தும் அனைவருக்கும் நொடிப்பொழுதில் ஒத்திசைக்கப்படும்."
-                      : "Any modification made to Member ID Cards, official logos, registration approvals, and emergency alerts propagates instantaneously in real-time to every user using this app on mobile or desktop."}
+                      ? "சூப்பர் அட்மினால் அல்லது 38 மாவட்டப் பொறுப்பாளர்களால் செய்யப்படும் நிர்வாகி நியமனம், உறுப்பினர் சேர்க்கை, அடையாள அட்டை வடிவமைப்பு அனைத்தும் நொடிப்பொழுதில் ஒத்திசைக்கப்படும்."
+                      : "Any modification made to District In-Charges, Member ID Cards, registrations, and official alerts propagates instantaneously in real-time to every mobile or desktop client."}
                   </p>
                 </div>
 
@@ -2773,11 +2824,14 @@ export default function App() {
                   </div>
                   <div className="p-2.5 bg-stone-800/80 rounded-xl border border-stone-700">
                     <span className="text-amber-400 font-black block mb-0.5">
-                      {lang === "ta" ? "அடையாள அட்டை நிலை" : "ID Card Templates"}
+                      {lang === "ta" ? "38 மாவட்ட நிர்வாகிகள்" : "38 District Executives"}
                     </span>
-                    <span className="text-emerald-400 font-bold">{lang === "ta" ? "நேரலையில் இணைக்கப்பட்டுள்ளது" : "Live Real-Time Synced"}</span>
+                    <span className="text-emerald-400 font-bold">{executives.length} {lang === "ta" ? "நிர்வாகிகள் நேரலையில்" : "executives live"}</span>
                   </div>
                 </div>
+
+                {/* REAL-TIME FIRESTORE DIAGNOSTIC EVENT LOG PANEL */}
+                <SyncDiagnosticPanel lang={lang} />
 
                 <div className="p-3.5 bg-stone-800/90 rounded-2xl border border-amber-500/30 space-y-3 text-[11px]">
                   <div className="flex items-center justify-between">
