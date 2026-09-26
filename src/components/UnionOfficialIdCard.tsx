@@ -21,6 +21,7 @@ import { UserAccount } from "../types";
 import { subscribeToUnionConfig, saveUnionConfigToFirestore, GlobalUnionConfig } from "../lib/syncService";
 import { safeLocalStorage } from "../utils/safeStorage";
 import { compressImageForCard } from "../utils/imageCompressor";
+import { DEFAULT_MEMBER_FALLBACK_PHOTO } from "../utils/idCardPdfExport";
 
 // ============================================================================
 // VECTOR SVG CIRCULAR ASSOCIATION LOGO COMPONENT
@@ -1319,12 +1320,12 @@ export default function UnionOfficialIdCard({
                     title="புகைப்படத்தை மாற்ற தட்டவும் / Click to upload from File Manager"
                   >
                     <img 
-                      src={photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"} 
+                      src={photoUrl || DEFAULT_MEMBER_FALLBACK_PHOTO} 
                       alt="Member Photo" 
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover" 
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500";
+                        (e.target as HTMLImageElement).src = DEFAULT_MEMBER_FALLBACK_PHOTO;
                       }}
                     />
 

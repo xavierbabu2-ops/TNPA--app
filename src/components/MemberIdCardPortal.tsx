@@ -36,7 +36,7 @@ import UnionOfficialIdCard from "./UnionOfficialIdCard";
 import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
 import EditMemberIdCardModal, { MemberCardEditableData } from "./EditMemberIdCardModal";
 import { ALL_38_TAMILNADU_DISTRICTS } from "../data/initialExecutives";
-import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
+import { exportIdCardAsPDF, exportIdCardAsImages, generateMemberIdCardPDF } from "../utils/idCardPdfExport";
 import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
 import { getMemberCardRequestByMemberId, subscribeToMemberCardRequests } from "../utils/memberCardStorage";
 import { formatMemberNumber, generateDistrictRegNumber } from "../utils/districtCodes";
@@ -498,23 +498,32 @@ export default function MemberIdCardPortal({
     }
 
     try {
-      const success = await exportIdCardAsPDF({
+      const result = await generateMemberIdCardPDF({
         memberName: memberName,
         memberId: memberRegNo,
         district: memberDistrict,
-        frontElementId: "union-id-card-front",
-        backElementId: "union-id-card-back",
+        place: memberPlace,
+        occupation: memberOccupation,
+        phone: memberPhone,
+        bloodGroup: memberBlood,
+        photoUrl: memberPhoto,
+        logoLeftUrl: customLogoUrl,
+        logoRightUrl: customLogoUrl,
+        govtSealUrl: customEmblemUrl,
+      }, {
+        scale: 3.5,
         onProgress: (msg) => setPdfStatusMessage(msg),
-        onSuccess: (result) => {
-          setGeneratedPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName, blob: result.blob });
+        onSuccess: (res) => {
+          setGeneratedPdfResult({ blobUrl: res.blobUrl, fileName: res.fileName, blob: res.blob });
         }
       });
 
-      if (success) {
+      if (result.success && result.blobUrl) {
+        setGeneratedPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName || 'TNPA_ID_Card.pdf', blob: result.blob });
         onAddAuditLog("Download ID Card PDF", `Downloaded high-res PDF for ${memberName} (${memberRegNo})`);
         setTimeout(() => {
           setIsGeneratingPdf(false);
-          setPdfStatusMessage("✅ PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.");
+          setPdfStatusMessage("✅ உயர் தர PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.");
         }, 800);
       } else {
         setIsGeneratingPdf(false);
