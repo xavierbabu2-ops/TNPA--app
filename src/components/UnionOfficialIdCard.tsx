@@ -1266,19 +1266,6 @@ export default function UnionOfficialIdCard({
                   isEditable={canEditIdCard}
                 />
 
-                {/* Direct Watermark Change Shortcut Button inside Card (visible in edit mode) */}
-                {canEditIdCard && (
-                  <button
-                    type="button"
-                    onClick={triggerWatermarkUpload}
-                    title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற தட்டவும்"
-                    className="absolute top-1.5 right-2 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/90 hover:bg-amber-600 text-white text-[9.5px] font-black rounded-full shadow-md border border-amber-300 hover:scale-105 cursor-pointer backdrop-blur-xs transition-all"
-                  >
-                    <Camera className="w-3 h-3 text-yellow-200" />
-                    <span>வாட்டர்மார்க் மாற்று</span>
-                  </button>
-                )}
-
                 {/* Left Side Member Details */}
                 <div className="space-y-2 md:space-y-2.5 relative z-10 flex-1 pr-2">
                   
@@ -1342,7 +1329,7 @@ export default function UnionOfficialIdCard({
                     />
 
                     {/* Hover & Mobile Edit Overlay */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-yellow-300 gap-1 p-1 text-center">
+                    <div className="no-print absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-yellow-300 gap-1 p-1 text-center" data-no-print="true">
                       <Camera className="w-5 h-5 animate-bounce" />
                       <span className="text-[8px] font-black uppercase tracking-tight text-white">
                         மாற்று / Edit
@@ -1350,7 +1337,7 @@ export default function UnionOfficialIdCard({
                     </div>
 
                     {/* Permanent Visible Corner Pencil Icon */}
-                    <div className="absolute bottom-1 right-1 bg-[#C00000] text-white p-1 rounded-full shadow border border-white">
+                    <div className="no-print absolute bottom-1 right-1 bg-[#C00000] text-white p-1 rounded-full shadow border border-white" data-no-print="true">
                       <Pencil className="w-2.5 h-2.5" />
                     </div>
                   </div>
@@ -1576,19 +1563,6 @@ export default function UnionOfficialIdCard({
                   onTriggerUpload={canEditIdCard ? triggerWatermarkUpload : undefined}
                   isEditable={canEditIdCard}
                 />
-
-                {/* Direct Watermark Change Shortcut Button inside Card (visible in edit mode) */}
-                {canEditIdCard && (
-                  <button
-                    type="button"
-                    onClick={triggerWatermarkUpload}
-                    title="போன் கேலரியிலிருந்து வாட்டர்மார்க் படம் மாற்ற தட்டவும்"
-                    className="absolute top-1.5 right-2 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/90 hover:bg-amber-600 text-white text-[9.5px] font-black rounded-full shadow-md border border-amber-300 hover:scale-105 cursor-pointer backdrop-blur-xs transition-all"
-                  >
-                    <Camera className="w-3 h-3 text-yellow-200" />
-                    <span>வாட்டர்மார்க் மாற்று</span>
-                  </button>
-                )}
 
                 {/* Left Side Member Details (Back) */}
                 <div className="space-y-1.5 md:space-y-2 relative z-10 flex-1 pr-2 text-stone-900 text-xs md:text-sm font-bold leading-tight">

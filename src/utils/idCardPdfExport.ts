@@ -197,19 +197,22 @@ function getSafeCanvasOptions(el: HTMLElement, scale = 2) {
     windowWidth: Math.max(900, el.scrollWidth || 900),
     windowHeight: Math.max(600, el.scrollHeight || 600),
     ignoreElements: (element: Element) => {
-      // ONLY ignore explicit UI buttons or badges marked for no-print, NEVER content elements
+      // Ignore all buttons, camera icons, edit overlays, and explicit no-print elements
       if (
         element.classList.contains('no-print') ||
-        element.getAttribute('data-no-print') === 'true'
+        element.getAttribute('data-no-print') === 'true' ||
+        element.tagName === 'BUTTON' ||
+        element.closest('.no-print') ||
+        element.closest('[data-no-print="true"]')
       ) {
         return true;
       }
       return false;
     },
     onclone: (clonedDoc: Document) => {
-      // Hide explicit no-print elements in cloned DOM
-      const noPrintElements = clonedDoc.querySelectorAll('.no-print, [data-no-print="true"]');
-      noPrintElements.forEach(item => {
+      // Hide all buttons, camera overlays, edit indicators in cloned DOM
+      const toHide = clonedDoc.querySelectorAll('button, .no-print, [data-no-print="true"], .edit-overlay');
+      toHide.forEach(item => {
         (item as HTMLElement).style.display = 'none';
       });
 
@@ -501,7 +504,7 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
       pdf.setTextColor(30, 30, 30);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(10);
-      pdf.text('1. FRONT SIDE / முன்பக்கம் (CR-80 Standard)', 105, currentY - 3, { align: 'center' });
+      pdf.text('1. FRONT SIDE (CR-80 PVC Standard)', 105, currentY - 3, { align: 'center' });
 
       pdf.setDrawColor(200, 200, 200);
       pdf.setLineWidth(0.3);
@@ -517,7 +520,7 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
       pdf.setTextColor(30, 30, 30);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(10);
-      pdf.text('2. BACK SIDE / பின்பக்கம் (CR-80 Standard)', 105, currentY - 3, { align: 'center' });
+      pdf.text('2. BACK SIDE (CR-80 PVC Standard)', 105, currentY - 3, { align: 'center' });
 
       pdf.setDrawColor(200, 200, 200);
       pdf.setLineWidth(0.3);
