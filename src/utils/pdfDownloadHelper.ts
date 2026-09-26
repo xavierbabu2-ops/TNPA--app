@@ -39,37 +39,18 @@ export async function shareOrDownloadBlob(
 ): Promise<{ success: boolean; method: 'share' | 'download' | 'fallback'; error?: string }> {
   const isMobile = isMobileDevice();
 
-  // 1. Try Mobile Web Share API first unless forced to direct download
-  if (isMobile && !forceDirectDownload && typeof navigator !== 'undefined' && navigator.share) {
-    try {
-      const mimeType = blob.type || 'application/pdf';
-      const file = new File([blob], fileName, { type: mimeType });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title,
-          text: `${title} - தமிழ்நாடு பெயிண்டர்கள் நல சங்கம்`
-        });
-        return { success: true, method: 'share' };
-      }
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        // User intentionally dismissed or completed share sheet
-        return { success: true, method: 'share' };
-      }
-      console.warn('Native share failed, proceeding to direct download:', err);
-    }
-  }
-
-  // 2. Direct browser anchor download (CRITICAL: NO target="_blank"!)
+  // 1. Direct browser anchor download (Always run this for instant offline save)
   try {
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = blobUrl;
     link.download = fileName;
+    link.setAttribute('download', fileName);
     link.rel = 'noopener';
-    link.style.display = 'none';
+    link.style.position = 'fixed';
+    link.style.top = '-9999px';
+    link.style.left = '-9999px';
+    link.style.opacity = '0';
     document.body.appendChild(link);
     link.click();
 
@@ -81,12 +62,37 @@ export async function shareOrDownloadBlob(
         try {
           URL.revokeObjectURL(blobUrl);
         } catch {}
-      }, 60000);
+      }, 120000);
     }, 1500);
 
-    return { success: true, method: 'download' };
+    // If direct download is explicitly requested or user is on desktop, return success immediately
+    if (forceDirectDownload || !isMobile) {
+      return { success: true, method: 'download' };
+    }
   } catch (err: any) {
     console.warn('Anchor download failed, attempting data URI fallback:', err);
+  }
+
+  // 2. On Mobile (Android / iOS): Also invoke Web Share API if available for WhatsApp/Save to Files
+  if (isMobile && !forceDirectDownload && typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      const mimeType = blob.type || (fileName.endsWith('.png') ? 'image/png' : 'application/pdf');
+      const file = new File([blob], fileName, { type: mimeType });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title,
+          text: `${title} - தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் சங்கம்`
+        });
+        return { success: true, method: 'share' };
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return { success: true, method: 'share' };
+      }
+      console.warn('Native share failed or gesture timed out, anchor download already triggered:', err);
+    }
   }
 
   // 3. Fallback: Base64 Data URI download
@@ -95,8 +101,12 @@ export async function shareOrDownloadBlob(
     const link = document.createElement('a');
     link.href = dataUrl;
     link.download = fileName;
+    link.setAttribute('download', fileName);
     link.rel = 'noopener';
-    link.style.display = 'none';
+    link.style.position = 'fixed';
+    link.style.top = '-9999px';
+    link.style.left = '-9999px';
+    link.style.opacity = '0';
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
