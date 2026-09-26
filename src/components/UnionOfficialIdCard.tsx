@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { formatMemberNumber } from "../utils/districtCodes";
 import { UserAccount } from "../types";
+import { subscribeToUnionConfig, saveUnionConfigToFirestore, GlobalUnionConfig } from "../lib/syncService";
+import { safeLocalStorage } from "../utils/safeStorage";
+import { compressImageForCard } from "../utils/imageCompressor";
 
 // ============================================================================
 // VECTOR SVG CIRCULAR ASSOCIATION LOGO COMPONENT
@@ -52,7 +55,7 @@ export function AssociationEmblemLogo({
         title={badgeTitle}
       >
         <img 
-          src={customUrl || "/tnpa_official_logo.png"} 
+          src={customUrl || "/tnpa_official_logo.svg"} 
           alt="TNPA Official Association Logo" 
           referrerPolicy="no-referrer"
           className="w-full h-full object-contain rounded-full" 
@@ -260,7 +263,7 @@ function IdCardCenterWatermark({
   onTriggerUpload?: () => void;
   isEditable?: boolean;
 }) {
-  const effectiveSrc = customUrl || "/tnpa_official_logo.png";
+  const effectiveSrc = customUrl || "/tnpa_official_logo.svg";
 
   return (
     <div 
@@ -403,38 +406,78 @@ export default function UnionOfficialIdCard({
   );
   const [logoUrl, setLogoUrl] = useState<string>(customLogoUrl || "");
   const [logoLeftUrl, setLogoLeftUrl] = useState<string>(() => {
-    return customLogoLeftUrl || customLogoUrl || localStorage.getItem("tnpa_custom_logo_left") || localStorage.getItem("tnpa_custom_logo") || "";
+    return customLogoLeftUrl || customLogoUrl || safeLocalStorage.getItem("tnpa_custom_logo_left") || safeLocalStorage.getItem("tnpa_custom_logo") || "";
   });
   const [logoRightUrl, setLogoRightUrl] = useState<string>(() => {
-    return customLogoRightUrl || customLogoUrl || localStorage.getItem("tnpa_custom_logo_right") || localStorage.getItem("tnpa_custom_logo") || "";
+    return customLogoRightUrl || customLogoUrl || safeLocalStorage.getItem("tnpa_custom_logo_right") || safeLocalStorage.getItem("tnpa_custom_logo") || "";
   });
   const [govtSealUrl, setGovtSealUrl] = useState<string>(() => {
-    return customGovtSealUrl || localStorage.getItem("tnpa_custom_govt_seal") || "";
+    return customGovtSealUrl || safeLocalStorage.getItem("tnpa_custom_govt_seal") || "";
   });
   const [watermarkUrl, setWatermarkUrl] = useState<string>(() => {
-    return customWatermarkUrl || localStorage.getItem("tnpa_custom_watermark") || "";
+    return customWatermarkUrl || safeLocalStorage.getItem("tnpa_custom_watermark") || "";
   });
   const [fullFrontUrl, setFullFrontUrl] = useState<string>(() => {
-    return customFullCardFrontUrl || localStorage.getItem("tnpa_custom_full_front") || "";
+    return customFullCardFrontUrl || safeLocalStorage.getItem("tnpa_custom_full_front") || "";
   });
   const [fullBackUrl, setFullBackUrl] = useState<string>(() => {
-    return customFullCardBackUrl || localStorage.getItem("tnpa_custom_full_back") || "";
+    return customFullCardBackUrl || safeLocalStorage.getItem("tnpa_custom_full_back") || "";
   });
   const [designMode, setDesignMode] = useState<"official_vector" | "uploaded_exact">(() => {
-    const saved = localStorage.getItem("tnpa_id_card_mode") as "official_vector" | "uploaded_exact";
+    const saved = safeLocalStorage.getItem("tnpa_id_card_mode") as "official_vector" | "uploaded_exact";
     if (saved) return saved;
     return idCardDesignMode || "official_vector";
   });
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(() => {
-    const saved = localStorage.getItem("tnpa_watermark_opacity");
+    const saved = safeLocalStorage.getItem("tnpa_watermark_opacity");
     return saved ? parseFloat(saved) : 0.08;
   });
   const [uploadSuccessToast, setUploadSuccessToast] = useState<string | null>(null);
 
-  // Sync props changes
+  // Sync props changes & Firestore realtime config
+  useEffect(() => {
+    const unsub = subscribeToUnionConfig((cfg: GlobalUnionConfig) => {
+      if (cfg.customFullCardFrontUrl) {
+        setFullFrontUrl(cfg.customFullCardFrontUrl);
+        safeLocalStorage.setItem("tnpa_custom_full_front", cfg.customFullCardFrontUrl);
+      }
+      if (cfg.customFullCardBackUrl) {
+        setFullBackUrl(cfg.customFullCardBackUrl);
+        safeLocalStorage.setItem("tnpa_custom_full_back", cfg.customFullCardBackUrl);
+      }
+      if (cfg.customLogoUrl) {
+        setLogoUrl(cfg.customLogoUrl);
+        setLogoLeftUrl(cfg.customLogoUrl);
+        setLogoRightUrl(cfg.customLogoUrl);
+      }
+      if (cfg.customWatermarkUrl) {
+        setWatermarkUrl(cfg.customWatermarkUrl);
+        safeLocalStorage.setItem("tnpa_custom_watermark", cfg.customWatermarkUrl);
+      }
+      if (cfg.customGovtSealUrl) {
+        setGovtSealUrl(cfg.customGovtSealUrl);
+        safeLocalStorage.setItem("tnpa_custom_govt_seal", cfg.customGovtSealUrl);
+      }
+      if (cfg.idCardDesignMode) {
+        setDesignMode(cfg.idCardDesignMode as "official_vector" | "uploaded_exact");
+        safeLocalStorage.setItem("tnpa_id_card_mode", cfg.idCardDesignMode);
+      }
+      if (typeof cfg.watermarkOpacity === 'number') {
+        setWatermarkOpacity(cfg.watermarkOpacity);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (safeMember.photoUrl) setPhotoUrl(safeMember.photoUrl);
-  }, [safeMember.photoUrl]);
+    if ((safeMember as any).brandBanner && !fullFrontUrl) {
+      setFullFrontUrl((safeMember as any).brandBanner);
+    }
+    if ((safeMember as any).customFullCardFrontUrl) {
+      setFullFrontUrl((safeMember as any).customFullCardFrontUrl);
+    }
+  }, [safeMember.photoUrl, (safeMember as any).brandBanner, (safeMember as any).customFullCardFrontUrl]);
 
   useEffect(() => {
     if (customLogoUrl) {
@@ -558,52 +601,52 @@ export default function UnionOfficialIdCard({
   };
 
   // Handle Left Association Logo from Mobile Gallery
-  const handleAssocLogoLeftChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAssocLogoLeftChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
+      try {
+        const resultUrl = await compressImageForCard(file, 600, 0.85, true);
         setLogoLeftUrl(resultUrl);
-        localStorage.setItem("tnpa_custom_logo_left", resultUrl);
+        safeLocalStorage.setItem("tnpa_custom_logo_left", resultUrl);
         if (onUpdateLogoLeft) onUpdateLogoLeft(resultUrl);
         if (onUpdateLogo) onUpdateLogo(resultUrl);
         showToast("✅ இடதுபுற சங்க லோகோ கேலரியிலிருந்து மாற்றப்பட்டது! (Left Logo Updated)");
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn("Left logo load error:", err);
+      }
     }
   };
 
   // Handle Right Association Logo from Mobile Gallery
-  const handleAssocLogoRightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAssocLogoRightChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
+      try {
+        const resultUrl = await compressImageForCard(file, 600, 0.85, true);
         setLogoRightUrl(resultUrl);
-        localStorage.setItem("tnpa_custom_logo_right", resultUrl);
+        safeLocalStorage.setItem("tnpa_custom_logo_right", resultUrl);
         if (onUpdateLogoRight) onUpdateLogoRight(resultUrl);
         if (onUpdateLogo) onUpdateLogo(resultUrl);
         showToast("✅ வலதுபுற சங்க லோகோ கேலரியிலிருந்து மாற்றப்பட்டது! (Right Logo Updated)");
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn("Right logo load error:", err);
+      }
     }
   };
 
   // Handle Govt/Union Seal Emblem file selection from Mobile Gallery
-  const handleGovtEmblemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGovtEmblemChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
+      try {
+        const resultUrl = await compressImageForCard(file, 600, 0.85, true);
         setGovtSealUrl(resultUrl);
-        localStorage.setItem("tnpa_custom_govt_seal", resultUrl);
+        safeLocalStorage.setItem("tnpa_custom_govt_seal", resultUrl);
         if (onUpdateGovtSeal) onUpdateGovtSeal(resultUrl);
         showToast("✅ பின்புற வட்ட முத்திரை / சின்னம் கேலரியிலிருந்து மாற்றப்பட்டது! (Seal Updated)");
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn("Seal load error:", err);
+      }
     }
   };
 
@@ -613,62 +656,70 @@ export default function UnionOfficialIdCard({
   };
 
   // Handle Watermark file selection from Phone File Manager / Gallery
-  const handleWatermarkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWatermarkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
+      try {
+        const resultUrl = await compressImageForCard(file, 600, 0.85, true);
         setWatermarkUrl(resultUrl);
-        localStorage.setItem("tnpa_custom_watermark", resultUrl);
+        safeLocalStorage.setItem("tnpa_custom_watermark", resultUrl);
         if (onUpdateWatermark) onUpdateWatermark(resultUrl);
         showToast("✅ அட்டையின் நடு வாட்டர்மார்க் படம் போனிலிருந்து மாற்றப்பட்டது! (Watermark Updated)");
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn("Watermark load error:", err);
+      }
     }
   };
 
   // Handle Full Front Card upload
-  const handleFullFrontFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFullFrontFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
+      try {
+        const resultUrl = await compressImageForCard(file, 1200, 0.85, false);
         setFullFrontUrl(resultUrl);
         setDesignMode("uploaded_exact");
-        localStorage.setItem("tnpa_custom_full_front", resultUrl);
-        localStorage.setItem("tnpa_id_card_mode", "uploaded_exact");
+        safeLocalStorage.setItem("tnpa_custom_full_front", resultUrl);
+        safeLocalStorage.setItem("tnpa_id_card_mode", "uploaded_exact");
+        saveUnionConfigToFirestore({
+          customFullCardFrontUrl: resultUrl,
+          idCardDesignMode: "uploaded_exact"
+        }).catch(err => console.warn("Firestore sync warning:", err));
         if (onUpdateFullCardFront) onUpdateFullCardFront(resultUrl);
         if (onUpdateDesignMode) onUpdateDesignMode("uploaded_exact");
         showToast("✅ நீங்கள் பதிவேற்றிய அதே முன்பக்க அட்டை வடிவமைப்பு வெற்றிகரமாக சேமிக்கப்பட்டது!");
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn("Full front load error:", err);
+      }
     }
   };
 
   // Handle Full Back Card upload
-  const handleFullBackFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFullBackFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultUrl = reader.result as string;
+      try {
+        const resultUrl = await compressImageForCard(file, 1200, 0.85, false);
         setFullBackUrl(resultUrl);
         setDesignMode("uploaded_exact");
-        localStorage.setItem("tnpa_custom_full_back", resultUrl);
-        localStorage.setItem("tnpa_id_card_mode", "uploaded_exact");
+        safeLocalStorage.setItem("tnpa_custom_full_back", resultUrl);
+        safeLocalStorage.setItem("tnpa_id_card_mode", "uploaded_exact");
+        saveUnionConfigToFirestore({
+          customFullCardBackUrl: resultUrl,
+          idCardDesignMode: "uploaded_exact"
+        }).catch(err => console.warn("Firestore sync warning:", err));
         if (onUpdateFullCardBack) onUpdateFullCardBack(resultUrl);
         if (onUpdateDesignMode) onUpdateDesignMode("uploaded_exact");
         showToast("✅ நீங்கள் பதிவேற்றிய அதே பின்பக்க அட்டை வடிவமைப்பு வெற்றிகரமாக சேமிக்கப்பட்டது!");
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.warn("Full back load error:", err);
+      }
     }
   };
 
   const handleToggleMode = (newMode: "official_vector" | "uploaded_exact") => {
     setDesignMode(newMode);
-    localStorage.setItem("tnpa_id_card_mode", newMode);
+    safeLocalStorage.setItem("tnpa_id_card_mode", newMode);
     if (onUpdateDesignMode) onUpdateDesignMode(newMode);
     showToast(
       newMode === "uploaded_exact" 
@@ -679,7 +730,7 @@ export default function UnionOfficialIdCard({
 
   const handleResetWatermark = () => {
     setWatermarkUrl("");
-    localStorage.removeItem("tnpa_custom_watermark");
+    safeLocalStorage.removeItem("tnpa_custom_watermark");
     if (onUpdateWatermark) onUpdateWatermark("");
     showToast("🔄 அசல் சங்க வாட்டர்மார்க் மீட்டமைக்கப்பட்டது! (Reset to Default)");
   };
@@ -689,10 +740,10 @@ export default function UnionOfficialIdCard({
     setLogoRightUrl("");
     setGovtSealUrl("");
     setLogoUrl("");
-    localStorage.removeItem("tnpa_custom_logo_left");
-    localStorage.removeItem("tnpa_custom_logo_right");
-    localStorage.removeItem("tnpa_custom_govt_seal");
-    localStorage.removeItem("tnpa_custom_logo");
+    safeLocalStorage.removeItem("tnpa_custom_logo_left");
+    safeLocalStorage.removeItem("tnpa_custom_logo_right");
+    safeLocalStorage.removeItem("tnpa_custom_govt_seal");
+    safeLocalStorage.removeItem("tnpa_custom_logo");
     if (onUpdateLogoLeft) onUpdateLogoLeft("");
     if (onUpdateLogoRight) onUpdateLogoRight("");
     if (onUpdateGovtSeal) onUpdateGovtSeal("");
@@ -702,7 +753,7 @@ export default function UnionOfficialIdCard({
 
   const handleChangeOpacity = (newOpacity: number) => {
     setWatermarkOpacity(newOpacity);
-    localStorage.setItem("tnpa_watermark_opacity", String(newOpacity));
+    safeLocalStorage.setItem("tnpa_watermark_opacity", String(newOpacity));
     showToast(`🎨 வாட்டர்மார்க் அடர்த்தி: ${Math.round(newOpacity * 100)}%`);
   };
 
@@ -978,7 +1029,7 @@ export default function UnionOfficialIdCard({
                 type="button"
                 onClick={() => {
                   setWatermarkUrl("/tnpa_official_logo.png");
-                  localStorage.setItem("tnpa_custom_watermark", "/tnpa_official_logo.png");
+                  safeLocalStorage.setItem("tnpa_custom_watermark", "/tnpa_official_logo.png");
                   if (onUpdateWatermark) onUpdateWatermark("/tnpa_official_logo.png");
                   showToast("✅ அசல் TNPA சங்க லோகோ வாட்டர்மார்க்காக வைக்கப்பட்டது!");
                 }}
@@ -996,7 +1047,7 @@ export default function UnionOfficialIdCard({
                 type="button"
                 onClick={() => {
                   setWatermarkUrl("/logo.svg");
-                  localStorage.setItem("tnpa_custom_watermark", "/logo.svg");
+                  safeLocalStorage.setItem("tnpa_custom_watermark", "/logo.svg");
                   if (onUpdateWatermark) onUpdateWatermark("/logo.svg");
                   showToast("✅ அரசு சின்னம் வாட்டர்மார்க்காக வைக்கப்பட்டது!");
                 }}
@@ -1281,10 +1332,13 @@ export default function UnionOfficialIdCard({
                     title="புகைப்படத்தை மாற்ற தட்டவும் / Click to upload from File Manager"
                   >
                     <img 
-                      src={photoUrl} 
+                      src={photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500"} 
                       alt="Member Photo" 
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500";
+                      }}
                     />
 
                     {/* Hover & Mobile Edit Overlay */}

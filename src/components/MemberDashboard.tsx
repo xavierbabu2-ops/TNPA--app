@@ -24,10 +24,11 @@ import {
 } from "lucide-react";
 import { UserAccount, WelfareApplication, PaymentRecord, WelfareScheme } from "../types";
 import { initialWelfareSchemes } from "../mockData";
-import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExport";
+import { exportIdCardAsPDF, exportIdCardAsImages, exportSingleCardImage } from "../utils/idCardPdfExport";
 import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
 import { getMemberCardRequestByMemberId, subscribeToMemberCardRequests } from "../utils/memberCardStorage";
 import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
+import UnionOfficialIdCard from "./UnionOfficialIdCard";
 
 interface MemberDashboardProps {
   lang: "ta" | "en";
@@ -105,12 +106,14 @@ export default function MemberDashboard({
       return;
     }
     setIsDownloading(true);
-    setDownloadMsg("PDF உருவாக்கப்படுகிறது...");
+    setDownloadMsg("அதிகாரப்பூர்வ உயர் தர PDF உருவாக்கப்படுகிறது (Generating 300 DPI PDF)...");
     try {
       const success = await exportIdCardAsPDF({
         memberName: member.name,
         memberId: member.regNumber || member.id || "TNPA-MEM",
         district: member.district,
+        frontElementId: "union-id-card-front",
+        backElementId: "union-id-card-back",
         singleElementId: "dashboard-digital-member-card",
         onProgress: (msg) => setDownloadMsg(msg),
         onSuccess: (result) => {
@@ -159,17 +162,67 @@ export default function MemberDashboard({
     }
   };
 
+  const handleDownloadFrontPng = async () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
+    setIsDownloading(true);
+    setDownloadMsg("முன்பக்க உயர் தர படம் உருவாக்கப்படுகிறது...");
+    try {
+      await exportSingleCardImage("union-id-card-front", "Front", {
+        memberName: member.name,
+        memberId: member.regNumber || member.id || "TNPA-MEM",
+        onProgress: (msg) => setDownloadMsg(msg)
+      });
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadMsg(null);
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
+      setDownloadMsg("❌ படம் பதிவிறக்கத்தில் பிழை.");
+    }
+  };
+
+  const handleDownloadBackPng = async () => {
+    if (!isPaymentApproved) {
+      setShowPaymentModal(true);
+      return;
+    }
+    setIsDownloading(true);
+    setDownloadMsg("பின்பக்க உயர் தர படம் உருவாக்கப்படுகிறது...");
+    try {
+      await exportSingleCardImage("union-id-card-back", "Back", {
+        memberName: member.name,
+        memberId: member.regNumber || member.id || "TNPA-MEM",
+        onProgress: (msg) => setDownloadMsg(msg)
+      });
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadMsg(null);
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
+      setDownloadMsg("❌ படம் பதிவிறக்கத்தில் பிழை.");
+    }
+  };
+
   const handleDownloadDashboardPng = async () => {
     if (!isPaymentApproved) {
       setShowPaymentModal(true);
       return;
     }
     setIsDownloading(true);
-    setDownloadMsg("PNG படம் உருவாக்கப்படுகிறது...");
+    setDownloadMsg("இருபக்க PNG படங்கள் உருவாக்கப்படுகிறது (Generating 300 DPI PNG)...");
     try {
       await exportIdCardAsImages({
         memberName: member.name,
         memberId: member.regNumber || member.id || "TNPA-MEM",
+        frontElementId: "union-id-card-front",
+        backElementId: "union-id-card-back",
         singleElementId: "dashboard-digital-member-card",
         onProgress: (msg) => setDownloadMsg(msg)
       });
@@ -428,84 +481,38 @@ export default function MemberDashboard({
               </p>
             </div>
 
-            {/* Red / Gold ID Card */}
-            <div 
-              id="dashboard-digital-member-card"
-              className="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-amber-500 shadow-2xl bg-gradient-to-b from-[#b91c1c] via-[#991b1b] to-[#1e1b4b] text-white p-5 flex flex-col relative"
-            >
-              <div className="flex items-center gap-2 border-b border-white/20 pb-2 mb-3">
-                <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center relative p-0.5 shrink-0">
-                  <div className="absolute inset-0 border border-dotted border-amber-400 rounded-full animate-spin [animation-duration:15s]" />
-                  <span className="text-[10px] text-[#991b1b] font-black">TNP</span>
-                </div>
-                <div className="flex-1">
-                  <span className="text-[7px] uppercase font-bold text-amber-300 block tracking-widest leading-none">
-                    ஒன்று கூடுவோம், வென்று காட்டுவோம்
-                  </span>
-                  <span className="text-[9px] font-black block leading-tight">
-                    T.N. PAINTERS & ARTISTS ASSOCIATION
-                  </span>
-                  <span className="text-[6px] text-stone-200 block leading-none">
-                    Reg No: TNMDUJCLMDUTU-50-26-00044
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 flex-1 mb-3">
-                <div className="flex flex-col items-center">
-                  <img 
-                    src={member.photoUrl} 
-                    alt="Photo" 
-                    className="h-20 w-16 object-cover rounded-lg border border-amber-300 shadow" 
-                  />
-                  <span className="text-[8px] text-amber-300 font-bold mt-1.5 uppercase bg-white/10 px-1.5 py-0.5 rounded">
-                    {member.bloodGroup || "O+"}
-                  </span>
-                </div>
-
-                <div className="col-span-2 space-y-1.5 text-left text-xs">
-                  <div>
-                    <span className="text-[7px] text-amber-200 uppercase block tracking-wider leading-none">Name / பெயர்:</span>
-                    <span className="text-[11px] font-extrabold text-white block truncate">{member.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-[7px] text-amber-200 uppercase block tracking-wider leading-none">ID Number / எண்:</span>
-                    <span className="text-[10px] font-mono font-bold text-yellow-300 block">{member.regNumber || "WAITING APPROVAL"}</span>
-                  </div>
-                  <div>
-                    <span className="text-[7px] text-amber-200 uppercase block tracking-wider leading-none">District / மாவட்டம்:</span>
-                    <span className="text-[9px] text-white block font-semibold">{member.district}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-end border-t border-white/20 pt-2 shrink-0 text-[6px] text-amber-200">
-                <div className="text-left space-y-0.5">
-                  <span>Phone / கைபேசி: {member.phone}</span>
-                  <br />
-                  <span>Aadhaar: {member.aadhaar || "Verified"}</span>
-                  <br />
-                  <span>Verified Date: {member.joinedAt.split("T")[0]}</span>
-                </div>
-
-                <div className="flex flex-col items-center">
-                  <div className="h-6 w-16 bg-white/25 rounded flex items-center justify-center font-mono text-[7px] text-amber-300 border border-white/10 select-none">
-                    [ AUTHORISED ]
-                  </div>
-                  <span className="text-[5px] text-amber-300 uppercase font-black mt-0.5">GENERAL SECRETARY</span>
-                </div>
-              </div>
+            {/* OFFICIAL MEMBERSHIP CARD (FRONT & BACK) */}
+            <div id="dashboard-digital-member-card" className="w-full flex flex-col items-center">
+              <UnionOfficialIdCard
+                member={{
+                  id: member.id,
+                  name: member.name,
+                  fatherName: (member as any).fatherName || "சு. முனுசாமி",
+                  regNumber: member.regNumber,
+                  district: member.district,
+                  phone: member.phone,
+                  bloodGroup: member.bloodGroup || "O+",
+                  photoUrl: member.photoUrl,
+                  age: (member as any).age || "38",
+                  place: (member as any).place || member.district,
+                  address: member.address || `${member.district}, தமிழ்நாடு`,
+                  occupation: (member as any).occupation || "பெயிண்டர் மற்றும் ஓவியர்"
+                }}
+                side="both"
+                currentUser={member}
+                isEditable={false}
+              />
             </div>
 
             {/* Payment & Super Admin Approval Gate Banner */}
             {!isPaymentApproved && (
-              <div className="w-full max-w-sm p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col items-start gap-2.5 text-left shadow-sm">
+              <div className="w-full max-w-xl p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col items-start gap-2.5 text-left shadow-sm">
                 <div className="flex items-center gap-2 text-amber-900">
                   <Lock className="w-4 h-4 text-amber-700 shrink-0" />
                   <span className="text-xs font-black uppercase">
                     {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
                       ? (lang === "ta" ? "சூப்பர் அட்மின் ஒப்புதலுக்கு காத்திருக்கிறது" : "Awaiting Super Admin Approval")
-                      : (lang === "ta" ? "கட்டண குறியீடு தேவை" : "Payment Code Required")}
+                      : (lang === "ta" ? "கட்டண குறியீடு தேவை (₹100 Payment Required)" : "Payment Code Required")}
                   </span>
                 </div>
                 <p className="text-xs text-amber-800 font-medium">
@@ -514,8 +521,8 @@ export default function MemberDashboard({
                         ? `நீங்கள் செலுத்திய கட்டண கோடு (UTR: ${existingPaymentRequest.utrNumber}) சமர்ப்பிக்கப்பட்டு சூப்பர் அட்மின் ஒப்புதலுக்கு பரிசீலனையில் உள்ளது. ஒப்புதலுக்கு பிறகு அட்டை தயாராகி டவுன்லோட் செய்ய முடியும்.`
                         : `Your payment reference (UTR: ${existingPaymentRequest.utrNumber}) is submitted. Card download unlocks after Super Admin approval.`)
                     : (lang === "ta"
-                        ? "உறுப்பினர் அட்டை டவுன்லோட் செய்வதற்கு முன்னர் பணம் அனுப்பிய கோடை (UTR எண்) பதிவு செய்து சூப்பர் அட்மினின் ஒப்புதல் பெற வேண்டும்."
-                        : "Enter payment UTR code before downloading. ID card unlocks upon Super Admin approval.")}
+                        ? "உறுப்பினர் அடையாள அட்டை டவுன்லோட் செய்வதற்கு முன்னர் பதிவு செய்யப்பட்ட எண்ணிற்கு (7010131915) ரூ.100 அனுப்பி அதன் UTR எண்ணை பதிவு செய்து சூப்பர் அட்மினின் ஒப்புதல் பெற வேண்டும்."
+                        : "Before downloading member card, send ₹100 to the registered UPI number (7010131915) and submit the UTR number for Super Admin approval.")}
                 </p>
                 <button
                   type="button"
@@ -525,13 +532,13 @@ export default function MemberDashboard({
                 >
                   {existingPaymentRequest?.status === "pending" || existingPaymentRequest?.status === "district_approved"
                     ? (lang === "ta" ? "நிலையை சரிபார்க்க / View Status" : "Check Live Status")
-                    : (lang === "ta" ? "பணம் அனுப்பிய கோடை உள்ளிடவும்" : "Enter Payment Code (UTR)")}
+                    : (lang === "ta" ? "₹100 செலுத்தி UTR எண் பதிவு செய்க" : "Pay ₹100 & Enter UTR Code")}
                 </button>
               </div>
             )}
 
             {isPaymentApproved && !isSuperAdminOrState && (
-              <div className="w-full max-w-sm p-3 bg-emerald-50 border-2 border-emerald-400 rounded-xl flex items-center gap-2 text-emerald-900 text-xs font-bold shadow-sm">
+              <div className="w-full max-w-xl p-3 bg-emerald-50 border-2 border-emerald-400 rounded-xl flex items-center gap-2 text-emerald-900 text-xs font-bold shadow-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
                   {lang === "ta"
@@ -543,14 +550,14 @@ export default function MemberDashboard({
 
             {/* Download Progress Message */}
             {downloadMsg && (
-              <div className="w-full max-w-sm p-3 bg-amber-500 text-white font-bold text-xs rounded-xl text-center shadow-md animate-pulse">
+              <div className="w-full max-w-xl p-3 bg-amber-500 text-white font-bold text-xs rounded-xl text-center shadow-md animate-pulse">
                 {downloadMsg}
               </div>
             )}
 
             {/* Persistent Open PDF Card Banner */}
             {dashboardPdfResult && (
-              <div className="w-full max-w-sm p-3 bg-emerald-950/90 border border-emerald-400 text-white rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2">
+              <div className="w-full max-w-xl p-3 bg-emerald-950/90 border border-emerald-400 text-white rounded-xl shadow-md flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>PDF தயார்!</span>
@@ -598,18 +605,38 @@ export default function MemberDashboard({
                 <span>
                   {dashboardPdfResult
                     ? (lang === "ta" ? "📥 PDF சேமி / டவுன்லோடு" : "📥 Save / Download PDF")
-                    : (lang === "ta" ? "📥 PDF பதிவிறக்கம்" : "📥 Download PDF")}
+                    : (lang === "ta" ? "📥 A4 உயர் தர PDF" : "📥 Download A4 PDF")}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadFrontPng}
+                disabled={isDownloading}
+                className="px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+              >
+                <ImageIcon className="w-4 h-4 text-yellow-300" />
+                <span>{lang === "ta" ? "🖼️ முன்பக்க PNG" : "🖼️ Front PNG"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadBackPng}
+                disabled={isDownloading}
+                className="px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+              >
+                <ImageIcon className="w-4 h-4 text-yellow-300" />
+                <span>{lang === "ta" ? "🖼️ பின்பக்க PNG" : "🖼️ Back PNG"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleDownloadDashboardPng}
                 disabled={isDownloading}
-                className="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+                className="px-3.5 py-2.5 bg-stone-850 hover:bg-stone-800 text-amber-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-amber-500/30"
               >
-                <ImageIcon className="w-4 h-4 text-yellow-300" />
-                <span>{lang === "ta" ? "🖼️ PNG படம்" : "🖼️ Download PNG"}</span>
+                <ImageIcon className="w-4 h-4 text-amber-300" />
+                <span>{lang === "ta" ? "🖼️ இருபக்க PNG" : "🖼️ Both PNG"}</span>
               </button>
 
               <button

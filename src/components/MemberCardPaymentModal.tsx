@@ -26,7 +26,7 @@ import {
   saveMemberCardRequest,
   subscribeToMemberCardRequests
 } from '../utils/memberCardStorage';
-import { exportIdCardAsPDF, exportIdCardAsImages } from '../utils/idCardPdfExport';
+import { exportIdCardAsPDF, exportIdCardAsImages, exportSingleCardImage } from '../utils/idCardPdfExport';
 import { shareOrDownloadBlob } from '../utils/pdfDownloadHelper';
 
 interface MemberCardPaymentModalProps {
@@ -155,7 +155,7 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
 
   const handleDirectDownload = async (type: 'pdf' | 'png') => {
     setIsDownloading(true);
-    setDownloadProgress('அட்டை கோப்பை தயார் செய்கிறது...');
+    setDownloadProgress('உயர் தர கோப்பை தயார் செய்கிறது...');
 
     try {
       const hasOfficialFront = !!document.getElementById('union-id-card-front');
@@ -208,6 +208,46 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
       console.error(err);
       setIsDownloading(false);
       setDownloadProgress('❌ பதிவிறக்கத்தில் பிழை. அச்சிடு முறையைப் பயன்படுத்தவும்.');
+    }
+  };
+
+  const handleDownloadFrontPng = async () => {
+    setIsDownloading(true);
+    setDownloadProgress('முன்பக்க படம் தயார் செய்கிறது...');
+    try {
+      await exportSingleCardImage('union-id-card-front', 'Front', {
+        memberName: memberName,
+        memberId: memberId,
+        onProgress: (s) => setDownloadProgress(s)
+      });
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+      setIsDownloading(false);
+      setDownloadProgress('❌ படம் பதிவிறக்க பிழை.');
+    }
+  };
+
+  const handleDownloadBackPng = async () => {
+    setIsDownloading(true);
+    setDownloadProgress('பின்பக்க படம் தயார் செய்கிறது...');
+    try {
+      await exportSingleCardImage('union-id-card-back', 'Back', {
+        memberName: memberName,
+        memberId: memberId,
+        onProgress: (s) => setDownloadProgress(s)
+      });
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(null);
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+      setIsDownloading(false);
+      setDownloadProgress('❌ படம் பதிவிறக்க பிழை.');
     }
   };
 
@@ -334,7 +374,7 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
               )}
 
               {/* Instant Download Action Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                 <button
                   type="button"
                   disabled={isDownloading}
@@ -345,26 +385,44 @@ export const MemberCardPaymentModal: React.FC<MemberCardPaymentModalProps> = ({
                       handleDirectDownload('pdf');
                     }
                   }}
-                  className="w-full py-3.5 px-4 bg-[#C00000] hover:bg-red-700 active:scale-98 text-white text-sm font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 px-4 bg-[#C00000] hover:bg-red-700 active:scale-98 text-white text-xs font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4 text-yellow-300" />
                   <span>
                     {isDownloading
                       ? 'தயாராகிறது...'
                       : modalPdfResult
                       ? '📥 PDF சேமி / டவுன்லோடு'
-                      : 'PDF அட்டை டவுன்லோட்'}
+                      : '📥 A4 உயர் தர PDF'}
                   </span>
                 </button>
 
                 <button
                   type="button"
                   disabled={isDownloading}
+                  onClick={handleDownloadFrontPng}
+                  className="w-full py-3 px-4 bg-stone-900 hover:bg-stone-800 active:scale-98 text-yellow-300 text-xs font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50 border border-yellow-500/40"
+                >
+                  <span>🖼️ முன்பக்க PNG (Front)</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDownloading}
+                  onClick={handleDownloadBackPng}
+                  className="w-full py-3 px-4 bg-stone-900 hover:bg-stone-800 active:scale-98 text-yellow-300 text-xs font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50 border border-yellow-500/40"
+                >
+                  <span>🖼️ பின்பக்க PNG (Back)</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDownloading}
                   onClick={() => handleDirectDownload('png')}
-                  className="w-full py-3.5 px-4 bg-stone-900 hover:bg-stone-800 active:scale-98 text-yellow-300 text-sm font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50 border border-yellow-500/40"
+                  className="w-full py-3 px-4 bg-stone-850 hover:bg-stone-800 active:scale-98 text-amber-300 text-xs font-black rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50 border border-amber-500/40"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>PNG படங்கள் (முன் & பின்)</span>
+                  <span>🖼️ இருபக்க PNG (Both)</span>
                 </button>
               </div>
 

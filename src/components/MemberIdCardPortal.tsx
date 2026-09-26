@@ -40,6 +40,8 @@ import { exportIdCardAsPDF, exportIdCardAsImages } from "../utils/idCardPdfExpor
 import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
 import { getMemberCardRequestByMemberId, subscribeToMemberCardRequests } from "../utils/memberCardStorage";
 import { formatMemberNumber, generateDistrictRegNumber } from "../utils/districtCodes";
+import { safeLocalStorage } from "../utils/safeStorage";
+import { compressImageForCard } from "../utils/imageCompressor";
 import { storage, db } from "../lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, setDoc } from "firebase/firestore";
@@ -111,7 +113,7 @@ export default function MemberIdCardPortal({
   );
   const [customEmblemUrl, setCustomEmblemUrl] = useState<string>("");
   const [customLogoUrl, setCustomLogoUrl] = useState<string>("");
-  const [customWatermarkUrl, setCustomWatermarkUrl] = useState<string>(() => localStorage.getItem("tnpa_custom_watermark") || "");
+  const [customWatermarkUrl, setCustomWatermarkUrl] = useState<string>(() => safeLocalStorage.getItem("tnpa_custom_watermark") || "");
 
   // Dedicated Edit Member Card Modal State (New Option)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1045,7 +1047,7 @@ export default function MemberIdCardPortal({
               }}
               onUpdateWatermark={(newWatermarkUrl) => {
                 setCustomWatermarkUrl(newWatermarkUrl);
-                localStorage.setItem("tnpa_custom_watermark", newWatermarkUrl);
+                safeLocalStorage.setItem("tnpa_custom_watermark", newWatermarkUrl);
                 onAddAuditLog("Update Watermark", `Updated ID card watermark image from device`);
               }}
             />
@@ -1408,17 +1410,17 @@ export default function MemberIdCardPortal({
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          const res = reader.result as string;
+                        try {
+                          const res = await compressImageForCard(file, 600, 0.85, true);
                           setCustomWatermarkUrl(res);
-                          localStorage.setItem("tnpa_custom_watermark", res);
+                          safeLocalStorage.setItem("tnpa_custom_watermark", res);
                           onAddAuditLog("Update Watermark", "Updated ID card watermark image from device");
-                        };
-                        reader.readAsDataURL(file);
+                        } catch (err) {
+                          console.warn("Watermark load error:", err);
+                        }
                       }
                     }}
                     className="hidden"

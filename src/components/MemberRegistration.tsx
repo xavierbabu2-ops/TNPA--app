@@ -42,6 +42,9 @@ import { MemberRegistration as RegType } from "../types";
 import { auth } from "../lib/firebase";
 import { saveMemberLocally, getOfflineMemberById } from "../utils/offlineMemberDatabase";
 import { dispatchSmsOtp, verifySmsOtp } from "../utils/apiClient";
+import { exportIdCardAsPDF, exportIdCardAsImages, exportSingleCardImage } from "../utils/idCardPdfExport";
+import { getMemberCardRequestByMemberId, subscribeToMemberCardRequests } from "../utils/memberCardStorage";
+import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
 
 interface MemberRegistrationProps {
   lang: "ta" | "en";
@@ -140,6 +143,17 @@ export default function MemberRegistration({
   const [searchPhoneOrId, setSearchPhoneOrId] = useState("");
   const [trackedApplication, setTrackedApplication] = useState<RegType | null>(null);
   const [searchAttempted, setSearchAttempted] = useState(false);
+  const [showCardPaymentModal, setShowCardPaymentModal] = useState(false);
+  const [cardDownloadMsg, setCardDownloadMsg] = useState<string | null>(null);
+  const [isDownloadingCard, setIsDownloadingCard] = useState(false);
+  const [, setCardSyncTick] = useState(0);
+
+  useEffect(() => {
+    const unsub = subscribeToMemberCardRequests(() => {
+      setCardSyncTick((t) => t + 1);
+    });
+    return () => unsub();
+  }, []);
 
   // Edit / Resubmission ID state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1761,124 +1775,240 @@ export default function MemberRegistration({
                 </div>
 
                 {/* APPROVED PORTION: PRINT CARD & SECURE QR SCANNER */}
-                {/* APPROVED PORTION: PRINT CARD & SECURE QR SCANNER */}
-                {trackedApplication.status === "approved" && (
-                  <div className="space-y-6 border-t pt-5">
-                    
-                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
-                      🎉 <strong>{lang === "ta" ? "அதிர்ஷ்டம்!" : "Congratulations!"}</strong> {lang === "ta" ? "உங்கள் உறுப்பினர் சேர்க்கை இறுதிச் சரிபார்ப்புடன் அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் பிரத்தியேக டிஜிட்டல் உறுப்பினர் அடையாள அட்டை தயார் நிலையில் உள்ளது." : "Your painter membership is fully authenticated. Your printable Digital ID Card with cryptographic validation is presented below."}
-                    </div>
+                {trackedApplication.status === "approved" && (() => {
+                  const paymentReq = 
+                    getMemberCardRequestByMemberId(trackedApplication.regNumber || trackedApplication.id) ||
+                    getMemberCardRequestByMemberId(trackedApplication.phone || "");
+                  const isCardApproved = paymentReq?.status === "approved";
 
-                    {/* RED/GOLD ID CARD DISPLAY */}
-                    <div className="flex justify-center">
-                      <div 
-                        id="track-card-print-area"
-                        className="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-amber-500 shadow-2xl bg-gradient-to-b from-[#b91c1c] via-[#991b1b] to-[#1e1b4b] text-white p-5 flex flex-col relative"
-                      >
-                        {/* Gold flag decor */}
-                        <div className="absolute top-0 right-0 h-1 w-1/3 bg-amber-400" />
-                        <div className="absolute top-0 left-0 h-1 w-1/3 bg-red-500" />
+                  const handleDownloadTrackedPdf = async () => {
+                    if (!isCardApproved) {
+                      setShowCardPaymentModal(true);
+                      return;
+                    }
+                    setIsDownloadingCard(true);
+                    setCardDownloadMsg("உயர் தர A4 PDF உருவாக்கப்படுகிறது...");
+                    try {
+                      await exportIdCardAsPDF({
+                        memberName: trackedApplication.name,
+                        memberId: trackedApplication.regNumber || trackedApplication.id,
+                        district: trackedApplication.district,
+                        frontElementId: "union-id-card-front",
+                        backElementId: "union-id-card-back",
+                        singleElementId: "track-card-print-area",
+                        onProgress: (m) => setCardDownloadMsg(m)
+                      });
+                      setTimeout(() => {
+                        setIsDownloadingCard(false);
+                        setCardDownloadMsg(null);
+                      }, 1500);
+                    } catch (e) {
+                      console.error(e);
+                      setIsDownloadingCard(false);
+                      setCardDownloadMsg("❌ PDF பிழை.");
+                    }
+                  };
 
-                        {/* Top Brand Banner */}
-                        <div className="flex items-center gap-2 border-b border-white/20 pb-2 mb-3">
-                          <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center p-0.5 shrink-0 relative">
-                            <span className="text-[10px] text-[#991b1b] font-black">TNP</span>
-                          </div>
-                          <div className="flex-1 text-left">
-                            <span className="text-[7px] uppercase font-bold text-amber-300 block tracking-widest leading-none">
-                              ஒன்று கூடுவோம், வென்று காட்டுவோம்
-                            </span>
-                            <span className="text-[9px] font-black block leading-tight">
-                              T.N. PAINTERS & ARTISTS ASSOCIATION
-                            </span>
-                            <span className="text-[6px] text-stone-200 block leading-none">
-                              Reg No: TNMDUJCLMDUTU-50-26-00044
-                            </span>
-                          </div>
-                        </div>
+                  const handleDownloadTrackedFrontPng = async () => {
+                    if (!isCardApproved) {
+                      setShowCardPaymentModal(true);
+                      return;
+                    }
+                    setIsDownloadingCard(true);
+                    setCardDownloadMsg("முன்பக்க படம் சேமிக்கப்படுகிறது...");
+                    try {
+                      await exportSingleCardImage("union-id-card-front", "Front", {
+                        memberName: trackedApplication.name,
+                        memberId: trackedApplication.regNumber || trackedApplication.id,
+                        onProgress: (m) => setCardDownloadMsg(m)
+                      });
+                      setTimeout(() => {
+                        setIsDownloadingCard(false);
+                        setCardDownloadMsg(null);
+                      }, 1500);
+                    } catch (e) {
+                      console.error(e);
+                      setIsDownloadingCard(false);
+                      setCardDownloadMsg("❌ படம் பதிவிறக்க பிழை.");
+                    }
+                  };
 
-                        {/* Middle Profile */}
-                        <div className="grid grid-cols-3 gap-3 flex-1 mb-3">
-                          <div className="flex flex-col items-center">
-                            <img 
-                              src={trackedApplication.photoUrl} 
-                              alt="Member Profile photo" 
-                              referrerPolicy="no-referrer"
-                              className="h-20 w-16 object-cover rounded-lg border border-amber-300 shadow" 
-                            />
-                            <span className="text-[8px] text-amber-300 font-bold mt-1.5 uppercase bg-white/10 px-1.5 py-0.5 rounded">
-                              {trackedApplication.bloodGroup || "O+"}
-                            </span>
-                          </div>
+                  const handleDownloadTrackedBackPng = async () => {
+                    if (!isCardApproved) {
+                      setShowCardPaymentModal(true);
+                      return;
+                    }
+                    setIsDownloadingCard(true);
+                    setCardDownloadMsg("பின்பக்க படம் சேமிக்கப்படுகிறது...");
+                    try {
+                      await exportSingleCardImage("union-id-card-back", "Back", {
+                        memberName: trackedApplication.name,
+                        memberId: trackedApplication.regNumber || trackedApplication.id,
+                        onProgress: (m) => setCardDownloadMsg(m)
+                      });
+                      setTimeout(() => {
+                        setIsDownloadingCard(false);
+                        setCardDownloadMsg(null);
+                      }, 1500);
+                    } catch (e) {
+                      console.error(e);
+                      setIsDownloadingCard(false);
+                      setCardDownloadMsg("❌ படம் பதிவிறக்க பிழை.");
+                    }
+                  };
 
-                          <div className="col-span-2 space-y-1.5 text-left text-xs">
-                            <div>
-                              <span className="text-[7px] text-amber-200 block leading-none">Name / பெயர்:</span>
-                              <span className="text-[11px] font-extrabold text-white block truncate">{trackedApplication.nameEn || trackedApplication.name}</span>
-                            </div>
-                            <div>
-                              <span className="text-[7px] text-amber-200 block leading-none">ID Number / எண்:</span>
-                              <span className="text-[10px] font-mono font-bold text-yellow-300 block">{trackedApplication.regNumber}</span>
-                            </div>
-                            <div>
-                              <span className="text-[7px] text-amber-200 block leading-none">District / மாவட்டம்:</span>
-                              <span className="text-[9px] text-white block font-semibold">{trackedApplication.district}</span>
-                            </div>
-                          </div>
-                        </div>
+                  const handleDownloadTrackedBothPng = async () => {
+                    if (!isCardApproved) {
+                      setShowCardPaymentModal(true);
+                      return;
+                    }
+                    setIsDownloadingCard(true);
+                    setCardDownloadMsg("இருபக்க படங்கள் சேமிக்கப்படுகிறது...");
+                    try {
+                      await exportIdCardAsImages({
+                        memberName: trackedApplication.name,
+                        memberId: trackedApplication.regNumber || trackedApplication.id,
+                        frontElementId: "union-id-card-front",
+                        backElementId: "union-id-card-back",
+                        singleElementId: "track-card-print-area",
+                        onProgress: (m) => setCardDownloadMsg(m)
+                      });
+                      setTimeout(() => {
+                        setIsDownloadingCard(false);
+                        setCardDownloadMsg(null);
+                      }, 1500);
+                    } catch (e) {
+                      console.error(e);
+                      setIsDownloadingCard(false);
+                      setCardDownloadMsg("❌ படம் பதிவிறக்க பிழை.");
+                    }
+                  };
 
-                        {/* Back footer with barcode & QR code */}
-                        <div className="flex justify-between items-end border-t border-white/20 pt-2 shrink-0 text-[6px] text-amber-200">
-                          <div className="text-left space-y-0.5 leading-tight">
-                            <span>Phone / கைபேசி: {trackedApplication.phone}</span>
-                            <br />
-                            <span>Validity: 31st Dec 2026</span>
-                            <br />
-                            <span>Aadhaar: Verified (Aadhaar shielded)</span>
-                          </div>
-
-                          {/* Dynamic secure QR code */}
-                          <div className="flex flex-col items-center">
-                            <img 
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                                `TNP APPROVED MEMBER: ${trackedApplication.nameEn || trackedApplication.name} | Reg: ${trackedApplication.regNumber} | Dist: ${trackedApplication.district} | Validity: 2026-12-31 | Verified: Yes`
-                              )}`}
-                              alt="SECURE VERIFICATION QR" 
-                              className="h-10 w-10 bg-white p-0.5 rounded border"
-                            />
-                            <span className="text-[4px] text-amber-300 uppercase font-black mt-0.5">SCAN TO VERIFY</span>
-                          </div>
-                        </div>
-
+                  return (
+                    <div className="space-y-6 border-t pt-5">
+                      
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+                        🎉 <strong>{lang === "ta" ? "அதிர்ஷ்டம்!" : "Congratulations!"}</strong> {lang === "ta" ? "உங்கள் உறுப்பினர் சேர்க்கை இறுதிச் சரிபார்ப்புடன் அங்கீகரிக்கப்பட்டுள்ளது. உங்கள் அதிகாரப்பூர்வ உறுப்பினர் அடையாள அட்டை கீழே காட்டப்பட்டுள்ளது." : "Your painter membership is fully authenticated. Your official Member ID Card is presented below."}
                       </div>
+
+                      {/* OFFICIAL ID CARD DISPLAY */}
+                      <div id="track-card-print-area" className="w-full flex justify-center">
+                        <UnionOfficialIdCard
+                          member={{
+                            id: trackedApplication.id,
+                            name: trackedApplication.name,
+                            fatherName: trackedApplication.fatherName || "சு. முனுசாமி",
+                            regNumber: trackedApplication.regNumber,
+                            district: trackedApplication.district,
+                            phone: trackedApplication.phone,
+                            bloodGroup: trackedApplication.bloodGroup || "O+",
+                            photoUrl: trackedApplication.photoUrl,
+                            age: (trackedApplication as any).age || "38",
+                            place: trackedApplication.district,
+                            address: trackedApplication.address || `${trackedApplication.district}, தமிழ்நாடு`,
+                            occupation: trackedApplication.profession || "பெயிண்டர் மற்றும் ஓவியர்"
+                          }}
+                          side="both"
+                          isEditable={false}
+                        />
+                      </div>
+
+                      {/* Payment Verification Gate Banner */}
+                      {!isCardApproved && (
+                        <div className="w-full p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col items-start gap-2.5 text-left shadow-sm">
+                          <div className="flex items-center gap-2 text-amber-900">
+                            <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                            <span className="text-xs font-black uppercase">
+                              {paymentReq?.status === "pending" || paymentReq?.status === "district_approved"
+                                ? (lang === "ta" ? "சூப்பர் அட்மின் ஒப்புதலுக்கு காத்திருக்கிறது" : "Awaiting Super Admin Approval")
+                                : (lang === "ta" ? "கட்டண குறியீடு தேவை (₹100 Payment Required)" : "Payment Code Required")}
+                            </span>
+                          </div>
+                          <p className="text-xs text-amber-800 font-medium">
+                            {paymentReq?.status === "pending" || paymentReq?.status === "district_approved"
+                              ? (lang === "ta"
+                                  ? `நீங்கள் செலுத்திய கட்டண கோடு (UTR: ${paymentReq.utrNumber}) சமர்ப்பிக்கப்பட்டு சூப்பர் அட்மின் ஒப்புதலுக்கு பரிசீலனையில் உள்ளது. ஒப்புதலுக்கு பிறகு அட்டை தயாராகி டவுன்லோட் செய்ய முடியும்.`
+                                  : `Your payment reference (UTR: ${paymentReq.utrNumber}) is submitted. Card download unlocks after Super Admin approval.`)
+                              : (lang === "ta"
+                                  ? "உறுப்பினர் அடையாள அட்டை டவுன்லோட் செய்வதற்கு முன்னர் பதிவு செய்யப்பட்ட எண்ணிற்கு (7010131915) ரூ.100 அனுப்பி அதன் UTR எண்ணை பதிவு செய்து சூப்பர் அட்மினின் ஒப்புதல் பெற வேண்டும்."
+                                  : "Before downloading member card, send ₹100 to the registered UPI number (7010131915) and submit the UTR number for Super Admin approval.")}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowCardPaymentModal(true)}
+                            className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow transition cursor-pointer text-center active:scale-95"
+                          >
+                            {paymentReq?.status === "pending" || paymentReq?.status === "district_approved"
+                              ? (lang === "ta" ? "நிலையை சரிபார்க்க / View Status" : "Check Live Status")
+                              : (lang === "ta" ? "₹100 செலுத்தி UTR எண் பதிவு செய்க" : "Pay ₹100 & Enter UTR Code")}
+                          </button>
+                        </div>
+                      )}
+
+                      {cardDownloadMsg && (
+                        <div className="p-3 bg-amber-500 text-white font-bold text-xs rounded-xl text-center shadow-md animate-pulse">
+                          {cardDownloadMsg}
+                        </div>
+                      )}
+
+                      {/* ID Actions */}
+                      <div className="flex flex-wrap justify-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleDownloadTrackedPdf}
+                          disabled={isDownloadingCard}
+                          className="px-4 py-2.5 bg-[#C00000] hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50"
+                        >
+                          <Download className="w-4 h-4 text-yellow-300" />
+                          <span>{lang === "ta" ? "📥 A4 உயர் தர PDF" : "📥 Download A4 PDF"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleDownloadTrackedFrontPng}
+                          disabled={isDownloadingCard}
+                          className="px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+                        >
+                          <span>{lang === "ta" ? "🖼️ முன்பக்க PNG" : "🖼️ Front PNG"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleDownloadTrackedBackPng}
+                          disabled={isDownloadingCard}
+                          className="px-3.5 py-2.5 bg-stone-900 hover:bg-stone-800 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-yellow-500/30"
+                        >
+                          <span>{lang === "ta" ? "🖼️ பின்பக்க PNG" : "🖼️ Back PNG"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleDownloadTrackedBothPng}
+                          disabled={isDownloadingCard}
+                          className="px-3.5 py-2.5 bg-stone-850 hover:bg-stone-800 text-amber-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 disabled:opacity-50 border border-amber-500/30"
+                        >
+                          <span>{lang === "ta" ? "🖼️ இருபக்க PNG" : "🖼️ Both PNG"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!isCardApproved) {
+                              setShowCardPaymentModal(true);
+                              return;
+                            }
+                            window.print();
+                          }}
+                          className="px-4 py-2.5 bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm active:scale-95"
+                        >
+                          <Printer className="w-4 h-4 text-[#C00000]" />
+                          <span>{lang === "ta" ? "அச்சிடு" : "Print"}</span>
+                        </button>
+                      </div>
+
                     </div>
-
-                    {/* Dues Renewal and ID Actions */}
-                    <div className="flex flex-wrap justify-center gap-4">
-                      <button
-                        type="button"
-                        onClick={() => window.print()}
-                        className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-                      >
-                        <Printer className="w-4 h-4 text-amber-400" />
-                        <span>{lang === "ta" ? "அடையாள அட்டை அச்சிடு" : "Print Member ID Card"}</span>
-                      </button>
-
-                      {/* Interactive simulated download link */}
-                      <a
-                        href={`data:text/plain;charset=utf-8,${encodeURIComponent(
-                          `==========================================\n  TAMIL NADU PAINTERS ASSOCIATION DIGITAL ID\n==========================================\nNAME: ${trackedApplication.nameEn || trackedApplication.name}\nREG NO: ${trackedApplication.regNumber}\nDISTRICT: ${trackedApplication.district}\nPHONE: ${trackedApplication.phone}\nSTATUS: VERIFIED ACTIVE\nVALIDITY: 31ST DEC 2026\n==========================================`
-                        )}`}
-                        download={`TNP_ID_CARD_${trackedApplication.regNumber}.txt`}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>{lang === "ta" ? "டிஜிட்டல் அட்டை டவுன்லோடு" : "Download ID Certificate"}</span>
-                      </a>
-                    </div>
-
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* District WhatsApp Group Banner in Tracking View */}
                 <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-emerald-950 text-white rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-emerald-700">
@@ -2356,6 +2486,30 @@ export default function MemberRegistration({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Member Card Payment & UTR Verification Modal */}
+      {showCardPaymentModal && trackedApplication && (
+        <MemberCardPaymentModal
+          isOpen={showCardPaymentModal}
+          onClose={() => setShowCardPaymentModal(false)}
+          currentUser={null}
+          targetMember={{
+            id: trackedApplication.id,
+            name: trackedApplication.name,
+            nameEn: trackedApplication.nameEn,
+            phone: trackedApplication.phone,
+            district: trackedApplication.district,
+            photoUrl: trackedApplication.photoUrl,
+            bloodGroup: trackedApplication.bloodGroup,
+            fatherName: trackedApplication.fatherName,
+            address: trackedApplication.address,
+            regNumber: trackedApplication.regNumber
+          } as any}
+          onPaymentSubmitted={() => {
+            setCardSyncTick(t => t + 1);
+          }}
+        />
       )}
 
     </div>

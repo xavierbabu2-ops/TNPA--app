@@ -33,7 +33,13 @@ import {
   saveMemberCardRequest,
   subscribeToMemberCardRequests
 } from '../utils/memberCardStorage';
-import { exportIdCardAsPDF, exportIdCardAsImages, shareOrDownloadBlob } from '../utils/idCardPdfExport';
+import { 
+  exportIdCardAsPDF, 
+  exportIdCardAsImages, 
+  shareOrDownloadBlob,
+  DEFAULT_MEMBER_FALLBACK_PHOTO,
+  DEFAULT_MEMBER_AVATAR_DATA_URI
+} from '../utils/idCardPdfExport';
 
 interface MemberCardPortalProps {
   currentUser: UserAccount | null;
@@ -93,11 +99,13 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
       const memberName = request?.memberName || currentUser?.name || 'Member';
       const memberRegNo = request?.cardNumber || request?.memberId || currentUser?.regNumber || currentUser?.id || 'TNPA-MEM';
       const memberDistrict = request?.district || currentUser?.district || 'Tamil Nadu';
+      const memberPhoto = request?.photoUrl || currentUser?.photoUrl || DEFAULT_MEMBER_FALLBACK_PHOTO;
 
       const success = await exportIdCardAsPDF({
         memberName,
         memberId: memberRegNo,
         district: memberDistrict,
+        photoUrl: memberPhoto,
         singleElementId: 'printable-member-card',
         onProgress: (msg) => setDownloadMsg(msg),
         onSuccess: (result) => {
@@ -353,16 +361,16 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                     {/* Member Photo */}
                     <div className="col-span-1 flex flex-col items-center">
                       <div className="w-24 h-28 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-lg bg-slate-800 flex items-center justify-center">
-                        {(request?.photoUrl || currentUser?.photoUrl) ? (
-                          <img
-                            src={request?.photoUrl || currentUser?.photoUrl}
-                            alt={request?.memberName || currentUser?.name || 'Member'}
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <User className="w-12 h-12 text-slate-400" />
-                        )}
+                        <img
+                          src={request?.photoUrl || currentUser?.photoUrl || DEFAULT_MEMBER_FALLBACK_PHOTO}
+                          alt={request?.memberName || currentUser?.name || 'Member Photo'}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = DEFAULT_MEMBER_AVATAR_DATA_URI;
+                          }}
+                        />
                       </div>
                       <span className="text-[10px] font-bold text-amber-300 mt-1.5 uppercase">
                         {request?.bloodGroup || currentUser?.bloodGroup || 'O+'} Group

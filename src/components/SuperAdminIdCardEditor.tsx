@@ -20,6 +20,8 @@ import {
   Plus
 } from "lucide-react";
 import { MemberRegistration, UserAccount } from "../types";
+import { saveUnionConfigToFirestore, subscribeToUnionConfig, GlobalUnionConfig } from "../lib/syncService";
+import { compressImageForCard } from "../utils/imageCompressor";
 
 interface SuperAdminIdCardEditorProps {
   lang: "ta" | "en";
@@ -167,14 +169,15 @@ export default function SuperAdminIdCardEditor({
   const [editPhoto, setEditPhoto] = useState(activeMember?.photoUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200&h=200");
 
   // Gallery Upload Handler Helper
-  const handleGalleryFileSelect = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
+  const handleGalleryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setter(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageForCard(file, 1200, 0.85, true);
+        setter(compressed);
+      } catch (err) {
+        console.warn("Gallery file read error:", err);
+      }
     }
   };
 
@@ -212,9 +215,25 @@ export default function SuperAdminIdCardEditor({
         photoUrl: editPhoto
       };
       onUpdateRegistration(updated);
+      saveUnionConfigToFirestore({
+        customLogoUrl: customLogoUrl || undefined,
+        customFlagUrl: customFlagUrl || undefined,
+        customCardBgUrl: customBgUrl || undefined,
+        customGovtSealUrl: customGovtSealUrl || undefined,
+        customFullCardFrontUrl: fullCardFrontUrl || customBgUrl || undefined,
+        customFullCardBackUrl: fullCardBackUrl || undefined
+      }).catch(err => console.warn("Firestore sync warning:", err));
       onAddAuditLog("Super Admin ID Card Edit", `Super Admin modified ID card data for member: ${editName} (${editRegNo}) with Custom Logo, Flag & Reg No: ${unionRegNo}`);
       alert(lang === "ta" ? "✓ அடையாள அட்டை தரவுகள், லோகோ, கொடி மற்றும் பதிவு எண் சூப்பர் அட்மினால் வெற்றிகரமாகப் புதுப்பிக்கப்பட்டன!" : "✓ ID card record, logo, union flag and registration numbers successfully updated by Super Admin!");
     } else {
+      saveUnionConfigToFirestore({
+        customLogoUrl: customLogoUrl || undefined,
+        customFlagUrl: customFlagUrl || undefined,
+        customCardBgUrl: customBgUrl || undefined,
+        customGovtSealUrl: customGovtSealUrl || undefined,
+        customFullCardFrontUrl: fullCardFrontUrl || customBgUrl || undefined,
+        customFullCardBackUrl: fullCardBackUrl || undefined
+      }).catch(err => console.warn("Firestore sync warning:", err));
       alert(lang === "ta" ? "✓ வடிவமைப்பு மற்றும் டெம்ப்ளேட் மாற்றங்கள் சேமிக்கப்பட்டன!" : "✓ ID card layout and template settings saved successfully!");
       onAddAuditLog("Super Admin ID Template Update", `Updated global ID card design template and styling.`);
     }

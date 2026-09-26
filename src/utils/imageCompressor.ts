@@ -1,44 +1,48 @@
 /**
- * Image compression utility for PWA & Firestore
- * Automatically resizes and compresses user-uploaded photos (from mobile camera, WhatsApp, gallery, up to 15MB)
- * into a lightweight passport-sized JPEG Data URI (~20KB - 40KB, max 380x380).
- * Prevents Firestore 1MB document size limit exceeded errors and browser localStorage QuotaExceededError.
+ * Image compression utility for PWA & Firestore & Local Storage
+ * Automatically resizes and compresses user-uploaded photos, logos, emblems, and card backgrounds
+ * into lightweight web-ready Data URIs (~20KB - 150KB).
+ * Prevents Firestore 1MB document limit errors and browser localStorage QuotaExceededError.
  */
+
 export function compressImageFile(
   file: File,
   maxDim = 380,
   quality = 0.82
 ): Promise<string> {
+  return compressImageForCard(file, maxDim, quality, false);
+}
+
+/**
+ * Enhanced compressor for ID Card graphics:
+ * - Supports File and base64/DataURL input
+ * - Preserves transparent PNGs (for logos, seals, watermarks)
+ * - Restricts pixel bounds and byte size safely
+ */
+export function compressImageForCard(
+  input: File | string,
+  maxDim = 800,
+  quality = 0.82,
+  preserveAlpha = true
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (!file) {
-      reject(new Error("No file provided"));
+    if (!input) {
+      reject(new Error("No image input provided"));
       return;
     }
 
-    // If not an image, reject
-    if (!file.type.startsWith("image/")) {
-      reject(new Error("Selected file is not an image"));
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Failed to read image file"));
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      if (!dataUrl) {
-        reject(new Error("Empty image data"));
-        return;
-      }
-
+    const processDataUrl = (dataUrl: string, isPngOrWebp: boolean) => {
       const img = new Image();
-      img.onerror = () => reject(new Error("Failed to decode image data"));
+      img.onerror = () => {
+        // Safe fallback to dataUrl if decode fails
+        resolve(dataUrl);
+      };
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
           let width = img.width;
           let height = img.height;
 
-          // Scale maintaining aspect ratio
           if (width > height) {
             if (width > maxDim) {
               height = Math.round((height * maxDim) / width);
@@ -59,23 +63,50 @@ export function compressImageFile(
             return;
           }
 
-          // Fill clean background to avoid transparent artifacts when saving as JPEG
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (!preserveAlpha || !isPngOrWebp) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
 
-          // Draw scaled image
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          // Export compressed JPEG
-          const compressed = canvas.toDataURL("image/jpeg", quality);
+          let outputFormat = "image/jpeg";
+          if (preserveAlpha && (isPngOrWebp || dataUrl.includes("image/png") || dataUrl.includes("image/webp"))) {
+            outputFormat = "image/png";
+          }
+
+          const compressed = canvas.toDataURL(outputFormat, quality);
           resolve(compressed);
         } catch (e) {
-          console.warn("Canvas compression fallback, using original reader data:", e);
+          console.warn("[ImageCompressor] Canvas fallback:", e);
           resolve(dataUrl);
         }
       };
       img.src = dataUrl;
     };
-    reader.readAsDataURL(file);
+
+    if (typeof input === "string") {
+      const isPng = input.startsWith("data:image/png") || input.startsWith("data:image/webp");
+      processDataUrl(input, isPng);
+    } else {
+      if (!input.type || !input.type.startsWith("image/")) {
+        reject(new Error("Selected file is not an image"));
+        return;
+      }
+      const isPng = input.type === "image/png" || input.type === "image/webp";
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Failed to read image file"));
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        if (!dataUrl) {
+          reject(new Error("Empty image file"));
+          return;
+        }
+        processDataUrl(dataUrl, isPng);
+      };
+      reader.readAsDataURL(input);
+    }
   });
 }

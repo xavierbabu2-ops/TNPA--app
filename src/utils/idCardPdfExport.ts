@@ -4,6 +4,28 @@ import { shareOrDownloadBlob } from './pdfDownloadHelper';
 
 export { shareOrDownloadBlob };
 
+export const DEFAULT_MEMBER_FALLBACK_PHOTO = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500';
+
+export const DEFAULT_MEMBER_AVATAR_DATA_URI = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360" width="300" height="360">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="avatarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="360" fill="url(#bgGrad)" rx="8"/>
+  <circle cx="150" cy="120" r="55" fill="url(#avatarGrad)"/>
+  <path d="M 40,310 C 40,210 100,195 150,195 C 200,195 260,210 260,310 Z" fill="url(#avatarGrad)"/>
+  <rect x="0" y="315" width="300" height="45" fill="#C00000"/>
+  <text x="150" y="344" font-family="sans-serif" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">TNPA MEMBER</text>
+</svg>
+`)}`;
+
 export interface IdCardExportResult {
   success: boolean;
   blob?: Blob;
@@ -17,6 +39,7 @@ export interface IdCardExportOptions {
   memberName: string;
   memberId?: string;
   district?: string;
+  photoUrl?: string;
   frontElementId?: string;
   backElementId?: string;
   singleElementId?: string;
@@ -25,14 +48,51 @@ export interface IdCardExportOptions {
 }
 
 /**
- * Safely converts an image URL into a local Data URI so html2canvas never makes cross-origin requests
- * or encounters CORS/tainting issues.
+ * Safely converts an image URL or loaded Image element into a local Data URI so html2canvas never encounters CORS/tainting issues.
+ * NEVER replaces genuine member photos or association logos with dark robot placeholders.
  */
-async function urlToDataUri(url: string, fallbackText = 'TNPA'): Promise<string> {
+async function urlToDataUri(url: string, imgElement?: HTMLImageElement): Promise<string> {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
 
-  // 1. Try fetching image as blob with CORS
+  // 1. If live DOM <img> element is already fully loaded and rendered, draw directly to canvas
+  if (imgElement && imgElement.complete && imgElement.naturalWidth > 0) {
+    try {
+      const c = document.createElement('canvas');
+      c.width = imgElement.naturalWidth || imgElement.width || 300;
+      c.height = imgElement.naturalHeight || imgElement.height || 300;
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(imgElement, 0, 0);
+        const dataUri = c.toDataURL('image/png');
+        if (dataUri && dataUri.length > 200) {
+          return dataUri;
+        }
+      }
+    } catch {
+      // Continue to network/blob fetch if direct canvas capture is restricted
+    }
+  }
+
+  // 2. If blob URL, convert via FileReader directly
+  if (url.startsWith('blob:')) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const blob = await res.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch {
+      // Continue
+    }
+  }
+
+  // 3. Try fetching image as blob (handles local assets and CORS-enabled remote hosts)
   try {
     const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
     if (res.ok) {
@@ -45,10 +105,10 @@ async function urlToDataUri(url: string, fallbackText = 'TNPA'): Promise<string>
       });
     }
   } catch {
-    // Continue to canvas fallback
+    // Continue to offscreen Image loader
   }
 
-  // 2. Try drawing into temporary offscreen canvas with anonymous CORS
+  // 4. Try loading into temporary offscreen Image with anonymous CORS
   try {
     const dataUri = await new Promise<string>((resolve, reject) => {
       const img = new Image();
@@ -56,8 +116,8 @@ async function urlToDataUri(url: string, fallbackText = 'TNPA'): Promise<string>
       img.onload = () => {
         try {
           const c = document.createElement('canvas');
-          c.width = img.naturalWidth || img.width || 200;
-          c.height = img.naturalHeight || img.height || 200;
+          c.width = img.naturalWidth || img.width || 300;
+          c.height = img.naturalHeight || img.height || 300;
           const ctx = c.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0);
@@ -72,19 +132,13 @@ async function urlToDataUri(url: string, fallbackText = 'TNPA'): Promise<string>
       img.onerror = reject;
       img.src = url;
     });
-    if (dataUri) return dataUri;
+    if (dataUri && dataUri.length > 200) return dataUri;
   } catch {
-    // Continue to SVG fallback
+    // Continue
   }
 
-  // 3. Guaranteed clean SVG placeholder to prevent canvas tainting completely
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="240" viewBox="0 0 200 240">
-    <rect width="200" height="240" fill="#0f172a"/>
-    <circle cx="100" cy="85" r="45" fill="#94a3b8"/>
-    <path d="M30 210 C30 150 70 140 100 140 C130 140 170 150 170 210 Z" fill="#94a3b8"/>
-    <text x="100" y="230" font-family="sans-serif" font-size="12" font-weight="bold" fill="#facc15" text-anchor="middle">${fallbackText}</text>
-  </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  // 5. If everything fails, preserve original URL so html2canvas built-in engine renders it
+  return url;
 }
 
 /**
@@ -107,12 +161,12 @@ async function prepareElementImages(element: HTMLElement): Promise<() => void> {
       });
 
       try {
-        const safeData = await urlToDataUri(currentSrc);
-        if (safeData) {
+        const safeData = await urlToDataUri(currentSrc, img);
+        if (safeData && safeData !== currentSrc) {
           img.src = safeData;
         }
       } catch (err) {
-        console.warn('Image conversion fallback warning:', err);
+        console.warn('Image pre-conversion notice:', err);
       }
     })
   );
@@ -136,36 +190,38 @@ function getSafeCanvasOptions(el: HTMLElement, scale = 2) {
   return {
     scale,
     useCORS: true,
-    allowTaint: false,
+    allowTaint: true,
     backgroundColor: '#ffffff',
     logging: false,
     imageTimeout: 15000,
     windowWidth: Math.max(900, el.scrollWidth || 900),
     windowHeight: Math.max(600, el.scrollHeight || 600),
     ignoreElements: (element: Element) => {
+      // ONLY ignore explicit UI buttons or badges marked for no-print, NEVER content elements
       if (
         element.classList.contains('no-print') ||
-        element.getAttribute('data-no-print') === 'true' ||
-        element.classList.contains('group-hover:opacity-100') ||
-        element.getAttribute('title')?.includes('மாற்ற') ||
-        element.getAttribute('title')?.includes('Upload') ||
-        element.getAttribute('title')?.includes('Edit')
+        element.getAttribute('data-no-print') === 'true'
       ) {
         return true;
       }
       return false;
     },
     onclone: (clonedDoc: Document) => {
+      // Hide explicit no-print elements in cloned DOM
+      const noPrintElements = clonedDoc.querySelectorAll('.no-print, [data-no-print="true"]');
+      noPrintElements.forEach(item => {
+        (item as HTMLElement).style.display = 'none';
+      });
+
+      // Ensure all images are displayed and have crossOrigin set when needed
       const images = clonedDoc.getElementsByTagName('img');
       for (let i = 0; i < images.length; i++) {
-        images[i].crossOrigin = 'anonymous';
-      }
-      const editButtons = clonedDoc.querySelectorAll('button, .edit-overlay');
-      editButtons.forEach(btn => {
-        if (!btn.textContent?.includes('MEMBER') && !btn.textContent?.includes('உறுப்பினர்')) {
-          (btn as HTMLElement).style.display = 'none';
+        const img = images[i];
+        const src = img.src || '';
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+          img.crossOrigin = 'anonymous';
         }
-      });
+      }
     }
   };
 }
@@ -522,6 +578,64 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
 }
 
 /**
+ * Direct High-Resolution PNG Image Export for a single element (Front or Back or Container)
+ */
+export async function exportSingleCardImage(
+  elementId: string,
+  fileNameSuffix: 'Front' | 'Back' | 'Digital_Card' | 'Official_Card',
+  options: {
+    memberName: string;
+    memberId?: string;
+    onProgress?: (status: string) => void;
+  }
+): Promise<boolean> {
+  const { memberName = 'Member', memberId = 'TNPA', onProgress } = options;
+  let restoreImages: (() => void) | null = null;
+
+  try {
+    const el = document.getElementById(elementId);
+    if (!el) {
+      if (onProgress) onProgress(`❌ அட்டை விவரம் காணப்படவில்லை (${elementId})`);
+      return false;
+    }
+
+    if (onProgress) onProgress(`${fileNameSuffix} உயர் தர படம் தயார் செய்கிறது...`);
+    restoreImages = await prepareElementImages(el);
+    const canvas = await html2canvas(el, getSafeCanvasOptions(el, 3));
+    const fileName = createSafeFileName(`TNPA_Card_${fileNameSuffix}`, memberName, memberId, 'png');
+
+    await new Promise<void>((resolve) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          triggerBlobDownload(blob, fileName);
+        } else {
+          // Direct base64 fallback
+          const dataUrl = safeCanvasToDataURL(canvas);
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            try { document.body.removeChild(link); } catch {}
+          }, 1000);
+        }
+        resolve();
+      }, 'image/png', 1.0);
+    });
+
+    if (onProgress) onProgress(`✅ ${fileNameSuffix} படம் வெற்றிகரமாக பதிவிறக்கப்பட்டது!`);
+    return true;
+  } catch (err) {
+    console.error('Failed to export single card image:', err);
+    if (onProgress) onProgress('❌ படம் சேமிப்பதில் பிழை ஏற்பட்டது.');
+    return false;
+  } finally {
+    if (restoreImages) restoreImages();
+  }
+}
+
+/**
  * Direct High-Resolution PNG Images Export (Front & Back or Single Card)
  */
 export async function exportIdCardAsImages(options: IdCardExportOptions): Promise<boolean> {
@@ -545,20 +659,32 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
     if (!singleEl && singleElementId) {
       singleEl =
         document.getElementById('printable-member-card') ||
-        document.getElementById('dashboard-digital-member-card');
+        document.getElementById('dashboard-digital-member-card') ||
+        document.getElementById('track-card-print-area') ||
+        document.getElementById('union-id-card-print-container');
     }
 
     if (singleEl) {
-      if (onProgress) onProgress('படத்தை உருவாக்குகிறது (Generating Image)...');
+      if (onProgress) onProgress('உயர் தர அட்டை படத்தை உருவாக்குகிறது (Generating Image)...');
       restoreImages = await prepareElementImages(singleEl);
-      const canvas = await html2canvas(singleEl, getSafeCanvasOptions(singleEl, 2.5));
+      const canvas = await html2canvas(singleEl, getSafeCanvasOptions(singleEl, 3));
       const fileName = createSafeFileName('TNPA_Digital_Card', memberName, memberId, 'png');
 
       canvas.toBlob((blob) => {
         if (blob) {
           triggerBlobDownload(blob, fileName);
+        } else {
+          const dataUrl = safeCanvasToDataURL(canvas);
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            try { document.body.removeChild(link); } catch {}
+          }, 1000);
         }
-      }, 'image/png');
+      }, 'image/png', 1.0);
 
       if (onProgress) onProgress('✅ டிஜிட்டல் அட்டை படம் சேமிக்கப்பட்டது!');
       return true;
@@ -575,39 +701,40 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
 
     if (!frontEl && !backEl) {
       const container = document.getElementById('union-id-card-print-container') ||
-        document.getElementById('printable-member-card');
+        document.getElementById('printable-member-card') ||
+        document.getElementById('track-card-print-area');
       if (container) {
         restoreImages = await prepareElementImages(container);
-        const canvas = await html2canvas(container, getSafeCanvasOptions(container, 2.5));
+        const canvas = await html2canvas(container, getSafeCanvasOptions(container, 3));
         const fileName = createSafeFileName('TNPA_Official_Card', memberName, memberId, 'png');
         canvas.toBlob((blob) => {
           if (blob) triggerBlobDownload(blob, fileName);
-        }, 'image/png');
+        }, 'image/png', 1.0);
         return true;
       }
       return false;
     }
 
     if (frontEl) {
-      if (onProgress) onProgress('முன்பக்க படம் சேமிக்கிறது...');
+      if (onProgress) onProgress('முன்பக்க படம் சேமிக்கிறது (Front Side 300 DPI)...');
       const restoreF = await prepareElementImages(frontEl);
-      const frontCanvas = await html2canvas(frontEl, getSafeCanvasOptions(frontEl, 2.5));
+      const frontCanvas = await html2canvas(frontEl, getSafeCanvasOptions(frontEl, 3));
       restoreF();
       const fileNameFront = createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png');
       frontCanvas.toBlob((blob) => {
         if (blob) triggerBlobDownload(blob, fileNameFront);
-      }, 'image/png');
+      }, 'image/png', 1.0);
     }
 
     if (backEl) {
-      if (onProgress) onProgress('பின்பக்க படம் சேமிக்கிறது...');
+      if (onProgress) onProgress('பின்பக்க படம் சேமிக்கிறது (Back Side 300 DPI)...');
       const restoreB = await prepareElementImages(backEl);
-      const backCanvas = await html2canvas(backEl, getSafeCanvasOptions(backEl, 2.5));
+      const backCanvas = await html2canvas(backEl, getSafeCanvasOptions(backEl, 3));
       restoreB();
       const fileNameBack = createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png');
       backCanvas.toBlob((blob) => {
         if (blob) triggerBlobDownload(blob, fileNameBack);
-      }, 'image/png');
+      }, 'image/png', 1.0);
     }
 
     if (onProgress) onProgress('✅ படங்கள் வெற்றிகரமாக சேமிக்கப்பட்டது!');

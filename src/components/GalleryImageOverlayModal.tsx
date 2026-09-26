@@ -21,6 +21,8 @@ import {
   Plus
 } from "lucide-react";
 import { GalleryPhoto } from "../types";
+import { safeLocalStorage } from "../utils/safeStorage";
+import { compressImageForCard } from "../utils/imageCompressor";
 
 export interface GalleryImageOverlayModalProps {
   isOpen: boolean;
@@ -98,7 +100,7 @@ export default function GalleryImageOverlayModal({
       }
       
       // Load saved custom watermark if present in localStorage
-      const savedWatermark = localStorage.getItem("tnpa_custom_watermark");
+      const savedWatermark = safeLocalStorage.getItem("tnpa_custom_watermark");
       if (savedWatermark) {
         setWatermarkSrc(savedWatermark);
         setWatermarkName(lang === "ta" ? "முந்தைய சேமிக்கப்பட்ட வாட்டர்மார்க்" : "Saved Custom Watermark");
@@ -127,27 +129,21 @@ export default function GalleryImageOverlayModal({
   };
 
   // Handle Base Image Selection
-  const handleBaseImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBaseImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 25 * 1024 * 1024) {
-      alert(lang === "ta" ? "படத்தின் அளவு 25MB-க்குள் இருக்க வேண்டும்" : "Image must be under 25MB");
-      return;
+    try {
+      const compressed = await compressImageForCard(file, 1600, 0.88, false);
+      setBaseImageSrc(compressed);
+      showToast(lang === "ta" ? "✓ முதன்மை படம் தேர்ந்தெடுக்கப்பட்டது" : "✓ Base image loaded");
+    } catch (err) {
+      console.warn("Base image read error:", err);
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setBaseImageSrc(reader.result);
-        showToast(lang === "ta" ? "✓ முதன்மை படம் தேர்ந்தெடுக்கப்பட்டது" : "✓ Base image loaded");
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   // Handle Transparent Watermark PNG selection from Phone Gallery
-  const handleWatermarkFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWatermarkFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -159,22 +155,21 @@ export default function GalleryImageOverlayModal({
       );
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setWatermarkSrc(reader.result);
-        setWatermarkName(file.name);
-        setIsCustomWatermark(true);
-        // Save to localStorage for quick reuse
-        localStorage.setItem("tnpa_custom_watermark", reader.result);
-        showToast(
-          lang === "ta" 
-            ? "✓ போன் கேலரியிலிருந்து வாட்டர்மார்க் PNG பொருத்தப்பட்டது!" 
-            : "✓ Watermark PNG loaded from device library!"
-        );
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const result = await compressImageForCard(file, 800, 0.85, true);
+      setWatermarkSrc(result);
+      setWatermarkName(file.name);
+      setIsCustomWatermark(true);
+      // Save to safeLocalStorage for quick reuse
+      safeLocalStorage.setItem("tnpa_custom_watermark", result);
+      showToast(
+        lang === "ta" 
+          ? "✓ போன் கேலரியிலிருந்து வாட்டர்மார்க் PNG பொருத்தப்பட்டது!" 
+          : "✓ Watermark PNG loaded from device library!"
+      );
+    } catch (err) {
+      console.warn("Watermark load error:", err);
+    }
   };
 
   // Preset Watermark selector
