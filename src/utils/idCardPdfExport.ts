@@ -1,8 +1,8 @@
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
-import { shareOrDownloadBlob } from './pdfDownloadHelper';
+import { shareOrDownloadBlob, directDownloadDataUrl, blobToDataUrl } from './pdfDownloadHelper';
 
-export { shareOrDownloadBlob };
+export { shareOrDownloadBlob, directDownloadDataUrl, blobToDataUrl };
 
 export const DEFAULT_MEMBER_FALLBACK_PHOTO = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=400&h=500';
 
@@ -190,7 +190,7 @@ function getSafeCanvasOptions(el: HTMLElement, scale = 2) {
   return {
     scale,
     useCORS: true,
-    allowTaint: true,
+    allowTaint: false,
     backgroundColor: '#ffffff',
     logging: false,
     imageTimeout: 15000,
@@ -394,8 +394,18 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
       );
 
       const fileName = createSafeFileName('TNPA_Digital_Member_Card', memberName, memberId, 'pdf');
+      try {
+        pdf.save(fileName);
+      } catch (e) {
+        console.warn('pdf.save notice:', e);
+      }
       const blob = pdf.output('blob');
       const blobUrl = triggerBlobDownload(blob, fileName);
+
+      try {
+        const dataUri = pdf.output('datauristring');
+        directDownloadDataUrl(dataUri, fileName);
+      } catch {}
 
       if (onSuccess) {
         onSuccess({ blob, blobUrl, fileName });
@@ -441,8 +451,18 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
         pdf.addImage(cImg, 'PNG', 20, 32, printWidth, Math.min(printHeight, 230));
 
         const fileName = createSafeFileName('TNPA_Official_ID_Card', memberName, memberId, 'pdf');
+        try {
+          pdf.save(fileName);
+        } catch (e) {
+          console.warn('pdf.save notice:', e);
+        }
         const blob = pdf.output('blob');
         const blobUrl = triggerBlobDownload(blob, fileName);
+
+        try {
+          const dataUri = pdf.output('datauristring');
+          directDownloadDataUrl(dataUri, fileName);
+        } catch {}
 
         if (onSuccess) {
           onSuccess({ blob, blobUrl, fileName });
@@ -560,8 +580,18 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
     );
 
     const fileName = createSafeFileName('TNPA_Official_ID_Card', memberName, memberId, 'pdf');
+    try {
+      pdf.save(fileName);
+    } catch (e) {
+      console.warn('pdf.save notice:', e);
+    }
     const blob = pdf.output('blob');
     const blobUrl = triggerBlobDownload(blob, fileName);
+
+    try {
+      const dataUri = pdf.output('datauristring');
+      directDownloadDataUrl(dataUri, fileName);
+    } catch {}
 
     if (onSuccess) {
       onSuccess({ blob, blobUrl, fileName });
@@ -672,20 +702,12 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
       restoreImages = await prepareElementImages(singleEl);
       const canvas = await html2canvas(singleEl, getSafeCanvasOptions(singleEl, 3));
       const fileName = createSafeFileName('TNPA_Digital_Card', memberName, memberId, 'png');
+      const dataUrl = safeCanvasToDataURL(canvas);
+      directDownloadDataUrl(dataUrl, fileName);
 
       canvas.toBlob((blob) => {
         if (blob) {
           triggerBlobDownload(blob, fileName);
-        } else {
-          const dataUrl = safeCanvasToDataURL(canvas);
-          const link = document.createElement('a');
-          link.href = dataUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            try { document.body.removeChild(link); } catch {}
-          }, 1000);
         }
       }, 'image/png', 1.0);
 
@@ -710,6 +732,8 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
         restoreImages = await prepareElementImages(container);
         const canvas = await html2canvas(container, getSafeCanvasOptions(container, 3));
         const fileName = createSafeFileName('TNPA_Official_Card', memberName, memberId, 'png');
+        const dataUrl = safeCanvasToDataURL(canvas);
+        directDownloadDataUrl(dataUrl, fileName);
         canvas.toBlob((blob) => {
           if (blob) triggerBlobDownload(blob, fileName);
         }, 'image/png', 1.0);
@@ -718,12 +742,17 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
       return false;
     }
 
+    let frontCanvas: HTMLCanvasElement | null = null;
+    let backCanvas: HTMLCanvasElement | null = null;
+
     if (frontEl) {
       if (onProgress) onProgress('முன்பக்க படம் சேமிக்கிறது (Front Side 300 DPI)...');
       const restoreF = await prepareElementImages(frontEl);
-      const frontCanvas = await html2canvas(frontEl, getSafeCanvasOptions(frontEl, 3));
+      frontCanvas = await html2canvas(frontEl, getSafeCanvasOptions(frontEl, 3));
       restoreF();
       const fileNameFront = createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png');
+      const frontDataUrl = safeCanvasToDataURL(frontCanvas);
+      directDownloadDataUrl(frontDataUrl, fileNameFront);
       frontCanvas.toBlob((blob) => {
         if (blob) triggerBlobDownload(blob, fileNameFront);
       }, 'image/png', 1.0);
@@ -732,12 +761,39 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
     if (backEl) {
       if (onProgress) onProgress('பின்பக்க படம் சேமிக்கிறது (Back Side 300 DPI)...');
       const restoreB = await prepareElementImages(backEl);
-      const backCanvas = await html2canvas(backEl, getSafeCanvasOptions(backEl, 3));
+      backCanvas = await html2canvas(backEl, getSafeCanvasOptions(backEl, 3));
       restoreB();
       const fileNameBack = createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png');
+      const backDataUrl = safeCanvasToDataURL(backCanvas);
+      directDownloadDataUrl(backDataUrl, fileNameBack);
       backCanvas.toBlob((blob) => {
         if (blob) triggerBlobDownload(blob, fileNameBack);
       }, 'image/png', 1.0);
+    }
+
+    // Generate Combined Front + Back 2-in-1 print image
+    if (frontCanvas && backCanvas) {
+      try {
+        const gap = 30;
+        const pad = 30;
+        const totalW = Math.max(frontCanvas.width, backCanvas.width) + pad * 2;
+        const totalH = frontCanvas.height + backCanvas.height + gap + pad * 2;
+        const combCanvas = document.createElement('canvas');
+        combCanvas.width = totalW;
+        combCanvas.height = totalH;
+        const ctx = combCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, totalW, totalH);
+          ctx.drawImage(frontCanvas, pad, pad);
+          ctx.drawImage(backCanvas, pad, pad + frontCanvas.height + gap);
+          const combData = safeCanvasToDataURL(combCanvas);
+          const fileNameFull = createSafeFileName('TNPA_Full_Card_2in1', memberName, memberId, 'png');
+          directDownloadDataUrl(combData, fileNameFull);
+        }
+      } catch (e) {
+        console.warn('Combined canvas creation notice:', e);
+      }
     }
 
     if (onProgress) onProgress('✅ படங்கள் வெற்றிகரமாக சேமிக்கப்பட்டது!');

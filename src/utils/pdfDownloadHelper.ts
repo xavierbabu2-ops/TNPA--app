@@ -25,6 +25,34 @@ export function canShareFiles(file?: File): boolean {
 }
 
 /**
+ * Direct file download trigger that works across all desktop and mobile browsers
+ */
+export function directDownloadDataUrl(dataUrl: string, fileName: string): boolean {
+  try {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = fileName;
+    link.setAttribute('download', fileName);
+    link.rel = 'noopener';
+    link.style.position = 'fixed';
+    link.style.top = '-9999px';
+    link.style.left = '-9999px';
+    link.style.opacity = '0';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      try {
+        document.body.removeChild(link);
+      } catch {}
+    }, 2000);
+    return true;
+  } catch (err) {
+    console.warn('directDownloadDataUrl failed:', err);
+    return false;
+  }
+}
+
+/**
  * Robustly shares or downloads a Blob on mobile and desktop browsers.
  * - On Mobile (Android / iOS): If Web Share API is available, it natively invokes the system share sheet
  *   allowing the user to "Save to device / Downloads", "WhatsApp", "Google Drive", or open directly in PDF reader.
@@ -73,7 +101,15 @@ export async function shareOrDownloadBlob(
     console.warn('Anchor download failed, attempting data URI fallback:', err);
   }
 
-  // 2. On Mobile (Android / iOS): Also invoke Web Share API if available for WhatsApp/Save to Files
+  // 2. Fallback: Base64 Data URI download (extremely reliable on mobile WebViews)
+  try {
+    const dataUrl = await blobToDataUrl(blob);
+    directDownloadDataUrl(dataUrl, fileName);
+  } catch (err) {
+    console.warn('Data URI download fallback error:', err);
+  }
+
+  // 3. On Mobile (Android / iOS): Also invoke Web Share API if available
   if (isMobile && !forceDirectDownload && typeof navigator !== 'undefined' && navigator.share) {
     try {
       const mimeType = blob.type || (fileName.endsWith('.png') ? 'image/png' : 'application/pdf');
@@ -95,31 +131,7 @@ export async function shareOrDownloadBlob(
     }
   }
 
-  // 3. Fallback: Base64 Data URI download
-  try {
-    const dataUrl = await blobToDataUrl(blob);
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = fileName;
-    link.setAttribute('download', fileName);
-    link.rel = 'noopener';
-    link.style.position = 'fixed';
-    link.style.top = '-9999px';
-    link.style.left = '-9999px';
-    link.style.opacity = '0';
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      try {
-        document.body.removeChild(link);
-      } catch {}
-    }, 2000);
-
-    return { success: true, method: 'fallback' };
-  } catch (error: any) {
-    console.error('All download methods failed:', error);
-    return { success: false, method: 'fallback', error: error?.message || 'Download failed' };
-  }
+  return { success: true, method: 'download' };
 }
 
 /**
