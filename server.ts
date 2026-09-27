@@ -101,6 +101,125 @@ app.post("/api/media/upload-file", (req: any, res: any) => {
   }
 });
 
+// ============================================================================
+// REAL FILE DOWNLOAD & STREAMING ENGINE (Guarantees Real Device Downloads on Mobile & PC)
+// ============================================================================
+const downloadStore = new Map<string, { buffer: Buffer; mimeType: string; fileName: string; expiresAt: number }>();
+
+// Periodic cleanup of expired download tokens
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, item] of downloadStore.entries()) {
+    if (item.expiresAt < now) {
+      downloadStore.delete(id);
+    }
+  }
+}, 60000);
+
+app.post("/api/download/prepare", (req: any, res: any) => {
+  try {
+    const { dataBase64, fileName, mimeType } = req.body || {};
+    if (!dataBase64 || typeof dataBase64 !== "string") {
+      return res.status(400).json({ success: false, error: "dataBase64 is required" });
+    }
+
+    let buffer: Buffer;
+    let effectiveMime = mimeType || "application/octet-stream";
+    const matches = dataBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+
+    if (matches && matches.length === 3) {
+      effectiveMime = matches[1];
+      buffer = Buffer.from(matches[2], "base64");
+    } else {
+      buffer = Buffer.from(dataBase64, "base64");
+    }
+
+    const safeFileName = (fileName || "TNPA_Document")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    const downloadId = crypto.randomBytes(16).toString("hex");
+    downloadStore.set(downloadId, {
+      buffer,
+      mimeType: effectiveMime,
+      fileName: safeFileName,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+    });
+
+    const downloadUrl = `/api/download/file/${downloadId}?filename=${encodeURIComponent(safeFileName)}`;
+    console.log(`[Download Engine] Prepared real download #${downloadId} -> ${safeFileName} (${buffer.length} bytes, ${effectiveMime})`);
+
+    return res.json({
+      success: true,
+      downloadUrl,
+      downloadId,
+      fileName: safeFileName,
+      size: buffer.length
+    });
+  } catch (err: any) {
+    console.error("Download prepare error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to prepare download." });
+  }
+});
+
+app.get("/api/download/file/:id", (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const item = downloadStore.get(id);
+
+    if (!item) {
+      return res.status(404).send("Download link expired or not found. Please click download again.");
+    }
+
+    const requestedName = (req.query.filename as string) || item.fileName;
+    const safeFileName = requestedName.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    res.setHeader("Content-Type", item.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
+    res.setHeader("Content-Length", item.buffer.length);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
+    return res.send(item.buffer);
+  } catch (err: any) {
+    console.error("Download stream error:", err);
+    return res.status(500).send("Failed to stream download file.");
+  }
+});
+
+app.post("/api/download/stream", (req: any, res: any) => {
+  try {
+    const { dataBase64, fileName, mimeType } = req.body || {};
+    if (!dataBase64) {
+      return res.status(400).send("dataBase64 parameter is missing.");
+    }
+
+    let buffer: Buffer;
+    let effectiveMime = mimeType || "application/octet-stream";
+    const matches = dataBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+
+    if (matches && matches.length === 3) {
+      effectiveMime = matches[1];
+      buffer = Buffer.from(matches[2], "base64");
+    } else {
+      buffer = Buffer.from(dataBase64, "base64");
+    }
+
+    const safeFileName = (fileName || "TNPA_Document")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    res.setHeader("Content-Type", effectiveMime);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`);
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+
+    return res.send(buffer);
+  } catch (err: any) {
+    console.error("Stream error:", err);
+    return res.status(500).send("Download stream failed.");
+  }
+});
+
 // Health check endpoint for Cloud Run
 app.get("/api/health", (req: any, res: any) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });

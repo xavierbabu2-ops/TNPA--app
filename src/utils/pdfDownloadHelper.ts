@@ -148,7 +148,7 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 
 /**
  * Universal, 100% fail-safe file saver and share handler for Mobile Android, iOS, and Desktop.
- * Handles Blobs, DataURIs, Blob URLs, Web Share API, and forced octet-stream downloads.
+ * Uses real backend Content-Disposition attachment streaming, Web Share API, and multi-layer fallbacks.
  */
 export async function saveFileToDevice(
   data: { blob?: Blob; dataUrl?: string; blobUrl?: string },
@@ -159,23 +159,23 @@ export async function saveFileToDevice(
   let targetBlob = data.blob;
   let targetDataUrl = data.dataUrl;
 
-  // 1. Resolve Blob if missing
-  if (!targetBlob && (data.blobUrl || data.dataUrl)) {
-    try {
-      const url = data.blobUrl || data.dataUrl!;
-      const res = await fetch(url);
-      targetBlob = await res.blob();
-    } catch {
-      // Continue with dataUrl
-    }
-  }
-
-  // 2. Resolve DataUrl if missing
+  // 1. Resolve DataUrl if missing
   if (!targetDataUrl && targetBlob) {
     try {
       targetDataUrl = await blobToDataUrl(targetBlob);
     } catch {
-      // Continue with blobUrl
+      // Continue
+    }
+  }
+
+  // 2. Resolve Blob if missing
+  if (!targetBlob && (data.blobUrl || targetDataUrl)) {
+    try {
+      const url = data.blobUrl || targetDataUrl!;
+      const res = await fetch(url);
+      targetBlob = await res.blob();
+    } catch {
+      // Continue
     }
   }
 
@@ -197,8 +197,8 @@ export async function saveFileToDevice(
     }
   }
 
-  // Mode: SHARE (or auto on mobile with user gesture)
-  if ((mode === 'share' || (mode === 'auto' && isMobile)) && typeof navigator !== 'undefined' && navigator.share && targetBlob) {
+  // Mode: SHARE
+  if ((mode === 'share') && typeof navigator !== 'undefined' && navigator.share && targetBlob) {
     try {
       const file = new File([targetBlob], fileName, { type: mimeType });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -215,8 +215,53 @@ export async function saveFileToDevice(
     }
   }
 
-  // Mode: DIRECT DOWNLOAD
-  // Layer 1: Direct Anchor with Blob URL
+  // PRIMARY LAYER: Real Server-Side Attachment Streaming Endpoint (100% Android Chrome & Mobile Guaranteed)
+  if (targetDataUrl) {
+    try {
+      const prepRes = await fetch('/api/download/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataBase64: targetDataUrl,
+          fileName,
+          mimeType
+        })
+      });
+
+      if (prepRes.ok) {
+        const prepJson = await prepRes.json();
+        if (prepJson && prepJson.downloadUrl) {
+          const downloadUrl = prepJson.downloadUrl;
+
+          // Trigger via hidden download iframe to prevent any navigation while guaranteeing OS download trigger
+          let downloadIframe = document.getElementById('tnpa-hidden-downloader') as HTMLIFrameElement;
+          if (!downloadIframe) {
+            downloadIframe = document.createElement('iframe');
+            downloadIframe.id = 'tnpa-hidden-downloader';
+            downloadIframe.style.display = 'none';
+            document.body.appendChild(downloadIframe);
+          }
+          downloadIframe.src = downloadUrl;
+
+          // Also trigger real anchor click to the server URL
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            try { document.body.removeChild(link); } catch {}
+          }, 1000);
+
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn('Server download endpoint fallback trigger:', err);
+    }
+  }
+
+  // FALLBACK LAYER 1: Direct Anchor with Blob URL
   if (targetBlob) {
     try {
       const blobUrl = URL.createObjectURL(targetBlob);
@@ -237,7 +282,7 @@ export async function saveFileToDevice(
     }
   }
 
-  // Layer 2: Forced octet-stream Data URI download (prompts instant download on Android Chrome & WebViews)
+  // FALLBACK LAYER 2: Forced octet-stream Data URI download
   if (targetDataUrl) {
     try {
       const octetDataUrl = targetDataUrl.replace(/^data:[^;]+;base64,/, 'data:application/octet-stream;base64,');
