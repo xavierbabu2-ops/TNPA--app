@@ -35,6 +35,7 @@ import { MemberRegistration, UserAccount } from "../types";
 import UnionOfficialIdCard from "./UnionOfficialIdCard";
 import { MemberCardPaymentModal } from "./MemberCardPaymentModal";
 import EditMemberIdCardModal, { MemberCardEditableData } from "./EditMemberIdCardModal";
+import IdCardDownloadSuccessModal, { IdCardDownloadData } from "./IdCardDownloadSuccessModal";
 import { ALL_38_TAMILNADU_DISTRICTS } from "../data/initialExecutives";
 import { exportIdCardAsPDF, exportIdCardAsImages, generateMemberIdCardPDF } from "../utils/idCardPdfExport";
 import { shareOrDownloadBlob } from "../utils/pdfDownloadHelper";
@@ -96,6 +97,8 @@ export default function MemberIdCardPortal({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfStatusMessage, setPdfStatusMessage] = useState<string | null>(null);
   const [generatedPdfResult, setGeneratedPdfResult] = useState<{ blobUrl: string; fileName: string; blob?: Blob } | null>(null);
+  const [downloadModalData, setDownloadModalData] = useState<IdCardDownloadData | null>(null);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   // Dynamic Editable state for instant interactive testing
   const [customName, setCustomName] = useState(currentUser?.name || "மு.பிரகாசம்");
@@ -515,16 +518,48 @@ export default function MemberIdCardPortal({
         onProgress: (msg) => setPdfStatusMessage(msg),
         onSuccess: (res) => {
           setGeneratedPdfResult({ blobUrl: res.blobUrl, fileName: res.fileName, blob: res.blob });
+          setDownloadModalData({
+            memberName,
+            memberId: memberRegNo,
+            district: memberDistrict,
+            pdfBlob: res.blob,
+            pdfBlobUrl: res.blobUrl,
+            pdfDataUrl: res.dataUrl,
+            pdfFileName: res.fileName,
+            frontPngUrl: res.frontPngUrl,
+            frontPngFileName: res.frontPngFileName,
+            backPngUrl: res.backPngUrl,
+            backPngFileName: res.backPngFileName,
+            combPngUrl: res.combPngUrl,
+            combPngFileName: res.combPngFileName,
+          });
+          setIsDownloadModalOpen(true);
         }
       });
 
-      if (result.success && result.blobUrl) {
-        setGeneratedPdfResult({ blobUrl: result.blobUrl, fileName: result.fileName || 'TNPA_ID_Card.pdf', blob: result.blob });
+      if (result.success) {
+        setGeneratedPdfResult({ blobUrl: result.blobUrl || '', fileName: result.fileName || 'TNPA_ID_Card.pdf', blob: result.blob });
+        setDownloadModalData({
+          memberName,
+          memberId: memberRegNo,
+          district: memberDistrict,
+          pdfBlob: result.blob,
+          pdfBlobUrl: result.blobUrl,
+          pdfDataUrl: result.dataUrl,
+          pdfFileName: result.fileName,
+          frontPngUrl: result.frontPngUrl,
+          frontPngFileName: result.frontPngFileName,
+          backPngUrl: result.backPngUrl,
+          backPngFileName: result.backPngFileName,
+          combPngUrl: result.combPngUrl,
+          combPngFileName: result.combPngFileName,
+        });
+        setIsDownloadModalOpen(true);
         onAddAuditLog("Download ID Card PDF", `Downloaded high-res PDF for ${memberName} (${memberRegNo})`);
         setTimeout(() => {
           setIsGeneratingPdf(false);
-          setPdfStatusMessage("✅ உயர் தர PDF தயார்! போனில் சேமிக்க அல்லது நேரடியாக பதிவிறக்க கீழே உள்ள பொத்தான்களைப் பயன்படுத்தவும்.");
-        }, 800);
+          setPdfStatusMessage("✅ PDF & படங்கள் தயார்! திரையில் தோன்றும் பொத்தான்களைப் பயன்படுத்தி சேமிக்கவும்.");
+        }, 600);
       } else {
         setIsGeneratingPdf(false);
         setPdfStatusMessage("❌ PDF உருவாக்கத்தில் பிழை. நேரடியாக அச்சிடவும்.");
@@ -587,7 +622,21 @@ export default function MemberIdCardPortal({
         memberId: memberRegNo,
         frontElementId: "union-id-card-front",
         backElementId: "union-id-card-back",
-        onProgress: (msg) => setPdfStatusMessage(msg)
+        onProgress: (msg) => setPdfStatusMessage(msg),
+        onSuccess: (res) => {
+          setDownloadModalData({
+            memberName,
+            memberId: memberRegNo,
+            district: memberDistrict,
+            frontPngUrl: res.frontPngUrl,
+            frontPngFileName: res.frontPngFileName,
+            backPngUrl: res.backPngUrl,
+            backPngFileName: res.backPngFileName,
+            combPngUrl: res.combPngUrl,
+            combPngFileName: res.combPngFileName,
+          });
+          setIsDownloadModalOpen(true);
+        }
       });
       onAddAuditLog("Download ID Card PNGs", `Downloaded Front & Back PNGs for ${memberName}`);
     } catch (err) {
@@ -1659,6 +1708,14 @@ export default function MemberIdCardPortal({
         initialData={editModalData}
         onSave={handleSaveMemberCardEdit}
         isSaving={isSavingCardEdit}
+      />
+
+      {/* DEDICATED DOWNLOAD SUCCESS & FILE DELIVERY MODAL */}
+      <IdCardDownloadSuccessModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        data={downloadModalData}
+        lang={lang}
       />
 
     </div>

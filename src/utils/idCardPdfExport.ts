@@ -32,6 +32,15 @@ export interface IdCardExportResult {
   blobUrl?: string;
   dataUrl?: string;
   fileName?: string;
+  frontPngBlob?: Blob;
+  frontPngUrl?: string;
+  frontPngFileName?: string;
+  backPngBlob?: Blob;
+  backPngUrl?: string;
+  backPngFileName?: string;
+  combPngBlob?: Blob;
+  combPngUrl?: string;
+  combPngFileName?: string;
   error?: string;
 }
 
@@ -44,7 +53,7 @@ export interface IdCardExportOptions {
   backElementId?: string;
   singleElementId?: string;
   onProgress?: (status: string) => void;
-  onSuccess?: (result: { blob: Blob; blobUrl: string; fileName: string; dataUrl?: string }) => void;
+  onSuccess?: (result: IdCardExportResult) => void;
 }
 
 /**
@@ -408,7 +417,7 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
       } catch {}
 
       if (onSuccess) {
-        onSuccess({ blob, blobUrl, fileName });
+        onSuccess({ success: true, blob, blobUrl, fileName });
       }
 
       if (onProgress) onProgress('✅ டிஜிட்டல் அட்டை PDF பதிவிறக்கம் முடிந்தது!');
@@ -465,7 +474,7 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
         } catch {}
 
         if (onSuccess) {
-          onSuccess({ blob, blobUrl, fileName });
+          onSuccess({ success: true, blob, blobUrl, fileName });
         }
 
         if (onProgress) onProgress('✅ பதிவிறக்கம் முடிந்தது!');
@@ -661,7 +670,7 @@ export async function exportIdCardAsPDF(options: IdCardExportOptions): Promise<b
     } catch {}
 
     if (onSuccess) {
-      onSuccess({ blob, blobUrl, fileName });
+      onSuccess({ success: true, blob, blobUrl, fileName });
     }
 
     if (onProgress) onProgress('✅ பதிவிறக்கம் முடிந்தது (Download Complete)!');
@@ -838,6 +847,9 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
       }, 'image/png', 1.0);
     }
 
+    let combPngUrl: string | undefined = undefined;
+    let fileNameFull: string | undefined = undefined;
+
     // Generate Combined Front + Back 2-in-1 print image
     if (frontCanvas && backCanvas) {
       try {
@@ -854,13 +866,25 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
           ctx.fillRect(0, 0, totalW, totalH);
           ctx.drawImage(frontCanvas, pad, pad);
           ctx.drawImage(backCanvas, pad, pad + frontCanvas.height + gap);
-          const combData = safeCanvasToDataURL(combCanvas);
-          const fileNameFull = createSafeFileName('TNPA_Full_Card_2in1', memberName, memberId, 'png');
-          directDownloadDataUrl(combData, fileNameFull);
+          combPngUrl = safeCanvasToDataURL(combCanvas);
+          fileNameFull = createSafeFileName('TNPA_Full_Card_2in1', memberName, memberId, 'png');
+          directDownloadDataUrl(combPngUrl, fileNameFull);
         }
       } catch (e) {
         console.warn('Combined canvas creation notice:', e);
       }
+    }
+
+    if (options.onSuccess) {
+      options.onSuccess({
+        success: true,
+        frontPngUrl: frontCanvas ? safeCanvasToDataURL(frontCanvas) : undefined,
+        frontPngFileName: createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png'),
+        backPngUrl: backCanvas ? safeCanvasToDataURL(backCanvas) : undefined,
+        backPngFileName: createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png'),
+        combPngUrl,
+        combPngFileName: fileNameFull
+      });
     }
 
     if (onProgress) onProgress('✅ படங்கள் வெற்றிகரமாக சேமிக்கப்பட்டது!');
@@ -908,7 +932,7 @@ export interface DedicatedPDFOptions {
   format?: 'a4' | 'cr80_card';
   includeHeaderBanner?: boolean;
   onProgress?: (status: string) => void;
-  onSuccess?: (result: { blob: Blob; blobUrl: string; dataUrl: string; fileName: string }) => void;
+  onSuccess?: (result: IdCardExportResult) => void;
 }
 
 /**
@@ -918,7 +942,7 @@ export interface DedicatedPDFOptions {
 export async function generateMemberIdCardPDF(
   memberData: DedicatedMemberCardData,
   options: DedicatedPDFOptions = {}
-): Promise<{ success: boolean; blob?: Blob; blobUrl?: string; dataUrl?: string; fileName?: string; error?: string }> {
+): Promise<IdCardExportResult> {
   const {
     scale = 3.5,
     format = 'a4',
@@ -1074,7 +1098,12 @@ export async function generateMemberIdCardPDF(
     }
 
     if (onProgress) onProgress('முன்பக்க அட்டையைத் தொகுக்கிறது (Capturing Front Side @ 300 DPI)...');
-    restoreImages = frontEl ? await prepareElementImages(frontEl) : null;
+    const restoreF = frontEl ? await prepareElementImages(frontEl) : null;
+    const restoreB = backEl ? await prepareElementImages(backEl) : null;
+    restoreImages = () => {
+      if (restoreF) restoreF();
+      if (restoreB) restoreB();
+    };
 
     const canvasOptions = {
       scale,
@@ -1101,13 +1130,21 @@ export async function generateMemberIdCardPDF(
 
     let frontCanvas: HTMLCanvasElement | null = null;
     if (frontEl) {
-      frontCanvas = await html2canvas(frontEl, canvasOptions);
+      try {
+        frontCanvas = await html2canvas(frontEl, canvasOptions);
+      } catch (fErr) {
+        console.warn('Front canvas capture notice:', fErr);
+      }
     }
 
     if (onProgress) onProgress('பின்பக்க அட்டையைத் தொகுக்கிறது (Capturing Back Side @ 300 DPI)...');
     let backCanvas: HTMLCanvasElement | null = null;
     if (backEl) {
-      backCanvas = await html2canvas(backEl, canvasOptions);
+      try {
+        backCanvas = await html2canvas(backEl, canvasOptions);
+      } catch (bErr) {
+        console.warn('Back canvas capture notice:', bErr);
+      }
     }
 
     if (onProgress) onProgress('PDF கோப்பை உருவாக்குகிறது (Compiling High-Resolution PDF)...');
@@ -1149,6 +1186,37 @@ export async function generateMemberIdCardPDF(
       const frontData = safeCanvasToDataURL(frontCanvas);
       pdf.addImage(frontData, 'PNG', (210 - cardWidthMm) / 2, currentY, cardWidthMm, cardHeightMm);
       currentY += cardHeightMm + 15;
+    } else {
+      // Direct Crisp Vector Front Card
+      pdf.setTextColor(30, 30, 30);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9.5);
+      pdf.text('1. FRONT SIDE (Official Digital Card)', 105, currentY - 3, { align: 'center' });
+
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(192, 0, 0);
+      pdf.setLineWidth(0.8);
+      pdf.roundedRect((210 - cardWidthMm) / 2, currentY, cardWidthMm, cardHeightMm, 2.5, 2.5, 'FD');
+
+      pdf.setFillColor(192, 0, 0);
+      pdf.roundedRect((210 - cardWidthMm) / 2, currentY, cardWidthMm, 13, 2.5, 2.5, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text('TAMIL NADU PAINTERS & ARTISTS ASSOCIATION', 105, currentY + 5.5, { align: 'center' });
+      pdf.setFontSize(5.5);
+      pdf.text('Reg No: TNMDUJCLMDUTU-50-26-00044', 105, currentY + 10, { align: 'center' });
+
+      pdf.setTextColor(192, 0, 0);
+      pdf.setFontSize(7.5);
+      pdf.text(`REG NO: ${memberId}`, (210 - cardWidthMm) / 2 + 5, currentY + 20);
+      pdf.setTextColor(30, 30, 30);
+      pdf.setFontSize(8.5);
+      pdf.text(`NAME: ${memberName}`, (210 - cardWidthMm) / 2 + 5, currentY + 28);
+      pdf.setFontSize(7);
+      pdf.text(`DISTRICT: ${district}`, (210 - cardWidthMm) / 2 + 5, currentY + 36);
+      pdf.text(`OCCUPATION: ${occupation}`, (210 - cardWidthMm) / 2 + 5, currentY + 44);
+
+      currentY += cardHeightMm + 15;
     }
 
     // Draw Back Side
@@ -1164,6 +1232,34 @@ export async function generateMemberIdCardPDF(
 
       const backData = safeCanvasToDataURL(backCanvas);
       pdf.addImage(backData, 'PNG', (210 - cardWidthMm) / 2, currentY, cardWidthMm, cardHeightMm);
+      currentY += cardHeightMm + 14;
+    } else {
+      // Direct Crisp Vector Back Card
+      pdf.setTextColor(30, 30, 30);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9.5);
+      pdf.text('2. BACK SIDE (Official Digital Card)', 105, currentY - 3, { align: 'center' });
+
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(192, 0, 0);
+      pdf.setLineWidth(0.8);
+      pdf.roundedRect((210 - cardWidthMm) / 2, currentY, cardWidthMm, cardHeightMm, 2.5, 2.5, 'FD');
+
+      pdf.setFillColor(192, 0, 0);
+      pdf.roundedRect((210 - cardWidthMm) / 2, currentY, cardWidthMm, 13, 2.5, 2.5, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text('RULES & VERIFICATION / விதிமுறைகள்', 105, currentY + 5.5, { align: 'center' });
+      pdf.setFontSize(5.5);
+      pdf.text('Govt. Approved Welfare Association', 105, currentY + 10, { align: 'center' });
+
+      pdf.setTextColor(40, 40, 40);
+      pdf.setFontSize(7);
+      pdf.text(`Member Name: ${memberName}`, (210 - cardWidthMm) / 2 + 5, currentY + 20);
+      pdf.text(`District: ${district}`, (210 - cardWidthMm) / 2 + 5, currentY + 28);
+      pdf.text('Help / Contact: 7010131915 / 9842189420', (210 - cardWidthMm) / 2 + 5, currentY + 36);
+      pdf.text('Valid Across All Districts in Tamil Nadu', (210 - cardWidthMm) / 2 + 5, currentY + 44);
+
       currentY += cardHeightMm + 14;
     }
 
@@ -1197,6 +1293,38 @@ export async function generateMemberIdCardPDF(
 
     const fileName = createSafeFileName('TNPA_Member_ID_Card', memberName, memberId, 'pdf');
 
+    // Prepare PNG assets
+    const frontPngUrl = frontCanvas ? safeCanvasToDataURL(frontCanvas) : undefined;
+    const frontPngFileName = createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png');
+    const backPngUrl = backCanvas ? safeCanvasToDataURL(backCanvas) : undefined;
+    const backPngFileName = createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png');
+
+    let combPngUrl: string | undefined = undefined;
+    let combPngFileName: string | undefined = undefined;
+
+    if (frontCanvas && backCanvas) {
+      try {
+        const gap = 30;
+        const pad = 30;
+        const totalW = Math.max(frontCanvas.width, backCanvas.width) + pad * 2;
+        const totalH = frontCanvas.height + backCanvas.height + gap + pad * 2;
+        const combCanvas = document.createElement('canvas');
+        combCanvas.width = totalW;
+        combCanvas.height = totalH;
+        const ctx = combCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, totalW, totalH);
+          ctx.drawImage(frontCanvas, pad, pad);
+          ctx.drawImage(backCanvas, pad, pad + frontCanvas.height + gap);
+          combPngUrl = safeCanvasToDataURL(combCanvas);
+          combPngFileName = createSafeFileName('TNPA_Card_Full_2in1', memberName, memberId, 'png');
+        }
+      } catch (e) {
+        console.warn('Combined canvas creation notice:', e);
+      }
+    }
+
     // Trigger Multi-layer Download
     try {
       pdf.save(fileName);
@@ -1213,13 +1341,27 @@ export async function generateMemberIdCardPDF(
       directDownloadDataUrl(dataUrl, fileName);
     } catch {}
 
+    const fullResult: IdCardExportResult = {
+      success: true,
+      blob,
+      blobUrl,
+      dataUrl,
+      fileName,
+      frontPngUrl,
+      frontPngFileName,
+      backPngUrl,
+      backPngFileName,
+      combPngUrl,
+      combPngFileName
+    };
+
     if (onSuccess) {
-      onSuccess({ blob, blobUrl, dataUrl, fileName });
+      onSuccess(fullResult);
     }
 
     if (onProgress) onProgress('✅ உயர் தர அடையாள அட்டை PDF வெற்றிகரமாக பதிவிறக்கப்பட்டது!');
 
-    return { success: true, blob, blobUrl, dataUrl, fileName };
+    return fullResult;
   } catch (err: any) {
     console.error('generateMemberIdCardPDF Error:', err);
     if (onProgress) onProgress('❌ PDF உருவாக்கத்தில் பிழை ஏற்பட்டது.');
