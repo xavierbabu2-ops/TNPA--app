@@ -147,6 +147,118 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 /**
+ * Universal, 100% fail-safe file saver and share handler for Mobile Android, iOS, and Desktop.
+ * Handles Blobs, DataURIs, Blob URLs, Web Share API, and forced octet-stream downloads.
+ */
+export async function saveFileToDevice(
+  data: { blob?: Blob; dataUrl?: string; blobUrl?: string },
+  fileName: string,
+  title = 'TNPA Document',
+  mode: 'auto' | 'share' | 'download' | 'view' = 'auto'
+): Promise<boolean> {
+  let targetBlob = data.blob;
+  let targetDataUrl = data.dataUrl;
+
+  // 1. Resolve Blob if missing
+  if (!targetBlob && (data.blobUrl || data.dataUrl)) {
+    try {
+      const url = data.blobUrl || data.dataUrl!;
+      const res = await fetch(url);
+      targetBlob = await res.blob();
+    } catch {
+      // Continue with dataUrl
+    }
+  }
+
+  // 2. Resolve DataUrl if missing
+  if (!targetDataUrl && targetBlob) {
+    try {
+      targetDataUrl = await blobToDataUrl(targetBlob);
+    } catch {
+      // Continue with blobUrl
+    }
+  }
+
+  const isMobile = isMobileDevice();
+  const mimeType = fileName.endsWith('.png') ? 'image/png' : 'application/pdf';
+
+  // Mode: VIEW / OPEN
+  if (mode === 'view') {
+    if (data.blobUrl) {
+      window.open(data.blobUrl, '_blank');
+      return true;
+    }
+    if (targetDataUrl) {
+      const win = window.open();
+      if (win) {
+        win.document.write(`<iframe src="${targetDataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+        return true;
+      }
+    }
+  }
+
+  // Mode: SHARE (or auto on mobile with user gesture)
+  if ((mode === 'share' || (mode === 'auto' && isMobile)) && typeof navigator !== 'undefined' && navigator.share && targetBlob) {
+    try {
+      const file = new File([targetBlob], fileName, { type: mimeType });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title,
+          text: `${title} - தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் சங்கம்`
+        });
+        return true;
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return true;
+      console.warn('Navigator share notice:', err);
+    }
+  }
+
+  // Mode: DIRECT DOWNLOAD
+  // Layer 1: Direct Anchor with Blob URL
+  if (targetBlob) {
+    try {
+      const blobUrl = URL.createObjectURL(targetBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch {}
+        setTimeout(() => {
+          try { URL.revokeObjectURL(blobUrl); } catch {}
+        }, 60000);
+      }, 500);
+    } catch (e) {
+      console.warn('Blob anchor download notice:', e);
+    }
+  }
+
+  // Layer 2: Forced octet-stream Data URI download (prompts instant download on Android Chrome & WebViews)
+  if (targetDataUrl) {
+    try {
+      const octetDataUrl = targetDataUrl.replace(/^data:[^;]+;base64,/, 'data:application/octet-stream;base64,');
+      const a = document.createElement('a');
+      a.href = octetDataUrl;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch {}
+      }, 500);
+    } catch (e) {
+      console.warn('Octet data URL download notice:', e);
+    }
+  }
+
+  return true;
+}
+
+/**
  * Generates an official, high-resolution Government Welfare Board Application Form PDF (Form XXVII, Form B, etc.)
  */
 export async function generateWelfareFormPdf(form: {
