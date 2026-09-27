@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, Image as ImageIcon, Share2, CheckCircle2, X, ExternalLink, Loader2 } from 'lucide-react';
+import { Download, Image as ImageIcon, Share2, CheckCircle2, X, Sparkles, Loader2, Eye, ShieldCheck } from 'lucide-react';
 import { saveFileToDevice } from '../utils/pdfDownloadHelper';
 
 export interface IdCardDownloadData {
@@ -13,12 +13,21 @@ export interface IdCardDownloadData {
   frontPngBlob?: Blob;
   frontPngUrl?: string;
   frontPngFileName?: string;
+  frontJpgBlob?: Blob;
+  frontJpgUrl?: string;
+  frontJpgFileName?: string;
   backPngBlob?: Blob;
   backPngUrl?: string;
   backPngFileName?: string;
+  backJpgBlob?: Blob;
+  backJpgUrl?: string;
+  backJpgFileName?: string;
   combPngBlob?: Blob;
   combPngUrl?: string;
   combPngFileName?: string;
+  combJpgBlob?: Blob;
+  combJpgUrl?: string;
+  combJpgFileName?: string;
 }
 
 interface IdCardDownloadSuccessModalProps {
@@ -28,12 +37,15 @@ interface IdCardDownloadSuccessModalProps {
   lang?: 'ta' | 'en';
 }
 
+type CardTab = 'comb' | 'front' | 'back';
+
 export default function IdCardDownloadSuccessModal({
   isOpen,
   onClose,
   data,
   lang = 'ta'
 }: IdCardDownloadSuccessModalProps) {
+  const [activeTab, setActiveTab] = useState<CardTab>('comb');
   const [activeDownload, setActiveDownload] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -46,94 +58,79 @@ export default function IdCardDownloadSuccessModal({
     }, 4000);
   };
 
-  const handleDownloadPdf = async (mode: 'auto' | 'share' | 'download' | 'view' = 'auto') => {
-    setActiveDownload('pdf');
-    triggerToast(lang === 'ta' ? '⏳ PDF பதிவிறக்கம் செய்யப்படுகிறது...' : '⏳ Saving PDF...');
+  // Resolve current active image data
+  const getCurrentImageDetails = (tab: CardTab) => {
+    if (tab === 'front') {
+      return {
+        url: data.frontJpgUrl || data.frontPngUrl || data.combJpgUrl || data.combPngUrl,
+        blob: data.frontJpgBlob || data.frontPngBlob || data.combJpgBlob || data.combPngBlob,
+        fileName: data.frontJpgFileName || data.frontPngFileName || `TNPA_Card_Front_${data.memberId}.jpg`,
+        title: `TNPA Card Front - ${data.memberName}`
+      };
+    }
+    if (tab === 'back') {
+      return {
+        url: data.backJpgUrl || data.backPngUrl || data.combJpgUrl || data.combPngUrl,
+        blob: data.backJpgBlob || data.backPngBlob || data.combJpgBlob || data.combPngBlob,
+        fileName: data.backJpgFileName || data.backPngFileName || `TNPA_Card_Back_${data.memberId}.jpg`,
+        title: `TNPA Card Back - ${data.memberName}`
+      };
+    }
+    // Default 2-in-1 Combined
+    return {
+      url: data.combJpgUrl || data.combPngUrl || data.frontJpgUrl || data.frontPngUrl,
+      blob: data.combJpgBlob || data.combPngBlob || data.frontJpgBlob || data.frontPngBlob,
+      fileName: data.combJpgFileName || data.combPngFileName || `TNPA_Full_Card_2in1_${data.memberId}.jpg`,
+      title: `TNPA Full Card 2-in-1 - ${data.memberName}`
+    };
+  };
+
+  const currentImg = getCurrentImageDetails(activeTab);
+
+  const handleDownloadActiveImage = async (mode: 'auto' | 'share' | 'download' = 'auto') => {
+    setActiveDownload(activeTab);
+    triggerToast(lang === 'ta' ? '⏳ கேலரியில் சேமிக்கப்படுகிறது...' : '⏳ Saving to Gallery...');
     try {
       await saveFileToDevice(
         {
-          blob: data.pdfBlob,
-          blobUrl: data.pdfBlobUrl,
-          dataUrl: data.pdfDataUrl
+          blob: currentImg.blob,
+          dataUrl: currentImg.url
         },
-        data.pdfFileName || `TNPA_Member_ID_Card_${data.memberId}.pdf`,
-        `TNPA Official ID Card - ${data.memberName}`,
+        currentImg.fileName,
+        currentImg.title,
         mode
       );
-      triggerToast(lang === 'ta' ? '✅ PDF வெற்றிகரமாக சேமிக்கப்பட்டது!' : '✅ PDF Saved Successfully!');
+      triggerToast(lang === 'ta' ? '✅ கேலரியில் சேமிக்கப்பட்டது!' : '✅ Saved to Gallery!');
     } catch (err) {
-      console.warn('PDF save error:', err);
+      console.warn('Image save error:', err);
     } finally {
       setTimeout(() => setActiveDownload(null), 1000);
     }
   };
 
-  const handleDownloadCombPng = async () => {
-    setActiveDownload('comb');
-    triggerToast(lang === 'ta' ? '⏳ 2-in-1 படம் சேமிக்கப்படுகிறது...' : '⏳ Saving 2-in-1 Image...');
+  const handleShareToWhatsAppOrPhone = async () => {
+    setActiveDownload('share');
+    triggerToast(lang === 'ta' ? '⏳ WhatsApp / போனில் பகிரப்படுகிறது...' : '⏳ Opening share sheet...');
     try {
       await saveFileToDevice(
         {
-          blob: data.combPngBlob,
-          dataUrl: data.combPngUrl
+          blob: currentImg.blob,
+          dataUrl: currentImg.url
         },
-        data.combPngFileName || `TNPA_Card_Full_2in1_${data.memberId}.png`,
-        `TNPA Full Card - ${data.memberName}`,
-        'auto'
+        currentImg.fileName,
+        currentImg.title,
+        'share'
       );
-      triggerToast(lang === 'ta' ? '✅ 2-in-1 படம் சேமிக்கப்பட்டது!' : '✅ 2-in-1 Image Saved!');
     } catch (err) {
-      console.warn('Comb image save error:', err);
-    } finally {
-      setTimeout(() => setActiveDownload(null), 1000);
-    }
-  };
-
-  const handleDownloadFrontPng = async () => {
-    setActiveDownload('front');
-    triggerToast(lang === 'ta' ? '⏳ முன்பக்க படம் சேமிக்கப்படுகிறது...' : '⏳ Saving Front Image...');
-    try {
-      await saveFileToDevice(
-        {
-          blob: data.frontPngBlob,
-          dataUrl: data.frontPngUrl
-        },
-        data.frontPngFileName || `TNPA_Card_Front_${data.memberId}.png`,
-        `TNPA Card Front - ${data.memberName}`,
-        'auto'
-      );
-      triggerToast(lang === 'ta' ? '✅ முன்பக்க படம் சேமிக்கப்பட்டது!' : '✅ Front Image Saved!');
-    } catch (err) {
-      console.warn('Front image save error:', err);
-    } finally {
-      setTimeout(() => setActiveDownload(null), 1000);
-    }
-  };
-
-  const handleDownloadBackPng = async () => {
-    setActiveDownload('back');
-    triggerToast(lang === 'ta' ? '⏳ பின்பக்க படம் சேமிக்கப்படுகிறது...' : '⏳ Saving Back Image...');
-    try {
-      await saveFileToDevice(
-        {
-          blob: data.backPngBlob,
-          dataUrl: data.backPngUrl
-        },
-        data.backPngFileName || `TNPA_Card_Back_${data.memberId}.png`,
-        `TNPA Card Back - ${data.memberName}`,
-        'auto'
-      );
-      triggerToast(lang === 'ta' ? '✅ பின்பக்க படம் சேமிக்கப்பட்டது!' : '✅ Back Image Saved!');
-    } catch (err) {
-      console.warn('Back image save error:', err);
+      console.warn('Share error:', err);
     } finally {
       setTimeout(() => setActiveDownload(null), 1000);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
-      <div className="relative w-full max-w-lg bg-stone-900 border-2 border-yellow-400 rounded-3xl p-5 sm:p-7 shadow-2xl text-white space-y-5 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+      <div className="relative w-full max-w-lg bg-gradient-to-b from-stone-900 to-stone-950 border-2 border-yellow-400 rounded-3xl p-4 sm:p-6 shadow-2xl text-white space-y-4 my-6">
         
         {/* Close Button */}
         <button
@@ -144,21 +141,21 @@ export default function IdCardDownloadSuccessModal({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Header with animated checkmark */}
-        <div className="flex items-center gap-3.5 border-b border-stone-800 pb-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-stone-950 flex items-center justify-center shadow-lg shrink-0">
-            <CheckCircle2 className="w-7 h-7" />
+        {/* Header */}
+        <div className="flex items-center gap-3 border-b border-stone-800 pb-3">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-stone-950 flex items-center justify-center shadow-lg shrink-0 font-black">
+            <ImageIcon className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
-                100% Download Ready
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase text-yellow-300 bg-yellow-400/20 px-2 py-0.5 rounded border border-yellow-400/40">
+                100% HD GALLERY IMAGE
               </span>
             </div>
-            <h3 className="text-lg font-black text-white mt-0.5">
-              {lang === 'ta' ? 'அடையாள அட்டை தயார்!' : 'ID Card Ready for Download!'}
+            <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+              {lang === 'ta' ? 'அடையாள அட்டை படம் தயார்!' : 'ID Card Image Ready!'}
             </h3>
-            <p className="text-xs text-stone-300">
+            <p className="text-xs text-stone-300 truncate max-w-[240px] sm:max-w-xs">
               {data.memberName} • <span className="font-mono text-yellow-400 font-bold">{data.memberId}</span>
             </p>
           </div>
@@ -172,133 +169,148 @@ export default function IdCardDownloadSuccessModal({
           </div>
         )}
 
-        {/* Instructions */}
-        <div className="bg-stone-800/80 border border-stone-700 p-3.5 rounded-2xl text-xs text-stone-300 space-y-1">
-          <p className="font-bold text-yellow-300">
-            {lang === 'ta' ? '📱 உங்கள் போனில் சேமிக்க கீழே உள்ள பட்டன்களைத் தட்டவும்:' : 'Tap below to download directly to your device:'}
-          </p>
-          <p className="text-[11px] text-stone-400">
-            {lang === 'ta' ? 'PDF ஆவணமாகவோ அல்லது உயர் தர PNG படங்களாகவோ உடனே சேமிக்கலாம்.' : 'Save as print-ready PDF or individual high-resolution PNG images.'}
-          </p>
-        </div>
-
-        {/* Download Buttons Section */}
-        <div className="space-y-3">
-          
-          {/* 1. PRIMARY PDF DOWNLOAD BUTTON */}
+        {/* Image Selection Tabs */}
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-stone-800/90 rounded-2xl border border-stone-700">
           <button
             type="button"
-            onClick={() => handleDownloadPdf('auto')}
+            onClick={() => setActiveTab('comb')}
+            className={`py-2 px-2 text-center rounded-xl text-xs font-black transition-all cursor-pointer ${
+              activeTab === 'comb'
+                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-stone-950 shadow-md scale-102'
+                : 'text-stone-300 hover:text-white'
+            }`}
+          >
+            🖼️ {lang === 'ta' ? '2-in-1 முழு அட்டை' : '2-in-1 Full'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('front')}
+            className={`py-2 px-2 text-center rounded-xl text-xs font-black transition-all cursor-pointer ${
+              activeTab === 'front'
+                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-stone-950 shadow-md scale-102'
+                : 'text-stone-300 hover:text-white'
+            }`}
+          >
+            🪪 {lang === 'ta' ? 'முன்பக்கம்' : 'Front Side'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('back')}
+            className={`py-2 px-2 text-center rounded-xl text-xs font-black transition-all cursor-pointer ${
+              activeTab === 'back'
+                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-stone-950 shadow-md scale-102'
+                : 'text-stone-300 hover:text-white'
+            }`}
+          >
+            📋 {lang === 'ta' ? 'பின்பக்கம்' : 'Back Side'}
+          </button>
+        </div>
+
+        {/* Visual Live Image Card Display */}
+        <div className="relative bg-stone-950 border-2 border-yellow-500/50 rounded-2xl p-2.5 shadow-inner flex flex-col items-center justify-center overflow-hidden group">
+          {currentImg.url ? (
+            <img
+              src={currentImg.url}
+              alt="TNPA ID Card Preview"
+              className="w-full max-h-72 object-contain rounded-xl shadow-lg border border-stone-800 transition-all select-none"
+            />
+          ) : (
+            <div className="py-12 flex flex-col items-center justify-center text-stone-400 space-y-2">
+              <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+              <span className="text-xs font-bold">படம் தயாராகிறது...</span>
+            </div>
+          )}
+
+          {/* Long Press Helper Badge */}
+          <div className="mt-2 w-full text-center bg-amber-500/15 border border-amber-400/40 rounded-xl p-2 text-[11px] text-amber-200">
+            <p className="font-bold flex items-center justify-center gap-1.5 text-yellow-300">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{lang === 'ta' ? 'போன் கேலரியில் (Gallery) சேமிக்கும் எளிதான வழி:' : 'Easy Save to Gallery:'}</span>
+            </p>
+            <p className="text-[10px] text-stone-300 mt-0.5">
+              {lang === 'ta'
+                ? 'மேலேயுள்ள படத்தை 1 வினாடி அழுத்திப் பிடித்து (Long Press) "Download image" அல்லது "Save image" என்பதைத் தொடவும்.'
+                : 'Long-press the card image above and tap "Save image" or "Download image".'}
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-2.5">
+          
+          {/* 1. PRIMARY SAVE TO GALLERY BUTTON */}
+          <button
+            type="button"
+            onClick={() => handleDownloadActiveImage('auto')}
             disabled={activeDownload !== null}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-[#C00000] via-red-600 to-[#900000] hover:from-red-600 hover:to-red-800 text-white font-black text-sm rounded-2xl shadow-xl flex items-center justify-between transition-all border-2 border-yellow-400/80 active:scale-98 cursor-pointer disabled:opacity-75"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-[#C00000] via-red-600 to-[#900000] hover:from-red-600 hover:to-red-800 text-white font-black text-sm rounded-2xl shadow-xl flex items-center justify-between transition-all border-2 border-yellow-400 active:scale-98 cursor-pointer disabled:opacity-75"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white text-[#C00000] flex items-center justify-center font-black shadow">
-                {activeDownload === 'pdf' ? (
+                {activeDownload === activeTab ? (
                   <Loader2 className="w-5 h-5 animate-spin text-[#C00000]" />
                 ) : (
-                  <FileText className="w-5 h-5" />
+                  <Download className="w-5 h-5" />
                 )}
               </div>
               <div className="text-left">
                 <div className="font-black text-sm leading-tight text-white">
-                  {lang === 'ta' ? '📥 PDF அட்டை பதிவிறக்கம் (A4 300 DPI)' : '📥 Download Official PDF'}
+                  {lang === 'ta' ? '📸 கேலரியில் சேமி (JPG / PNG பதிவிறக்கம்)' : '📸 Save to Gallery (Download Image)'}
                 </div>
-                <div className="text-[10px] text-yellow-200 font-bold truncate max-w-[220px] sm:max-w-xs">
-                  {data.pdfFileName || 'Official_Card.pdf'}
+                <div className="text-[10px] text-yellow-200 font-bold truncate max-w-[220px]">
+                  {currentImg.fileName}
                 </div>
               </div>
             </div>
             <Download className="w-5 h-5 text-yellow-300 shrink-0" />
           </button>
 
-          {/* 2. COMBINED 2-IN-1 PNG IMAGE DOWNLOAD */}
+          {/* 2. SHARE TO WHATSAPP / PHONE GALLERY SHARE SHEET */}
           <button
             type="button"
-            onClick={handleDownloadCombPng}
+            onClick={handleShareToWhatsAppOrPhone}
             disabled={activeDownload !== null}
-            className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-black text-xs rounded-2xl shadow-lg flex items-center justify-between transition-all border border-amber-300 active:scale-98 cursor-pointer disabled:opacity-75"
+            className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2.5 transition-all border border-emerald-400 active:scale-98 cursor-pointer disabled:opacity-75"
           >
-            <div className="flex items-center gap-2.5">
-              {activeDownload === 'comb' ? (
-                <Loader2 className="w-5 h-5 animate-spin text-stone-950" />
-              ) : (
-                <ImageIcon className="w-5 h-5 text-stone-950" />
-              )}
-              <div className="text-left">
-                <div className="font-black text-xs">
-                  {lang === 'ta' ? '🖼️ 2-in-1 முழு அட்டை படம் (Combined Front & Back)' : '🖼️ Combined 2-in-1 PNG Image'}
-                </div>
-                <div className="text-[10px] text-stone-900 font-medium">ஒரே படத்தில் முன்பக்கமும் பின்பக்கமும்</div>
-              </div>
-            </div>
-            <Download className="w-4 h-4 text-stone-950 shrink-0" />
+            {activeDownload === 'share' ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <Share2 className="w-4 h-4 text-white" />
+            )}
+            <span>{lang === 'ta' ? '📱 WhatsApp / போனில் நேரடியாகப் பகிர்' : '📱 Share to WhatsApp / Phone'}</span>
           </button>
 
-          {/* 3. INDIVIDUAL FRONT & BACK PNG BUTTONS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* 3. DOWNLOAD ALL INDIVIDUAL PNG/JPG BUTTONS */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
             <button
               type="button"
-              onClick={handleDownloadFrontPng}
-              disabled={activeDownload !== null}
-              className="py-2.5 px-3.5 bg-stone-800 hover:bg-stone-700 text-yellow-300 font-black text-xs rounded-xl shadow border border-stone-700 flex items-center justify-between transition-all active:scale-98 cursor-pointer disabled:opacity-75"
+              onClick={async () => {
+                setActiveTab('front');
+                setTimeout(() => handleDownloadActiveImage('auto'), 100);
+              }}
+              className="py-2.5 px-3 bg-stone-800 hover:bg-stone-700 text-yellow-300 font-black text-xs rounded-xl shadow border border-stone-700 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                {activeDownload === 'front' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ImageIcon className="w-4 h-4" />
-                )}
-                <span>{lang === 'ta' ? 'முன்பக்க படம் (Front)' : 'Front PNG'}</span>
-              </div>
-              <Download className="w-3.5 h-3.5" />
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>{lang === 'ta' ? 'முன்பக்கம் மட்டும்' : 'Front Image'}</span>
             </button>
-
             <button
               type="button"
-              onClick={handleDownloadBackPng}
-              disabled={activeDownload !== null}
-              className="py-2.5 px-3.5 bg-stone-800 hover:bg-stone-700 text-yellow-300 font-black text-xs rounded-xl shadow border border-stone-700 flex items-center justify-between transition-all active:scale-98 cursor-pointer disabled:opacity-75"
+              onClick={async () => {
+                setActiveTab('back');
+                setTimeout(() => handleDownloadActiveImage('auto'), 100);
+              }}
+              className="py-2.5 px-3 bg-stone-800 hover:bg-stone-700 text-yellow-300 font-black text-xs rounded-xl shadow border border-stone-700 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
             >
-              <div className="flex items-center gap-2">
-                {activeDownload === 'back' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ImageIcon className="w-4 h-4" />
-                )}
-                <span>{lang === 'ta' ? 'பின்பக்க படம் (Back)' : 'Back PNG'}</span>
-              </div>
-              <Download className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* 4. SHARE VIA MOBILE / WHATSAPP */}
-          <div className="pt-2 border-t border-stone-800 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => handleDownloadPdf('share')}
-              className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-            >
-              <Share2 className="w-4 h-4 text-white" />
-              <span>{lang === 'ta' ? '📱 போனில் பகிர் / WhatsApp' : '📱 Share to Phone / WhatsApp'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleDownloadPdf('view')}
-              className="py-2.5 px-4 bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-stone-700 active:scale-95"
-              title="பிரவுசரில் நேரடியாக திறக்க"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>{lang === 'ta' ? 'திரையில் திற' : 'Open'}</span>
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>{lang === 'ta' ? 'பின்பக்கம் மட்டும்' : 'Back Image'}</span>
             </button>
           </div>
 
         </div>
 
         {/* Footer info */}
-        <div className="text-center pt-2 text-[10px] text-stone-500 font-semibold">
-          தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் • TNPA Official ID Portal
+        <div className="text-center text-[10px] text-stone-400 pt-1 border-t border-stone-800/80">
+          தமிழ்நாடு பெயிண்டர்கள் மற்றும் ஓவியர்கள் முன்னேற்ற சங்கம் • 100% High-Resolution PVC Print Ready
         </div>
 
       </div>

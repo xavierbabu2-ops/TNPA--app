@@ -1,8 +1,10 @@
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { shareOrDownloadBlob, directDownloadDataUrl, blobToDataUrl } from './pdfDownloadHelper';
+import { renderDigitalMemberCardImage, CardImageRenderOptions, CardImageRenderResult } from './idCardImageRenderer';
 
-export { shareOrDownloadBlob, directDownloadDataUrl, blobToDataUrl };
+export { shareOrDownloadBlob, directDownloadDataUrl, blobToDataUrl, renderDigitalMemberCardImage };
+export type { CardImageRenderOptions, CardImageRenderResult };
 
 export const DEFAULT_MEMBER_FALLBACK_PHOTO = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360" width="300" height="360">
@@ -35,12 +37,21 @@ export interface IdCardExportResult {
   frontPngBlob?: Blob;
   frontPngUrl?: string;
   frontPngFileName?: string;
+  frontJpgBlob?: Blob;
+  frontJpgUrl?: string;
+  frontJpgFileName?: string;
   backPngBlob?: Blob;
   backPngUrl?: string;
   backPngFileName?: string;
+  backJpgBlob?: Blob;
+  backJpgUrl?: string;
+  backJpgFileName?: string;
   combPngBlob?: Blob;
   combPngUrl?: string;
   combPngFileName?: string;
+  combJpgBlob?: Blob;
+  combJpgUrl?: string;
+  combJpgFileName?: string;
   error?: string;
 }
 
@@ -821,34 +832,78 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
     let frontCanvas: HTMLCanvasElement | null = null;
     let backCanvas: HTMLCanvasElement | null = null;
 
+    let frontPngUrl: string | undefined = undefined;
+    let frontJpgUrl: string | undefined = undefined;
+    let frontPngBlob: Blob | undefined = undefined;
+    let frontJpgBlob: Blob | undefined = undefined;
+    const fileNameFrontPng = createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png');
+    const fileNameFrontJpg = createSafeFileName('TNPA_Card_Front', memberName, memberId, 'jpg');
+
     if (frontEl) {
       if (onProgress) onProgress('முன்பக்க படம் சேமிக்கிறது (Front Side 300 DPI)...');
       const restoreF = await prepareElementImages(frontEl);
       frontCanvas = await html2canvas(frontEl, getSafeCanvasOptions(frontEl, 3));
       restoreF();
-      const fileNameFront = createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png');
-      const frontDataUrl = safeCanvasToDataURL(frontCanvas);
-      directDownloadDataUrl(frontDataUrl, fileNameFront);
-      frontCanvas.toBlob((blob) => {
-        if (blob) triggerBlobDownload(blob, fileNameFront);
-      }, 'image/png', 1.0);
+      
+      frontPngUrl = safeCanvasToDataURL(frontCanvas);
+      try {
+        frontJpgUrl = frontCanvas.toDataURL('image/jpeg', 0.95);
+      } catch {}
+
+      await new Promise<void>((resolve) => {
+        frontCanvas?.toBlob((blob) => {
+          if (blob) frontPngBlob = blob;
+          resolve();
+        }, 'image/png', 1.0);
+      });
+
+      await new Promise<void>((resolve) => {
+        frontCanvas?.toBlob((blob) => {
+          if (blob) frontJpgBlob = blob;
+          resolve();
+        }, 'image/jpeg', 0.95);
+      });
     }
+
+    let backPngUrl: string | undefined = undefined;
+    let backJpgUrl: string | undefined = undefined;
+    let backPngBlob: Blob | undefined = undefined;
+    let backJpgBlob: Blob | undefined = undefined;
+    const fileNameBackPng = createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png');
+    const fileNameBackJpg = createSafeFileName('TNPA_Card_Back', memberName, memberId, 'jpg');
 
     if (backEl) {
       if (onProgress) onProgress('பின்பக்க படம் சேமிக்கிறது (Back Side 300 DPI)...');
       const restoreB = await prepareElementImages(backEl);
       backCanvas = await html2canvas(backEl, getSafeCanvasOptions(backEl, 3));
       restoreB();
-      const fileNameBack = createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png');
-      const backDataUrl = safeCanvasToDataURL(backCanvas);
-      directDownloadDataUrl(backDataUrl, fileNameBack);
-      backCanvas.toBlob((blob) => {
-        if (blob) triggerBlobDownload(blob, fileNameBack);
-      }, 'image/png', 1.0);
+      
+      backPngUrl = safeCanvasToDataURL(backCanvas);
+      try {
+        backJpgUrl = backCanvas.toDataURL('image/jpeg', 0.95);
+      } catch {}
+
+      await new Promise<void>((resolve) => {
+        backCanvas?.toBlob((blob) => {
+          if (blob) backPngBlob = blob;
+          resolve();
+        }, 'image/png', 1.0);
+      });
+
+      await new Promise<void>((resolve) => {
+        backCanvas?.toBlob((blob) => {
+          if (blob) backJpgBlob = blob;
+          resolve();
+        }, 'image/jpeg', 0.95);
+      });
     }
 
     let combPngUrl: string | undefined = undefined;
-    let fileNameFull: string | undefined = undefined;
+    let combJpgUrl: string | undefined = undefined;
+    let combPngBlob: Blob | undefined = undefined;
+    let combJpgBlob: Blob | undefined = undefined;
+    const fileNameFullPng = createSafeFileName('TNPA_Full_Card_2in1', memberName, memberId, 'png');
+    const fileNameFullJpg = createSafeFileName('TNPA_Full_Card_2in1', memberName, memberId, 'jpg');
 
     // Generate Combined Front + Back 2-in-1 print image
     if (frontCanvas && backCanvas) {
@@ -866,9 +921,25 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
           ctx.fillRect(0, 0, totalW, totalH);
           ctx.drawImage(frontCanvas, pad, pad);
           ctx.drawImage(backCanvas, pad, pad + frontCanvas.height + gap);
+          
           combPngUrl = safeCanvasToDataURL(combCanvas);
-          fileNameFull = createSafeFileName('TNPA_Full_Card_2in1', memberName, memberId, 'png');
-          directDownloadDataUrl(combPngUrl, fileNameFull);
+          try {
+            combJpgUrl = combCanvas.toDataURL('image/jpeg', 0.95);
+          } catch {}
+
+          await new Promise<void>((resolve) => {
+            combCanvas.toBlob((blob) => {
+              if (blob) combPngBlob = blob;
+              resolve();
+            }, 'image/png', 1.0);
+          });
+
+          await new Promise<void>((resolve) => {
+            combCanvas.toBlob((blob) => {
+              if (blob) combJpgBlob = blob;
+              resolve();
+            }, 'image/jpeg', 0.95);
+          });
         }
       } catch (e) {
         console.warn('Combined canvas creation notice:', e);
@@ -878,16 +949,28 @@ export async function exportIdCardAsImages(options: IdCardExportOptions): Promis
     if (options.onSuccess) {
       options.onSuccess({
         success: true,
-        frontPngUrl: frontCanvas ? safeCanvasToDataURL(frontCanvas) : undefined,
-        frontPngFileName: createSafeFileName('TNPA_Card_Front', memberName, memberId, 'png'),
-        backPngUrl: backCanvas ? safeCanvasToDataURL(backCanvas) : undefined,
-        backPngFileName: createSafeFileName('TNPA_Card_Back', memberName, memberId, 'png'),
+        frontPngUrl,
+        frontPngBlob,
+        frontPngFileName: fileNameFrontPng,
+        frontJpgUrl,
+        frontJpgBlob,
+        frontJpgFileName: fileNameFrontJpg,
+        backPngUrl,
+        backPngBlob,
+        backPngFileName: fileNameBackPng,
+        backJpgUrl,
+        backJpgBlob,
+        backJpgFileName: fileNameBackJpg,
         combPngUrl,
-        combPngFileName: fileNameFull
+        combPngBlob,
+        combPngFileName: fileNameFullPng,
+        combJpgUrl,
+        combJpgBlob,
+        combJpgFileName: fileNameFullJpg,
       });
     }
 
-    if (onProgress) onProgress('✅ படங்கள் வெற்றிகரமாக சேமிக்கப்பட்டது!');
+    if (onProgress) onProgress('✅ அடையாள அட்டை படங்கள் வெற்றிகரமாக தயாராகியுள்ளது!');
     return true;
   } catch (err) {
     console.error('Failed to export ID card as image:', err);

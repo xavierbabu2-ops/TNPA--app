@@ -475,6 +475,17 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button
                       type="button"
+                      id="btn-download-digital-png"
+                      disabled={isDownloading}
+                      onClick={handleDownloadDigitalPng}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#C00000] via-red-600 to-[#900000] hover:from-red-600 hover:to-red-800 text-white text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50 border-2 border-yellow-400"
+                    >
+                      <ImageIcon className="w-4 h-4 text-yellow-300" />
+                      <span>🖼️ கேலரியில் சேமி (JPG/PNG)</span>
+                    </button>
+
+                    <button
+                      type="button"
                       id="btn-download-digital-pdf"
                       disabled={isDownloading}
                       onClick={() => {
@@ -484,25 +495,14 @@ export const MemberCardPortal: React.FC<MemberCardPortalProps> = ({
                           handleDownloadDigitalPdf();
                         }
                       }}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-[#C00000] hover:bg-red-700 text-white text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50"
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-stone-900 hover:bg-stone-800 text-yellow-300 text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50 border border-stone-700"
                     >
                       {isDownloading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
                       ) : (
                         <Download className="w-4 h-4 text-yellow-300" />
                       )}
-                      <span>📥 {generatedPdf ? 'PDF சேமி / டவுன்லோடு' : 'PDF டவுன்லோடு'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      id="btn-download-digital-png"
-                      disabled={isDownloading}
-                      onClick={handleDownloadDigitalPng}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-stone-900 hover:bg-stone-800 text-yellow-300 text-xs font-black rounded-xl transition-all shadow-md cursor-pointer active:scale-95 disabled:opacity-50 border border-yellow-500/30"
-                    >
-                      <ImageIcon className="w-4 h-4 text-yellow-300" />
-                      <span>🖼️ PNG படம்</span>
+                      <span>📥 {generatedPdf ? 'PDF சேமி' : 'PDF ஆவணம்'}</span>
                     </button>
 
                     <button

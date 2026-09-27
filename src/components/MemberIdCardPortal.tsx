@@ -608,12 +608,12 @@ export default function MemberIdCardPortal({
     }
 
     setIsGeneratingPdf(true);
-    setPdfStatusMessage("PNG படங்கள் தயார் செய்யப்படுகிறது...");
+    setPdfStatusMessage("அடையாள அட்டை படங்கள் தயார் செய்யப்படுகிறது (HD JPG / PNG)...");
 
     const originalSide = cardSide;
     if (cardSide !== "both") {
       setCardSide("both");
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 200));
     }
 
     try {
@@ -628,19 +628,31 @@ export default function MemberIdCardPortal({
             memberName,
             memberId: memberRegNo,
             district: memberDistrict,
+            frontPngBlob: res.frontPngBlob,
             frontPngUrl: res.frontPngUrl,
             frontPngFileName: res.frontPngFileName,
+            frontJpgBlob: res.frontJpgBlob,
+            frontJpgUrl: res.frontJpgUrl,
+            frontJpgFileName: res.frontJpgFileName,
+            backPngBlob: res.backPngBlob,
             backPngUrl: res.backPngUrl,
             backPngFileName: res.backPngFileName,
+            backJpgBlob: res.backJpgBlob,
+            backJpgUrl: res.backJpgUrl,
+            backJpgFileName: res.backJpgFileName,
+            combPngBlob: res.combPngBlob,
             combPngUrl: res.combPngUrl,
             combPngFileName: res.combPngFileName,
+            combJpgBlob: res.combJpgBlob,
+            combJpgUrl: res.combJpgUrl,
+            combJpgFileName: res.combJpgFileName,
           });
           setIsDownloadModalOpen(true);
         }
       });
-      onAddAuditLog("Download ID Card PNGs", `Downloaded Front & Back PNGs for ${memberName}`);
+      onAddAuditLog("Download ID Card Images", `Downloaded HD Gallery Images for ${memberName}`);
     } catch (err) {
-      console.error("PNG export error:", err);
+      console.error("Image export error:", err);
     } finally {
       setIsGeneratingPdf(false);
       setPdfStatusMessage(null);
@@ -850,34 +862,34 @@ export default function MemberIdCardPortal({
                 </button>
               )}
 
-              {/* Print & PDF & PNG Download Buttons */}
+              {/* Primary Gallery Image & Print/PDF Buttons */}
               <button
-                onClick={handleDownloadPdf}
+                onClick={handleDownloadPngs}
                 disabled={isGeneratingPdf}
-                className="px-4 py-2 bg-gradient-to-r from-[#C00000] to-[#800000] hover:from-red-700 hover:to-red-900 text-white font-black text-xs rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-yellow-400/50 active:scale-95 disabled:opacity-50"
+                className="px-4 py-2.5 bg-gradient-to-r from-[#C00000] via-red-600 to-[#800000] hover:from-red-600 hover:to-red-800 text-white font-black text-xs rounded-2xl shadow-xl transition-all flex items-center gap-2 cursor-pointer border-2 border-yellow-400 active:scale-95 disabled:opacity-50"
               >
                 {isGeneratingPdf ? (
                   <Loader2 className="w-4 h-4 animate-spin text-yellow-300" />
                 ) : (
-                  <Download className="w-4 h-4 text-yellow-300" />
+                  <ImageIcon className="w-4 h-4 text-yellow-300" />
                 )}
-                <span>{lang === "ta" ? "📥 PDF பதிவிறக்கம்" : "📥 Download PDF"}</span>
+                <span>{lang === "ta" ? "🖼️ கேலரியில் சேமி (JPG / PNG)" : "🖼️ Save to Gallery (JPG / PNG)"}</span>
               </button>
 
               <button
-                onClick={handleDownloadPngs}
+                onClick={handleDownloadPdf}
                 disabled={isGeneratingPdf}
-                className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-yellow-300 font-black text-xs rounded-2xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-yellow-500/40 active:scale-95 disabled:opacity-50"
+                className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-yellow-300 font-bold text-xs rounded-2xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-stone-700 active:scale-95 disabled:opacity-50"
               >
-                <ImageIcon className="w-4 h-4 text-yellow-300" />
-                <span>{lang === "ta" ? "🖼️ PNG படங்கள்" : "🖼️ PNG Images"}</span>
+                <Download className="w-3.5 h-3.5 text-yellow-300" />
+                <span>{lang === "ta" ? "PDF ஆவணம்" : "PDF Doc"}</span>
               </button>
 
               <button
                 onClick={handlePrintCard}
-                className="px-3.5 py-2 bg-stone-900 hover:bg-black text-yellow-400 font-black text-xs rounded-2xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-stone-700 active:scale-95"
+                className="px-3 py-2 bg-stone-900 hover:bg-black text-stone-300 font-bold text-xs rounded-2xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-stone-700 active:scale-95"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="w-3.5 h-3.5" />
                 <span>{lang === "ta" ? "அச்சிடு" : "Print"}</span>
               </button>
             </div>
